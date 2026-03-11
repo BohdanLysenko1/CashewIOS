@@ -2,6 +2,7 @@ import Foundation
 import Observation
 
 @Observable
+@MainActor
 final class TripService: TripServiceProtocol {
 
     private let repository: TripRepositoryProtocol
@@ -22,7 +23,11 @@ final class TripService: TripServiceProtocol {
             let computed = trips[i].computedStatus
             if trips[i].status != computed {
                 trips[i].status = computed
-                _ = try? await repository.save(trips[i])
+                do {
+                    _ = try await repository.save(trips[i])
+                } catch {
+                    print("[TripService] Failed to persist status sync for trip '\(trips[i].name)': \(error)")
+                }
             }
         }
     }

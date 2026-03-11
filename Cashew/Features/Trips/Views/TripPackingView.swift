@@ -154,7 +154,7 @@ struct TripPackingView: View {
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.white)
                     .frame(width: 24, height: 24)
-                    .background(categoryColor(category).gradient)
+                    .background(category.color.gradient)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
 
                 Text(category.displayName)
@@ -278,19 +278,6 @@ struct TripPackingView: View {
         return .other
     }
 
-    private func categoryColor(_ category: PackingCategory) -> Color {
-        switch category {
-        case .clothing: return .blue
-        case .toiletries: return .cyan
-        case .electronics: return .purple
-        case .documents: return .orange
-        case .medicine: return .red
-        case .accessories: return .pink
-        case .entertainment: return .indigo
-        case .snacks: return .green
-        case .other: return .gray
-        }
-    }
 }
 
 // MARK: - Packing Item Row

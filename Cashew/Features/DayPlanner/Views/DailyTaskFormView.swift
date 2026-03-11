@@ -121,10 +121,12 @@ struct DailyTaskFormView: View {
             }
             .task {
                 if tripService.trips.isEmpty {
-                    try? await tripService.loadTrips()
+                    do { try await tripService.loadTrips() }
+                    catch { print("[DailyTaskFormView] Failed to load trips: \(error)") }
                 }
                 if eventService.events.isEmpty {
-                    try? await eventService.loadEvents()
+                    do { try await eventService.loadEvents() }
+                    catch { print("[DailyTaskFormView] Failed to load events: \(error)") }
                 }
             }
         }

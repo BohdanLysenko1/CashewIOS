@@ -78,10 +78,8 @@ struct LocationSearchField: View {
             } else {
                 text = suggestion.title
             }
-            // Delay resetting so the onChange from setting `text` above is suppressed
-            DispatchQueue.main.async {
-                isSelecting = false
-            }
+            // Delay resetting to next run-loop cycle so the onChange from setting `text` is suppressed
+            Task { @MainActor in isSelecting = false }
         }
     }
 }

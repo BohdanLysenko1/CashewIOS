@@ -223,7 +223,7 @@ private struct ActivityCard: View {
                         .font(.system(size: 14))
                         .foregroundStyle(.white)
                         .frame(width: 28, height: 28)
-                        .background(categoryColor.gradient)
+                        .background(activity.category.color.gradient)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
 
                     VStack(alignment: .leading, spacing: 2) {
@@ -280,19 +280,6 @@ private struct ActivityCard: View {
         }
     }
 
-    private var categoryColor: Color {
-        switch activity.category {
-        case .flight, .train, .bus, .car, .ferry: return .blue
-        case .hotel: return .purple
-        case .restaurant: return .orange
-        case .museum, .tour: return .brown
-        case .beach: return .cyan
-        case .hiking: return .green
-        case .shopping: return .pink
-        case .nightlife: return .indigo
-        default: return .gray
-        }
-    }
 
     private func formatCost(_ cost: Decimal, currency: String) -> String {
         let formatter = NumberFormatter()

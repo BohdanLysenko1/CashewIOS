@@ -11,7 +11,7 @@ final class TripFormViewModel {
     var destinationLatitude: Double?
     var destinationLongitude: Double?
     var startDate: Date = Date()
-    var endDate: Date = Date().addingTimeInterval(86400 * 7) // 1 week default
+    var endDate: Date = Date().addingTimeInterval(7 * 24 * 60 * 60) // 1 week default
     var notes: String = ""
     var photoAttachments: [Attachment] = []
 

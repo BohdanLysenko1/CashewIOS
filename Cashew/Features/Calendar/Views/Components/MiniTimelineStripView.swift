@@ -387,7 +387,7 @@ private struct MiniTimelineStripPreviewData {
 
     static func event(_ title: String, hour: Int, minute: Int = 0,
                       duration: Double, category: EventCategory) -> Event {
-        let start = cal.date(bySettingHour: hour, minute: minute, second: 0, of: now)!
+        let start = cal.date(bySettingHour: hour, minute: minute, second: 0, of: now) ?? now
         return Event(title: title, date: start,
                      endDate: start.addingTimeInterval(duration * 3600),
                      category: category)
@@ -395,7 +395,7 @@ private struct MiniTimelineStripPreviewData {
 
     static func task(_ title: String, hour: Int, duration: Double,
                      category: TaskCategory) -> DailyTask {
-        let start = cal.date(bySettingHour: hour, minute: 0, second: 0, of: now)!
+        let start = cal.date(bySettingHour: hour, minute: 0, second: 0, of: now) ?? now
         return DailyTask(title: title, date: now, startTime: start,
                          endTime: start.addingTimeInterval(duration * 3600),
                          category: category)

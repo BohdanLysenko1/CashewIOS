@@ -57,6 +57,17 @@ enum AppTheme {
 
     static let cardPadding: CGFloat = 16
     static let listSpacing: CGFloat = 12
+
+    // MARK: - Animation
+
+    static let springResponse: Double = 0.35
+    static let springDamping: Double = 0.7
+    static let checkBounceScale: CGFloat = 1.35
+    static let pulseRingDuration: Double = 1.4
+    static let confettiDuration: Double = 0.45
+    static let confettiFadeDuration: Double = 0.3
+    static let confettiFadeDelay: Double = 0.35
+    static let confettiLifetime: Double = 0.8
 }
 
 // MARK: - View Modifiers

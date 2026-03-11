@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 struct Activity: Identifiable, Codable, Equatable, Sendable {
     let id: UUID
@@ -103,6 +104,20 @@ enum ActivityCategory: String, Codable, Sendable, CaseIterable {
         case .nightlife: "moon.stars.fill"
         case .activity: "star.fill"
         case .other: "ellipsis.circle.fill"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .flight, .train, .bus, .car, .ferry: .blue
+        case .hotel: .purple
+        case .restaurant: .orange
+        case .museum, .tour: .brown
+        case .beach: .cyan
+        case .hiking: .green
+        case .shopping: .pink
+        case .nightlife: .indigo
+        case .activity, .other: .gray
         }
     }
 

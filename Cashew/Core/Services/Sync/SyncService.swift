@@ -10,12 +10,11 @@ final class SyncService: SyncServiceProtocol {
     private let cloudEventRepository: EventRepositoryProtocol
     private let cloudKit: CloudKitManager
 
-    private let syncEnabledKey = "isSyncEnabled"
     private var syncTask: Task<Void, Never>?
 
     var isSyncEnabled: Bool {
         didSet {
-            UserDefaults.standard.set(isSyncEnabled, forKey: syncEnabledKey)
+            UserDefaults.standard.set(isSyncEnabled, forKey: UserDefaultsKeys.isSyncEnabled)
             if isSyncEnabled {
                 triggerSync()
             } else {
@@ -40,7 +39,7 @@ final class SyncService: SyncServiceProtocol {
         self.cloudTripRepository = cloudTripRepository ?? CloudTripRepository(cloudKit: cloudKit)
         self.cloudEventRepository = cloudEventRepository ?? CloudEventRepository(cloudKit: cloudKit)
         self.cloudKit = cloudKit
-        self.isSyncEnabled = UserDefaults.standard.bool(forKey: syncEnabledKey)
+        self.isSyncEnabled = UserDefaults.standard.bool(forKey: UserDefaultsKeys.isSyncEnabled)
     }
 
     func checkCloudAvailability() async -> Bool {

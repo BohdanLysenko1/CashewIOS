@@ -147,7 +147,7 @@ struct TripBudgetView: View {
                             .font(.system(size: 14))
                             .foregroundStyle(.white)
                             .frame(width: 28, height: 28)
-                            .background(categoryColor(item.category).gradient)
+                            .background(item.category.color.gradient)
                             .clipShape(RoundedRectangle(cornerRadius: 6))
 
                         Text(item.category.displayName)
@@ -244,19 +244,6 @@ struct TripBudgetView: View {
         return formatter.string(from: amount as NSNumber) ?? "\(trip.currency) \(amount)"
     }
 
-    private func categoryColor(_ category: ExpenseCategory) -> Color {
-        switch category.color {
-        case "blue": return .blue
-        case "green": return .green
-        case "orange": return .orange
-        case "purple": return .purple
-        case "pink": return .pink
-        case "red": return .red
-        case "mint": return .mint
-        case "cyan": return .cyan
-        default: return .gray
-        }
-    }
 
     private func deleteExpense(_ expense: Expense) {
         trip.expenses.removeAll { $0.id == expense.id }

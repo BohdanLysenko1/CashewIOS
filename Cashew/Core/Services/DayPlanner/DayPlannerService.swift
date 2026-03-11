@@ -7,6 +7,7 @@ final class DayPlannerService: DayPlannerServiceProtocol {
 
     private let taskRepository: DailyTaskRepositoryProtocol
     private let routineRepository: DailyRoutineRepositoryProtocol
+    private let gamificationService: GamificationService?
 
     private(set) var allTasks: [DailyTask] = []
     private(set) var routines: [DailyRoutine] = []
@@ -14,7 +15,8 @@ final class DayPlannerService: DayPlannerServiceProtocol {
     var selectedDate: Date = Date() {
         didSet {
             Task {
-                try? await generateTasksFromRoutines(for: selectedDate)
+                do { try await generateTasksFromRoutines(for: selectedDate) }
+                catch { print("[DayPlannerService] Failed to generate tasks for \(selectedDate): \(error)") }
             }
         }
     }
@@ -50,9 +52,14 @@ final class DayPlannerService: DayPlannerServiceProtocol {
 
     // MARK: - Init
 
-    init(taskRepository: DailyTaskRepositoryProtocol, routineRepository: DailyRoutineRepositoryProtocol) {
+    init(
+        taskRepository: DailyTaskRepositoryProtocol,
+        routineRepository: DailyRoutineRepositoryProtocol,
+        gamificationService: GamificationService? = nil
+    ) {
         self.taskRepository = taskRepository
         self.routineRepository = routineRepository
+        self.gamificationService = gamificationService
     }
 
     // MARK: - Load Data
@@ -85,9 +92,20 @@ final class DayPlannerService: DayPlannerServiceProtocol {
     }
 
     func toggleTaskCompletion(_ task: DailyTask) async throws {
+        let wasCompleted = task.isCompleted
         var updatedTask = task
         updatedTask.isCompleted.toggle()
         try await updateTask(updatedTask)
+
+        if let gam = gamificationService {
+            let xp = XPCalculator.xp(for: task)
+            let streak = maxCurrentStreak()
+            if wasCompleted {
+                gam.deduct(xp: xp, streakDays: streak)
+            } else {
+                gam.award(xp: xp, streakDays: streak)
+            }
+        }
     }
 
     // MARK: - Routine CRUD
@@ -188,8 +206,18 @@ final class DayPlannerService: DayPlannerServiceProtocol {
             updatedTask.category = routine.category
             updatedTask.notes = routine.notes
 
-            try? await updateTask(updatedTask)
+            do { try await updateTask(updatedTask) }
+            catch { print("[DayPlannerService] Failed to sync routine task '\(routine.title)': \(error)") }
         }
+    }
+
+    // MARK: - Streak (for XP multiplier)
+
+    private func maxCurrentStreak() -> Int {
+        routines
+            .filter(\.isEnabled)
+            .map { StreakCalculator.currentStreak(for: $0, tasks: allTasks) }
+            .max() ?? 0
     }
 
     // MARK: - Cleanup

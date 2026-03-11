@@ -3,7 +3,8 @@ import UIKit
 struct ImageStore {
 
     private static let photosDirectory: URL = {
-        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+            .first ?? URL(fileURLWithPath: NSHomeDirectory() + "/Documents")
         let dir = docs.appendingPathComponent("photos", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
@@ -23,6 +24,7 @@ struct ImageStore {
             }
             return filename
         } catch {
+            print("[ImageStore] Failed to save image: \(error)")
             return nil
         }
     }
@@ -37,6 +39,7 @@ struct ImageStore {
     /// Deletes a stored image file.
     static func delete(filename: String) {
         let url = photosDirectory.appendingPathComponent(filename)
-        try? FileManager.default.removeItem(at: url)
+        do { try FileManager.default.removeItem(at: url) }
+        catch { print("[ImageStore] Failed to delete image '\(filename)': \(error)") }
     }
 }

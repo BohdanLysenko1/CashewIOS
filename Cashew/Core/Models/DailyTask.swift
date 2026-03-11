@@ -88,15 +88,17 @@ struct DailyTask: Identifiable, Codable, Equatable, Sendable {
 
     var formattedTimeRange: String? {
         guard let start = startTime else { return nil }
-
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-
         if let end = endTime {
-            return "\(formatter.string(from: start)) - \(formatter.string(from: end))"
+            return "\(Self.timeFormatter.string(from: start)) - \(Self.timeFormatter.string(from: end))"
         }
-        return formatter.string(from: start)
+        return Self.timeFormatter.string(from: start)
     }
+
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.timeStyle = .short
+        return f
+    }()
 
     var duration: TimeInterval? {
         guard let start = startTime, let end = endTime else { return nil }

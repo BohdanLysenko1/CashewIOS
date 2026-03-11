@@ -377,7 +377,7 @@ struct CalendarView: View {
         let cal = Calendar.current
         let interval = cal.dateInterval(of: .weekOfYear, for: selectedDate)
         let ws = interval?.start ?? selectedDate
-        let we = interval?.end ?? selectedDate.addingTimeInterval(86400 * 7)
+        let we = interval?.end ?? selectedDate.addingTimeInterval(7 * 24 * 60 * 60)
 
         let weekTotal =
             (showTrips ? tripService.trips.filter { $0.startDate < we && $0.endDate >= ws }.count : 0)

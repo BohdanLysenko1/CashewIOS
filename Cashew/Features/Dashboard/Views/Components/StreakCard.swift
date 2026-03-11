@@ -26,10 +26,25 @@ struct StreakCard: View {
         }
     }
 
+    @State private var pulsing = false
+
     var body: some View {
         VStack(spacing: 10) {
             // Flame + streak count
             ZStack {
+                // Pulsing glow ring — only for active streaks
+                if currentStreak >= 3 {
+                    Circle()
+                        .stroke(flameColor.opacity(0.35), lineWidth: 2.5)
+                        .frame(width: 56, height: 56)
+                        .scaleEffect(pulsing ? 1.45 : 1.0)
+                        .opacity(pulsing ? 0 : 1)
+                        .animation(
+                            .easeOut(duration: AppTheme.pulseRingDuration).repeatForever(autoreverses: false),
+                            value: pulsing
+                        )
+                }
+
                 Circle()
                     .fill(flameColor.opacity(0.15))
                     .frame(width: 56, height: 56)
@@ -37,7 +52,11 @@ struct StreakCard: View {
                 Image(systemName: currentStreak >= 3 ? "flame.fill" : "flame")
                     .font(.system(size: flameSize))
                     .foregroundStyle(flameColor.gradient)
-                    .symbolEffect(.bounce, value: currentStreak >= 7)
+                    .symbolEffect(.bounce, value: currentStreak)
+                    .symbolEffect(.pulse, isActive: currentStreak >= 7)
+            }
+            .onAppear {
+                if currentStreak >= 3 { pulsing = true }
             }
 
             // Streak number
@@ -142,39 +161,6 @@ struct StreakTrackerSection: View {
     // MARK: - Streak Computation
 
     private func computeStreak(for routine: DailyRoutine) -> (current: Int, best: Int) {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-
-        let routineTasks = allTasks
-            .filter { $0.routineId == routine.id }
-            .sorted { $0.date > $1.date }
-
-        var currentStreak = 0
-        var bestStreak = 0
-        var tempStreak = 0
-
-        for dayOffset in 0..<90 {
-            guard let date = calendar.date(byAdding: .day, value: -dayOffset, to: today) else { break }
-            guard routine.shouldRunOn(date: date) else { continue }
-
-            let hasCompletedTask = routineTasks.contains { task in
-                calendar.isDate(task.date, inSameDayAs: date) && task.isCompleted
-            }
-
-            if hasCompletedTask {
-                tempStreak += 1
-                bestStreak = max(bestStreak, tempStreak)
-                if dayOffset <= 1 || currentStreak == tempStreak - 1 {
-                    currentStreak = tempStreak
-                }
-            } else {
-                tempStreak = 0
-                if currentStreak > 0 && dayOffset > 0 {
-                    break
-                }
-            }
-        }
-
-        return (currentStreak, bestStreak)
+        StreakCalculator.streaks(for: routine, tasks: allTasks)
     }
 }

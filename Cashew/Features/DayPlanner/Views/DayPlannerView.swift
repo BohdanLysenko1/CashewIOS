@@ -153,7 +153,8 @@ struct DayPlannerView: View {
             .background(Color(.systemBackground))
             .onAppear {
                 let today = Calendar.current.startOfDay(for: service.selectedDate)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                Task {
+                    try? await Task.sleep(for: .milliseconds(50))
                     proxy.scrollTo(today, anchor: .leading)
                 }
             }

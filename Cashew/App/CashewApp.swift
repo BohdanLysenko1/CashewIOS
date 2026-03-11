@@ -16,11 +16,11 @@ struct CashewApp: App {
     }
 
     private func requestNotificationPermissionIfNeeded() async {
-        let hasRequestedKey = "hasRequestedNotificationPermission"
+        let key = UserDefaultsKeys.hasRequestedNotificationPermission
 
-        if !UserDefaults.standard.bool(forKey: hasRequestedKey) {
+        if !UserDefaults.standard.bool(forKey: key) {
             await container.requestNotificationPermission()
-            UserDefaults.standard.set(true, forKey: hasRequestedKey)
+            UserDefaults.standard.set(true, forKey: key)
         } else {
             // Check current status on subsequent launches
             await container.notificationService.checkAuthorizationStatus()

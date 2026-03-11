@@ -6,11 +6,13 @@ struct DashboardView: View {
     @State private var isLoading = true
     @State private var showAddTask = false
     @State private var showDayPlanner = false
+    @State private var showProgress = false
     @State private var error: String?
 
     private var tripService: TripServiceProtocol { container.tripService }
     private var eventService: EventServiceProtocol { container.eventService }
     private var dayPlannerService: DayPlannerServiceProtocol { container.dayPlannerService }
+    private var gamification: GamificationService { container.gamificationService }
 
     // MARK: - Computed — Day Planner
 
@@ -41,6 +43,21 @@ struct DashboardView: View {
             .sorted { $0.date < $1.date }
             .prefix(3)
             .map { $0 }
+    }
+
+    // MARK: - Computed — XP & Streak
+
+    private var xpToday: Int {
+        let base = todaysTasks.filter(\.isCompleted).reduce(0) { $0 + XPCalculator.xp(for: $1) }
+        let bonus = (!todaysTasks.isEmpty && completedTasksCount == todaysTasks.count) ? XPCalculator.dayCompletionBonus : 0
+        return base + bonus
+    }
+
+    private var currentStreak: Int {
+        dayPlannerService.routines
+            .filter(\.isEnabled)
+            .map { computeCurrentStreak(for: $0) }
+            .max() ?? 0
     }
 
     // MARK: - Computed — Greeting
@@ -96,6 +113,45 @@ struct DashboardView: View {
 
     private var smartAlerts: [SmartAlertType] {
         var alerts: [SmartAlertType] = []
+        let now = Date()
+
+        // Overdue tasks: scheduled tasks whose time window has passed
+        let overdueTask = todaysTasks
+            .filter { task in
+                guard !task.isCompleted else { return false }
+                if let end = task.endTime { return end < now }
+                if let start = task.startTime { return start < now - XPCalculator.overdueGracePeriod }
+                return false
+            }
+            .sorted { ($0.endTime ?? $0.startTime ?? $0.date) < ($1.endTime ?? $1.startTime ?? $1.date) }
+            .last
+        if let task = overdueTask {
+            alerts.append(.taskOverdue(taskTitle: task.title))
+        }
+
+        // Event starting soon (within 2 hours, non-all-day)
+        if let soonEvent = eventService.events
+            .filter({ event in
+                guard !event.isAllDay else { return false }
+                let minutesUntil = event.date.timeIntervalSince(now) / 60
+                return minutesUntil >= 0 && minutesUntil <= 120
+            })
+            .sorted(by: { $0.date < $1.date })
+            .first {
+            let minutesUntil = max(0, Int(soonEvent.date.timeIntervalSince(now) / 60))
+            alerts.append(.eventStartingSoon(eventName: soonEvent.title, minutesUntil: minutesUntil))
+        }
+
+        // Task due today: any incomplete task not already caught by taskOverdue
+        // (covers both unscheduled and scheduled-but-not-yet-overdue tasks)
+        if let dueTask = todaysTasks.first(where: { task in
+            guard !task.isCompleted else { return false }
+            if let end = task.endTime, end < now { return false }
+            if let start = task.startTime, start < now - 1800 { return false }
+            return true
+        }) {
+            alerts.append(.taskDueToday(taskTitle: dueTask.title, dueTime: dueTask.endTime ?? dueTask.startTime))
+        }
 
         // No tasks today
         if todaysTasks.isEmpty {
@@ -164,6 +220,25 @@ struct DashboardView: View {
                 }
             }
             .background(Color(.systemGroupedBackground))
+            .overlay {
+                if let newLevel = gamification.pendingLevelUp {
+                    ZStack {
+                        Color.black.opacity(0.45)
+                            .ignoresSafeArea()
+                            .onTapGesture { gamification.clearLevelUp() }
+
+                        LevelUpBannerView(
+                            level: newLevel,
+                            title: GamificationService.levels
+                                .first { $0.level == newLevel }?.title ?? "",
+                            onDismiss: { gamification.clearLevelUp() }
+                        )
+                    }
+                    .transition(.opacity)
+                    .zIndex(99)
+                }
+            }
+            .animation(.easeInOut(duration: 0.25), value: gamification.pendingLevelUp)
             .navigationTitle("My Day")
             .navigationBarTitleDisplayMode(.large)
             .navigationDestination(for: UUID.self) { id in
@@ -188,6 +263,16 @@ struct DashboardView: View {
                     defaultDate: Date()
                 )
             }
+            .sheet(isPresented: $showProgress) {
+                NavigationStack {
+                    PlayerProgressView(gamification: gamification)
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button("Done") { showProgress = false }
+                            }
+                        }
+                }
+            }
             .sheet(isPresented: $showDayPlanner) {
                 DayPlannerView()
             }
@@ -199,11 +284,11 @@ struct DashboardView: View {
     private var scrollContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                // 1. Motivational Greeting
-                greetingSection
+                // 1. Daily Momentum Header
+                dailyMomentumSection
 
-                // 2. Day Planner Snapshot (hero section)
-                DayPlannerSnapshotView(
+                // 2. Today's Mission
+                TodaysMissionView(
                     tasks: todaysTasks,
                     onAddTask: { showAddTask = true }
                 )
@@ -244,22 +329,103 @@ struct DashboardView: View {
         }
     }
 
-    // MARK: - Greeting
+    // MARK: - Daily Momentum
 
-    private var greetingSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(greeting)
-                .font(.title2)
-                .fontWeight(.bold)
+    private var dailyMomentumSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Top row: label + level badge
+            HStack {
+                Text("MY DAY")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundStyle(Color("AccentColor"))
+                    .tracking(1.5)
 
-            Text(motivationalSubtitle)
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundStyle(.secondary)
+                Spacer()
 
-            Text(formattedDate)
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+                // Level badge — tappable
+                Button { showProgress = true } label: {
+                    HStack(spacing: 6) {
+                        Text("⭐️ Lv \(gamification.currentLevel)")
+                            .font(.caption)
+                            .fontWeight(.black)
+                            .foregroundStyle(.white)
+                        Text(gamification.levelTitle)
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.white.opacity(0.85))
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        LinearGradient(
+                            colors: [Color.purple, Color.indigo],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .clipShape(Capsule())
+                    .shadow(color: Color.purple.opacity(0.3), radius: 4, x: 0, y: 2)
+                }
+                .buttonStyle(.plain)
+            }
+
+            // Greeting + date
+            VStack(alignment: .leading, spacing: 2) {
+                Text(greeting)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                Text(formattedDate)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Divider()
+
+            // Daily progress
+            HStack(spacing: 8) {
+                Image(systemName: completedTasksCount == 0
+                      ? "circle"
+                      : completedTasksCount == todaysTasks.count && !todaysTasks.isEmpty
+                        ? "checkmark.circle.fill"
+                        : "circle.lefthalf.filled")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(completedTasksCount == todaysTasks.count && !todaysTasks.isEmpty
+                                     ? .green : Color("AccentColor"))
+
+                Text("\(completedTasksCount) / \(todaysTasks.count) tasks completed")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+            }
+
+            // XP + streak pills
+            HStack(spacing: 10) {
+                Label("\(xpToday) XP Today", systemImage: "star.fill")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Color.orange.gradient)
+                    .clipShape(Capsule())
+
+                Label("\(currentStreak) day\(currentStreak == 1 ? "" : "s") streak", systemImage: "flame.fill")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(currentStreak >= 3
+                                ? Color.red.gradient
+                                : Color(.systemGray3).gradient)
+                    .clipShape(Capsule())
+            }
+
+            // XP progress bar
+            xpProgressBar
         }
         .padding(AppTheme.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -272,6 +438,49 @@ struct DashboardView: View {
         )
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
         .shadow(color: AppTheme.cardShadow, radius: AppTheme.cardShadowRadius, x: 0, y: AppTheme.cardShadowY)
+    }
+
+    // MARK: - XP Progress Bar
+
+    private var xpProgressBar: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color("AccentColor").opacity(0.15))
+                        .frame(height: 6)
+
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color("AccentColor"), Color("AccentColor").opacity(0.7)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: geo.size.width * gamification.levelProgress, height: 6)
+                        .animation(.spring(response: 0.5), value: gamification.levelProgress)
+                }
+            }
+            .frame(height: 6)
+
+            HStack {
+                Text("\(gamification.totalXP) XP total")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if gamification.isMaxLevel {
+                    Text("Max Level")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color("AccentColor"))
+                } else {
+                    Text("\(gamification.xpToNextLevel) XP to Level \(gamification.currentLevel + 1)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
     }
 
     // MARK: - Plan My Day Tile
@@ -352,29 +561,7 @@ struct DashboardView: View {
     // MARK: - Helpers
 
     private func computeCurrentStreak(for routine: DailyRoutine) -> Int {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        let routineTasks = dayPlannerService.allTasks
-            .filter { $0.routineId == routine.id }
-
-        var streak = 0
-        for dayOffset in 0..<90 {
-            guard let date = calendar.date(byAdding: .day, value: -dayOffset, to: today) else { break }
-            guard routine.shouldRunOn(date: date) else { continue }
-
-            let hasCompleted = routineTasks.contains { task in
-                calendar.isDate(task.date, inSameDayAs: date) && task.isCompleted
-            }
-
-            if hasCompleted {
-                streak += 1
-            } else {
-                // Allow today to not be done yet
-                if dayOffset == 0 { continue }
-                break
-            }
-        }
-        return streak
+        StreakCalculator.currentStreak(for: routine, tasks: dayPlannerService.allTasks)
     }
 
     private func computeTripReadiness(_ trip: Trip) -> Double {

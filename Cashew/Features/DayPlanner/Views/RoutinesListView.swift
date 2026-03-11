@@ -96,13 +96,15 @@ struct RoutinesListView: View {
 
     private func toggleRoutine(_ routine: DailyRoutine) {
         Task {
-            try? await service.toggleRoutineEnabled(routine)
+            do { try await service.toggleRoutineEnabled(routine) }
+            catch { print("[RoutinesListView] Failed to toggle routine: \(error)") }
         }
     }
 
     private func deleteRoutine(_ routine: DailyRoutine) {
         Task {
-            try? await service.deleteRoutine(by: routine.id)
+            do { try await service.deleteRoutine(by: routine.id) }
+            catch { print("[RoutinesListView] Failed to delete routine: \(error)") }
         }
     }
 }

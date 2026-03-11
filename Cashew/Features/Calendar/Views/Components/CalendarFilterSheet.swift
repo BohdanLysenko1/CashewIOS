@@ -20,28 +20,26 @@ struct CalendarFilterSheet: View {
                                 label: "Trips",
                                 icon: "airplane",
                                 isOn: showTrips,
-                                color: .blue
-                            ) {
-                                showTrips = false
-                                selectedTripStatus = nil
-                            }
+                                color: .blue,
+                                onEnable: { showTrips = true },
+                                onDisable: { showTrips = false; selectedTripStatus = nil }
+                            )
                             contentTypeTile(
                                 label: "Events",
                                 icon: "calendar",
                                 isOn: showEvents,
-                                color: .purple
-                            ) {
-                                showEvents = false
-                                selectedEventCategory = nil
-                            }
+                                color: .purple,
+                                onEnable: { showEvents = true },
+                                onDisable: { showEvents = false; selectedEventCategory = nil }
+                            )
                             contentTypeTile(
                                 label: "Tasks",
                                 icon: "checkmark.circle",
                                 isOn: showTasks,
-                                color: .green
-                            ) {
-                                showTasks = false
-                            }
+                                color: .green,
+                                onEnable: { showTasks = true },
+                                onDisable: { showTasks = false }
+                            )
                         }
                     }
 
@@ -166,20 +164,11 @@ struct CalendarFilterSheet: View {
         icon: String,
         isOn: Bool,
         color: Color,
+        onEnable: @escaping () -> Void,
         onDisable: @escaping () -> Void
     ) -> some View {
         Button {
-            if isOn {
-                onDisable()
-            } else {
-                // Turn on — set the appropriate binding directly via the label
-                switch label {
-                case "Trips": showTrips = true
-                case "Events": showEvents = true
-                case "Tasks": showTasks = true
-                default: break
-                }
-            }
+            if isOn { onDisable() } else { onEnable() }
         } label: {
             VStack(spacing: 8) {
                 Image(systemName: icon)

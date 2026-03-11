@@ -1,17 +1,17 @@
 import SwiftUI
 
+// MARK: - Private helper
+
+private func resignFirstResponder() {
+    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+}
+
 // MARK: - Keyboard Dismiss Modifier
 
 struct DismissKeyboardModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .onTapGesture {
-                dismissKeyboard()
-            }
-    }
-
-    private func dismissKeyboard() {
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+            .onTapGesture { resignFirstResponder() }
     }
 }
 
@@ -36,7 +36,7 @@ extension View {
     }
 
     func hideKeyboard() {
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        resignFirstResponder()
     }
 }
 
@@ -48,9 +48,7 @@ struct KeyboardDismissToolbar: ViewModifier {
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("Done") {
-                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                    }
+                    Button("Done") { resignFirstResponder() }
                 }
             }
     }

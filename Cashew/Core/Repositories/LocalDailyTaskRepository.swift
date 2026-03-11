@@ -7,10 +7,8 @@ actor LocalDailyTaskRepository: DailyTaskRepositoryProtocol {
     private var isLoaded = false
 
     init(fileManager: FileManager = .default) {
-        let documentsDirectory = fileManager.urls(
-            for: .documentDirectory,
-            in: .userDomainMask
-        ).first!
+        let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask)
+            .first ?? URL(fileURLWithPath: NSHomeDirectory() + "/Documents")
         self.fileURL = documentsDirectory.appendingPathComponent("daily_tasks.json")
     }
 

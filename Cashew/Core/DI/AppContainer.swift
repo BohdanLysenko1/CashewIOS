@@ -19,6 +19,7 @@ final class AppContainer {
     let dayPlannerService: DayPlannerServiceProtocol
     let notificationService: NotificationServiceProtocol
     let syncService: SyncService
+    let gamificationService: GamificationService
 
     // MARK: - Init
 
@@ -40,6 +41,10 @@ final class AppContainer {
         // Notification service
         self.notificationService = notificationService ?? NotificationService()
 
+        // Gamification (must be created before DayPlannerService)
+        let gam = GamificationService()
+        self.gamificationService = gam
+
         // Services
         self.authService = authService ?? MockAuthService()
         self.tripService = TripService(repository: localTripRepository)
@@ -49,7 +54,8 @@ final class AppContainer {
         )
         self.dayPlannerService = DayPlannerService(
             taskRepository: localDailyTaskRepository,
-            routineRepository: localDailyRoutineRepository
+            routineRepository: localDailyRoutineRepository,
+            gamificationService: gam
         )
 
         // Sync service

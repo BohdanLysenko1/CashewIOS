@@ -67,12 +67,18 @@ struct CalendarTaskRow: View {
         guard !isToggling else { return }
         isToggling = true
 
+        if task.isCompleted {
+            HapticManager.impact(.light)
+        } else {
+            HapticManager.notification(.success)
+        }
+
         Task {
             do {
                 try await service.toggleTaskCompletion(task)
             } catch {
-                // Error handling is managed by the service's @Observable state
-                // The UI will reflect the unchanged state if toggle fails
+                // Toggle failed — service's @Observable state remains unchanged so UI reverts automatically
+                print("[CalendarTaskRow] Toggle failed: \(error)")
             }
             isToggling = false
         }

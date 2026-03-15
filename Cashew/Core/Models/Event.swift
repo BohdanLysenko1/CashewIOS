@@ -41,6 +41,10 @@ struct Event: Identifiable, Codable, Equatable, Sendable {
     // Associated trip (optional)
     var tripId: UUID?
 
+    // Sharing
+    var ownerId: UUID?      // nil for locally-created events
+    var ownerName: String?  // populated on shared events
+
     nonisolated init(
         id: UUID = UUID(),
         title: String,
@@ -63,7 +67,9 @@ struct Event: Identifiable, Codable, Equatable, Sendable {
         url: URL? = nil,
         cost: Decimal? = nil,
         currency: String = "USD",
-        tripId: UUID? = nil
+        tripId: UUID? = nil,
+        ownerId: UUID? = nil,
+        ownerName: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -87,6 +93,8 @@ struct Event: Identifiable, Codable, Equatable, Sendable {
         self.cost = cost
         self.currency = currency
         self.tripId = tripId
+        self.ownerId = ownerId
+        self.ownerName = ownerName
     }
 
     // MARK: - Codable (backward compatible)
@@ -96,6 +104,7 @@ struct Event: Identifiable, Codable, Equatable, Sendable {
         case address, notes, category, customCategoryName
         case isAllDay, createdAt, updatedAt, priority, reminders
         case recurrenceRule, attachments, url, cost, currency, tripId
+        case ownerId, ownerName
     }
 
     init(from decoder: Decoder) throws {
@@ -127,6 +136,8 @@ struct Event: Identifiable, Codable, Equatable, Sendable {
         cost = try container.decodeIfPresent(Decimal.self, forKey: .cost)
         currency = try container.decodeIfPresent(String.self, forKey: .currency) ?? "USD"
         tripId = try container.decodeIfPresent(UUID.self, forKey: .tripId)
+        ownerId = try container.decodeIfPresent(UUID.self, forKey: .ownerId)
+        ownerName = try container.decodeIfPresent(String.self, forKey: .ownerName)
     }
 
     // MARK: - Computed Properties

@@ -86,8 +86,8 @@ struct LocationSearchField: View {
 
 // MARK: - Location Completer
 
-@Observable
-private final class LocationCompleter: NSObject, MKLocalSearchCompleterDelegate {
+@Observable @MainActor
+private final class LocationCompleter: NSObject, @preconcurrency MKLocalSearchCompleterDelegate {
 
     var suggestions: [MKLocalSearchCompletion] = []
 
@@ -114,15 +114,11 @@ private final class LocationCompleter: NSObject, MKLocalSearchCompleterDelegate 
 
     // MARK: - MKLocalSearchCompleterDelegate
 
-    nonisolated func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
-        Task { @MainActor in
-            self.suggestions = Array(completer.results.prefix(5))
-        }
+    func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
+        suggestions = Array(completer.results.prefix(5))
     }
 
-    nonisolated func completer(_ completer: MKLocalSearchCompleter, didFailWithError error: Error) {
-        Task { @MainActor in
-            self.suggestions = []
-        }
+    func completer(_ completer: MKLocalSearchCompleter, didFailWithError error: Error) {
+        suggestions = []
     }
 }

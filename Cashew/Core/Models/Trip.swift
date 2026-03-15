@@ -2,6 +2,8 @@ import Foundation
 
 struct Trip: Identifiable, Codable, Equatable, Sendable {
     let id: UUID
+    var ownerId: UUID?       // nil for locally-created trips
+    var ownerName: String?   // populated on shared trips ("Shared by John")
     var name: String
     var destination: String
     var destinationLatitude: Double?
@@ -43,6 +45,8 @@ struct Trip: Identifiable, Codable, Equatable, Sendable {
 
     nonisolated init(
         id: UUID = UUID(),
+        ownerId: UUID? = nil,
+        ownerName: String? = nil,
         name: String,
         destination: String,
         destinationLatitude: Double? = nil,
@@ -71,6 +75,8 @@ struct Trip: Identifiable, Codable, Equatable, Sendable {
         transportationConfirmation: String = ""
     ) {
         self.id = id
+        self.ownerId = ownerId
+        self.ownerName = ownerName
         self.name = name
         self.destination = destination
         self.destinationLatitude = destinationLatitude
@@ -109,12 +115,15 @@ struct Trip: Identifiable, Codable, Equatable, Sendable {
         case accommodationName, accommodationAddress, accommodationCheckIn
         case accommodationCheckOut, accommodationConfirmation
         case transportationType, transportationDetails, transportationConfirmation
+        case ownerId, ownerName
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
         id = try container.decode(UUID.self, forKey: .id)
+        ownerId = try container.decodeIfPresent(UUID.self, forKey: .ownerId)
+        ownerName = try container.decodeIfPresent(String.self, forKey: .ownerName)
         name = try container.decode(String.self, forKey: .name)
         destination = try container.decode(String.self, forKey: .destination)
         destinationLatitude = try container.decodeIfPresent(Double.self, forKey: .destinationLatitude)

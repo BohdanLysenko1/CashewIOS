@@ -1,4 +1,4 @@
-import SwiftUI
+import Foundation
 
 enum TaskCategory: String, Codable, Sendable, CaseIterable {
     case work
@@ -33,15 +33,5 @@ enum TaskCategory: String, Codable, Sendable, CaseIterable {
         }
     }
 
-    var color: Color {
-        switch self {
-        case .work: .blue
-        case .personal: .purple
-        case .health: .red
-        case .errands: .orange
-        case .social: .pink
-        case .learning: .green
-        case .custom: .teal
-        }
-    }
+
 }

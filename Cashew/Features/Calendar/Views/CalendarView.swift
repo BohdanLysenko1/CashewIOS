@@ -85,7 +85,8 @@ struct CalendarView: View {
                 displayedMonth = calendar.startOfMonth(for: newDate)
             }
             Task {
-                try? await dayPlannerService.generateTasksFromRoutines(for: newDate)
+                do { try await dayPlannerService.generateTasksFromRoutines(for: newDate) }
+                catch { print("[CalendarView] Failed to generate tasks for \(newDate): \(error)") }
             }
         }
         .sheet(isPresented: $showMonthPicker) {
@@ -739,7 +740,8 @@ struct CalendarView: View {
             let today = calendar.startOfDay(for: Date())
             for offset in 0..<60 {
                 if let date = calendar.date(byAdding: .day, value: offset, to: today) {
-                    try? await dayPlannerService.generateTasksFromRoutines(for: date)
+                    do { try await dayPlannerService.generateTasksFromRoutines(for: date) }
+                    catch { print("[CalendarView] Failed to pre-generate tasks for offset \(offset): \(error)") }
                 }
             }
         } catch {

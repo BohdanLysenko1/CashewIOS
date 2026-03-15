@@ -11,11 +11,14 @@ final class DayPlannerService: DayPlannerServiceProtocol {
 
     private(set) var allTasks: [DailyTask] = []
     private(set) var routines: [DailyRoutine] = []
+    private var dateChangeTask: Task<Void, Never>?
 
     var selectedDate: Date = Date() {
         didSet {
-            Task {
+            dateChangeTask?.cancel()
+            dateChangeTask = Task {
                 do { try await generateTasksFromRoutines(for: selectedDate) }
+                catch is CancellationError { }
                 catch { print("[DayPlannerService] Failed to generate tasks for \(selectedDate): \(error)") }
             }
         }
@@ -224,6 +227,7 @@ final class DayPlannerService: DayPlannerServiceProtocol {
     // MARK: - Routine Task Generation
 
     func generateTasksFromRoutines(for date: Date) async throws {
+        try Task.checkCancellation()
         let calendar = Calendar.current
 
         for routine in routines where routine.shouldRunOn(date: date) {

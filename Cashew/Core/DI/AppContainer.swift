@@ -2,14 +2,8 @@ import Foundation
 import Observation
 
 @Observable
+@MainActor
 final class AppContainer {
-
-    // MARK: - Repositories
-
-    private let localTripRepository: TripRepositoryProtocol
-    private let localEventRepository: EventRepositoryProtocol
-    private let localDailyTaskRepository: DailyTaskRepositoryProtocol
-    private let localDailyRoutineRepository: DailyRoutineRepositoryProtocol
 
     // MARK: - Services
 
@@ -20,6 +14,7 @@ final class AppContainer {
     let notificationService: NotificationServiceProtocol
     let syncService: SyncService
     let gamificationService: GamificationService
+    let shareService: ShareService
 
     // MARK: - Init
 
@@ -32,37 +27,43 @@ final class AppContainer {
         notificationService: NotificationService? = nil,
         syncService: SyncService? = nil
     ) {
-        // Local repositories (source of truth)
-        self.localTripRepository = tripRepository ?? LocalTripRepository()
-        self.localEventRepository = eventRepository ?? LocalEventRepository()
-        self.localDailyTaskRepository = dailyTaskRepository ?? LocalDailyTaskRepository()
-        self.localDailyRoutineRepository = dailyRoutineRepository ?? LocalDailyRoutineRepository()
+        // Auth — real Supabase auth by default
+        let auth = authService ?? SupabaseAuthService()
+        self.authService = auth
+
+        // Repositories — Supabase-backed by default
+        let tripRepo = tripRepository ?? SupabaseTripRepository()
+        let eventRepo = eventRepository ?? SupabaseEventRepository()
+        let taskRepo = dailyTaskRepository ?? LocalDailyTaskRepository()
+        let routineRepo = dailyRoutineRepository ?? LocalDailyRoutineRepository()
 
         // Notification service
         self.notificationService = notificationService ?? NotificationService()
 
-        // Gamification (must be created before DayPlannerService)
+        // Gamification
         let gam = GamificationService()
         self.gamificationService = gam
 
         // Services
-        self.authService = authService ?? MockAuthService()
-        self.tripService = TripService(repository: localTripRepository)
+        self.tripService = TripService(repository: tripRepo)
         self.eventService = EventService(
-            repository: localEventRepository,
+            repository: eventRepo,
             notificationService: self.notificationService
         )
         self.dayPlannerService = DayPlannerService(
-            taskRepository: localDailyTaskRepository,
-            routineRepository: localDailyRoutineRepository,
+            taskRepository: taskRepo,
+            routineRepository: routineRepo,
             gamificationService: gam
         )
 
-        // Sync service
+        // Sync (still used for CloudKit fallback / local backup)
         self.syncService = syncService ?? SyncService(
-            localTripRepository: localTripRepository,
-            localEventRepository: localEventRepository
+            localTripRepository: tripRepo,
+            localEventRepository: eventRepo
         )
+
+        // Sharing
+        self.shareService = ShareService(authService: auth)
     }
 
     // MARK: - Factory Methods

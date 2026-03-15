@@ -12,6 +12,9 @@ struct TripDetailView: View {
     @State private var isDeleting = false
     @State private var error: String?
     @State private var showError = false
+    @State private var shareURL: URL?
+    @State private var isGeneratingShare = false
+    @State private var showCollaborators = false
 
     private var trip: Trip? {
         container.tripService.trip(by: tripId)
@@ -41,6 +44,24 @@ struct TripDetailView: View {
                             Label("Edit", systemImage: "pencil")
                         }
 
+                        Button {
+                            Task { await generateShareLink() }
+                        } label: {
+                            Label(
+                                isGeneratingShare ? "Generating…" : "Share Trip",
+                                systemImage: "square.and.arrow.up"
+                            )
+                        }
+                        .disabled(isGeneratingShare)
+
+                        Button {
+                            showCollaborators = true
+                        } label: {
+                            Label("Manage Access", systemImage: "person.2")
+                        }
+
+                        Divider()
+
                         Button(role: .destructive) {
                             showDeleteConfirmation = true
                         } label: {
@@ -61,6 +82,20 @@ struct TripDetailView: View {
                         trip: trip
                     )
                 )
+            }
+        }
+        .sheet(isPresented: .init(
+            get: { shareURL != nil },
+            set: { if !$0 { shareURL = nil } }
+        )) {
+            if let url = shareURL {
+                ShareSheet(items: [url])
+                    .presentationDetents([.medium])
+            }
+        }
+        .sheet(isPresented: $showCollaborators) {
+            if let trip {
+                CollaboratorsView(resource: .trip(trip))
             }
         }
         .confirmationDialog(
@@ -90,6 +125,11 @@ struct TripDetailView: View {
     private func tripContent(_ trip: Trip) -> some View {
         ScrollView {
             VStack(spacing: 16) {
+                // Shared by banner
+                if let name = trip.ownerName {
+                    sharedByBanner(name: name, color: .orange)
+                }
+
                 // Hero Header
                 tripHeader(trip)
 
@@ -298,6 +338,23 @@ struct TripDetailView: View {
         }
     }
 
+    private func sharedByBanner(name: String, color: Color) -> some View {
+        HStack(spacing: AppTheme.Space.sm) {
+            Image(systemName: "person.fill.checkmark")
+                .font(.caption)
+                .foregroundStyle(color)
+            Text("Shared by \(name)")
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundStyle(color)
+            Spacer()
+        }
+        .padding(.horizontal, AppTheme.Space.md)
+        .padding(.vertical, AppTheme.Space.sm)
+        .background(color.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
+    }
+
     private func tripHeader(_ trip: Trip) -> some View {
         VStack(spacing: 16) {
             // Icon
@@ -456,6 +513,18 @@ struct TripDetailView: View {
         } else {
             return "\(days + 1) days"
         }
+    }
+
+    private func generateShareLink() async {
+        guard let trip else { return }
+        isGeneratingShare = true
+        do {
+            shareURL = try await container.shareService.createInviteLink(for: .trip(trip))
+        } catch {
+            self.error = error.localizedDescription
+            showError = true
+        }
+        isGeneratingShare = false
     }
 
     private func deleteTrip() {

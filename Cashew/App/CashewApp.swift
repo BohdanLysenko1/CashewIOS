@@ -1,9 +1,18 @@
 import SwiftUI
+import UserNotifications
 
 @main
 struct CashewApp: App {
 
     @State private var container = AppContainer()
+    @State private var pendingInviteToken: String?
+    @State private var pendingNotificationEventId: UUID?
+
+    private let notificationDelegate = NotificationDelegate()
+
+    init() {
+        UNUserNotificationCenter.current().delegate = notificationDelegate
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -12,8 +21,53 @@ struct CashewApp: App {
                 .task {
                     await requestNotificationPermissionIfNeeded()
                 }
+                .onReceive(NotificationCenter.default.publisher(for: .didTapEventNotification)) { note in
+                    guard let eventId = note.userInfo?["eventId"] as? UUID else { return }
+                    pendingNotificationEventId = eventId
+                }
+                .onOpenURL { url in
+                    handleDeepLink(url)
+                }
+                .sheet(isPresented: .init(
+                    get: { pendingInviteToken != nil },
+                    set: { if !$0 { pendingInviteToken = nil } }
+                )) {
+                    if let token = pendingInviteToken {
+                        AcceptInviteView(token: token)
+                            .environment(container)
+                    }
+                }
+                .sheet(isPresented: .init(
+                    get: { pendingNotificationEventId != nil },
+                    set: { if !$0 { pendingNotificationEventId = nil } }
+                )) {
+                    if let eventId = pendingNotificationEventId {
+                        NavigationStack {
+                            EventDetailView(eventId: eventId)
+                                .environment(container)
+                        }
+                    }
+                }
         }
     }
+
+    // MARK: - Deep Link Handling
+
+    /// Handles: cashew://join/<token>
+    private func handleDeepLink(_ url: URL) {
+        guard
+            url.scheme == "cashew",
+            url.host == "join",
+            let token = url.pathComponents.dropFirst().first,
+            !token.isEmpty
+        else { return }
+
+        // Only handle if authenticated
+        guard container.authService.isAuthenticated else { return }
+        pendingInviteToken = token
+    }
+
+    // MARK: - Notifications
 
     private func requestNotificationPermissionIfNeeded() async {
         let key = UserDefaultsKeys.hasRequestedNotificationPermission
@@ -22,7 +76,6 @@ struct CashewApp: App {
             await container.requestNotificationPermission()
             UserDefaults.standard.set(true, forKey: key)
         } else {
-            // Check current status on subsequent launches
             await container.notificationService.checkAuthorizationStatus()
         }
     }

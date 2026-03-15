@@ -21,6 +21,12 @@ struct RecurrenceRule: Codable, Equatable, Sendable {
         self.daysOfWeek = daysOfWeek
     }
 
+    private static let endDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        return f
+    }()
+
     var displayText: String {
         var text = ""
 
@@ -38,9 +44,7 @@ struct RecurrenceRule: Codable, Equatable, Sendable {
         }
 
         if let end = endDate {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .medium
-            text += " until \(formatter.string(from: end))"
+            text += " until \(RecurrenceRule.endDateFormatter.string(from: end))"
         } else if let count = occurrences {
             text += ", \(count) times"
         }

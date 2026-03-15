@@ -2,6 +2,7 @@ import Foundation
 import Observation
 
 @Observable
+@MainActor
 final class TripFormViewModel {
 
     // MARK: - Form Fields
@@ -91,6 +92,8 @@ final class TripFormViewModel {
                 let nonPhotoAttachments = existingTrip.attachments.filter { $0.type != .image }
                 let updatedTrip = Trip(
                     id: existingTrip.id,
+                    ownerId: existingTrip.ownerId,
+                    ownerName: existingTrip.ownerName,
                     name: name.trimmingCharacters(in: .whitespaces),
                     destination: destination.trimmingCharacters(in: .whitespaces),
                     destinationLatitude: destinationLatitude,

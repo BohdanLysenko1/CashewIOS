@@ -2,6 +2,7 @@ import Foundation
 import Observation
 
 @Observable
+@MainActor
 final class EventFormViewModel {
 
     // MARK: - Form Fields
@@ -167,7 +168,9 @@ final class EventFormViewModel {
                     url: url,
                     cost: cost,
                     currency: currency,
-                    tripId: existingEvent.tripId
+                    tripId: existingEvent.tripId,
+                    ownerId: existingEvent.ownerId,
+                    ownerName: existingEvent.ownerName
                 )
                 try await eventService.updateEvent(updatedEvent)
             } else {

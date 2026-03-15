@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import Supabase
 
 @Observable
 @MainActor
@@ -10,42 +11,43 @@ final class EventService: EventServiceProtocol {
 
     private(set) var events: [Event] = []
 
+    // Realtime
+    private var syncTask: Task<Void, Never>?
+
     init(repository: EventRepositoryProtocol, notificationService: NotificationServiceProtocol? = nil) {
         self.repository = repository
         self.notificationService = notificationService
     }
 
+    // MARK: - Load
+
     func loadEvents() async throws {
         events = try await repository.fetchAll()
     }
 
-    func createEvent(_ event: Event) async throws {
-        let savedEvent = try await repository.save(event)
-        events.append(savedEvent)
-        sortEvents()
+    // MARK: - CRUD
 
-        // Schedule notifications for the new event
-        if !savedEvent.reminders.isEmpty {
-            await notificationService?.scheduleNotifications(for: savedEvent)
+    func createEvent(_ event: Event) async throws {
+        let saved = try await repository.save(event)
+        events.append(saved)
+        sortEvents()
+        if !saved.reminders.isEmpty {
+            await notificationService?.scheduleNotifications(for: saved)
         }
     }
 
     func updateEvent(_ event: Event) async throws {
-        let savedEvent = try await repository.save(event)
+        let saved = try await repository.save(event)
         if let index = events.firstIndex(where: { $0.id == event.id }) {
-            events[index] = savedEvent
+            events[index] = saved
             sortEvents()
         }
-
-        // Update notifications for the event
-        await notificationService?.updateNotifications(for: savedEvent)
+        await notificationService?.updateNotifications(for: saved)
     }
 
     func deleteEvent(by id: UUID) async throws {
         try await repository.delete(by: id)
         events.removeAll { $0.id == id }
-
-        // Cancel notifications for the deleted event
         await notificationService?.cancelNotifications(for: id)
     }
 
@@ -55,5 +57,72 @@ final class EventService: EventServiceProtocol {
 
     private func sortEvents() {
         events.sort { $0.date < $1.date }
+    }
+
+    // MARK: - Realtime Sync
+
+    func startRealtimeSync() {
+        guard syncTask == nil else { return }
+
+        syncTask = Task {
+            let channel = SupabaseManager.client.channel("events-sync")
+            let inserts = channel.postgresChange(InsertAction.self, schema: "public", table: "events")
+            let updates = channel.postgresChange(UpdateAction.self, schema: "public", table: "events")
+            let deletes = channel.postgresChange(DeleteAction.self, schema: "public", table: "events")
+
+            do { try await channel.subscribeWithError() }
+            catch { print("[EventService] Realtime subscription failed: \(error)") }
+
+            await withTaskGroup(of: Void.self) { group in
+                group.addTask { for await action in inserts { await self.handleInsert(action) } }
+                group.addTask { for await action in updates { await self.handleUpdate(action) } }
+                group.addTask { for await action in deletes { await self.handleDelete(action) } }
+            }
+        }
+    }
+
+    func stopRealtimeSync() {
+        syncTask?.cancel()
+        syncTask = nil
+    }
+
+    // MARK: - Realtime Handlers
+
+    private func handleInsert(_ action: InsertAction) async {
+        guard let id = extractUUID(from: action.record) else { return }
+        guard !events.contains(where: { $0.id == id }) else { return }
+        do {
+            let event = try await repository.fetch(by: id)
+            events.append(event)
+            sortEvents()
+        } catch {
+            print("[EventService] Failed to fetch inserted event \(id): \(error)")
+        }
+    }
+
+    private func handleUpdate(_ action: UpdateAction) async {
+        guard let id = extractUUID(from: action.record) else { return }
+        do {
+            let event = try await repository.fetch(by: id)
+            if let index = events.firstIndex(where: { $0.id == id }) {
+                events[index] = event
+            } else {
+                events.append(event)
+            }
+            sortEvents()
+        } catch {
+            print("[EventService] Failed to fetch updated event \(id): \(error)")
+        }
+    }
+
+    private func handleDelete(_ action: DeleteAction) async {
+        guard let id = extractUUID(from: action.oldRecord) else { return }
+        events.removeAll { $0.id == id }
+        await notificationService?.cancelNotifications(for: id)
+    }
+
+    private func extractUUID(from record: [String: AnyJSON]) -> UUID? {
+        guard case .string(let str) = record["id"] else { return nil }
+        return UUID(uuidString: str)
     }
 }

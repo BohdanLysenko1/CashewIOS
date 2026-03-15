@@ -1,5 +1,4 @@
 import Foundation
-import SwiftUI
 
 struct PackingItem: Identifiable, Codable, Equatable, Sendable {
     let id: UUID
@@ -62,17 +61,5 @@ enum PackingCategory: String, Codable, Sendable, CaseIterable {
         }
     }
 
-    var color: Color {
-        switch self {
-        case .clothing: .blue
-        case .toiletries: .cyan
-        case .electronics: .purple
-        case .documents: .orange
-        case .medicine: .red
-        case .accessories: .pink
-        case .entertainment: .indigo
-        case .snacks: .green
-        case .other: .gray
-        }
-    }
+
 }

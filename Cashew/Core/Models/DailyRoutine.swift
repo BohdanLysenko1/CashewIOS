@@ -13,7 +13,7 @@ struct DailyRoutine: Identifiable, Codable, Equatable, Sendable {
     let createdAt: Date
     var updatedAt: Date
 
-    nonisolated init(
+    init(
         id: UUID = UUID(),
         title: String,
         startTime: Date? = nil,

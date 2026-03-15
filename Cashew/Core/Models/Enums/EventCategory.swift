@@ -1,4 +1,4 @@
-import SwiftUI
+import Foundation
 
 enum EventCategory: String, Codable, Sendable, CaseIterable {
     case general
@@ -42,18 +42,5 @@ enum EventCategory: String, Codable, Sendable, CaseIterable {
         }
     }
 
-    var color: Color {
-        switch self {
-        case .general: .blue
-        case .meeting: .purple
-        case .social: .pink
-        case .entertainment: .orange
-        case .sports: .green
-        case .health: .red
-        case .education: .indigo
-        case .work: .gray
-        case .travel: .cyan
-        case .custom: .teal
-        }
-    }
+
 }

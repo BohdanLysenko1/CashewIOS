@@ -1,6 +1,6 @@
 import Foundation
 
-protocol EventRepositoryProtocol: Sendable {
+protocol EventRepositoryProtocol: AnyObject {
     func fetchAll() async throws -> [Event]
     func fetch(by id: UUID) async throws -> Event
     @discardableResult func save(_ event: Event) async throws -> Event

@@ -1,5 +1,4 @@
 import Foundation
-import SwiftUI
 
 struct Expense: Identifiable, Codable, Equatable, Sendable {
     let id: UUID
@@ -71,17 +70,5 @@ enum ExpenseCategory: String, Codable, Sendable, CaseIterable {
         }
     }
 
-    var color: Color {
-        switch self {
-        case .accommodation: .blue
-        case .transportation: .green
-        case .food: .orange
-        case .activities: .purple
-        case .shopping: .pink
-        case .entertainment: .red
-        case .health: .mint
-        case .communication: .cyan
-        case .other: .gray
-        }
-    }
+
 }

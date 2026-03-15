@@ -80,8 +80,6 @@ struct DailyTask: Identifiable, Codable, Equatable, Sendable {
         updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
     }
 
-    // MARK: - Computed Properties
-
     // MARK: - Subtask Helpers
 
     var hasSubtasks: Bool { !subtasks.isEmpty }

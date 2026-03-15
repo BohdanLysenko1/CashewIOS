@@ -2,6 +2,7 @@ import Foundation
 import Observation
 
 @Observable
+@MainActor
 final class SyncService: SyncServiceProtocol {
 
     private let localTripRepository: TripRepositoryProtocol
@@ -46,6 +47,7 @@ final class SyncService: SyncServiceProtocol {
         do {
             return try await cloudKit.checkAccountStatus()
         } catch {
+            print("[SyncService] Could not check iCloud availability: \(error)")
             return false
         }
     }
@@ -79,74 +81,45 @@ final class SyncService: SyncServiceProtocol {
 
     private func syncTrips() async throws {
         try Task.checkCancellation()
-
-        let localTrips = try await localTripRepository.fetchAll()
-        let cloudTrips = try await cloudTripRepository.fetchAll()
-
-        let localDict = Dictionary(uniqueKeysWithValues: localTrips.map { ($0.id, $0) })
-        let cloudDict = Dictionary(uniqueKeysWithValues: cloudTrips.map { ($0.id, $0) })
-
-        let allIDs = Set(localDict.keys).union(cloudDict.keys)
-
-        for id in allIDs {
-            try Task.checkCancellation()
-
-            let local = localDict[id]
-            let cloud = cloudDict[id]
-
-            switch (local, cloud) {
-            case let (local?, cloud?):
-                if local.updatedAt > cloud.updatedAt {
-                    try await cloudTripRepository.save(local)
-                } else if cloud.updatedAt > local.updatedAt {
-                    try await localTripRepository.save(cloud)
-                }
-
-            case let (local?, nil):
-                try await cloudTripRepository.save(local)
-
-            case let (nil, cloud?):
-                try await localTripRepository.save(cloud)
-
-            case (nil, nil):
-                break
-            }
-        }
+        let local = try await localTripRepository.fetchAll()
+        let cloud = try await cloudTripRepository.fetchAll()
+        try await mergeSync(
+            local: local, cloud: cloud,
+            saveToCloud: { try await cloudTripRepository.save($0) },
+            saveToLocal: { try await localTripRepository.save($0) }
+        )
     }
 
     private func syncEvents() async throws {
         try Task.checkCancellation()
+        let local = try await localEventRepository.fetchAll()
+        let cloud = try await cloudEventRepository.fetchAll()
+        try await mergeSync(
+            local: local, cloud: cloud,
+            saveToCloud: { try await cloudEventRepository.save($0) },
+            saveToLocal: { try await localEventRepository.save($0) }
+        )
+    }
 
-        let localEvents = try await localEventRepository.fetchAll()
-        let cloudEvents = try await cloudEventRepository.fetchAll()
-
-        let localDict = Dictionary(uniqueKeysWithValues: localEvents.map { ($0.id, $0) })
-        let cloudDict = Dictionary(uniqueKeysWithValues: cloudEvents.map { ($0.id, $0) })
-
-        let allIDs = Set(localDict.keys).union(cloudDict.keys)
+    /// Generic three-way merge: items present only locally are pushed to cloud,
+    /// items present only in cloud are pulled locally, conflicts resolve by latest `updatedAt`.
+    private func mergeSync<T: Identifiable>(
+        local: [T], cloud: [T],
+        saveToCloud: (T) async throws -> Void,
+        saveToLocal: (T) async throws -> Void
+    ) async throws where T.ID == UUID, T: HasUpdatedAt {
+        let localDict  = Dictionary(uniqueKeysWithValues: local.map { ($0.id, $0) })
+        let cloudDict  = Dictionary(uniqueKeysWithValues: cloud.map { ($0.id, $0) })
+        let allIDs     = Set(localDict.keys).union(cloudDict.keys)
 
         for id in allIDs {
             try Task.checkCancellation()
-
-            let local = localDict[id]
-            let cloud = cloudDict[id]
-
-            switch (local, cloud) {
-            case let (local?, cloud?):
-                if local.updatedAt > cloud.updatedAt {
-                    try await cloudEventRepository.save(local)
-                } else if cloud.updatedAt > local.updatedAt {
-                    try await localEventRepository.save(cloud)
-                }
-
-            case let (local?, nil):
-                try await cloudEventRepository.save(local)
-
-            case let (nil, cloud?):
-                try await localEventRepository.save(cloud)
-
-            case (nil, nil):
-                break
+            switch (localDict[id], cloudDict[id]) {
+            case let (l?, c?) where l.updatedAt > c.updatedAt: try await saveToCloud(l)
+            case let (l?, c?) where c.updatedAt > l.updatedAt: try await saveToLocal(c)
+            case let (l?, nil):                                try await saveToCloud(l)
+            case let (nil, c?):                                try await saveToLocal(c)
+            default: break
             }
         }
     }

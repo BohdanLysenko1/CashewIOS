@@ -506,7 +506,8 @@ struct DayPlannerView: View {
 
     private func toggleTask(_ task: DailyTask) {
         Task {
-            try? await service.toggleTaskCompletion(task)
+            do { try await service.toggleTaskCompletion(task) }
+            catch { print("[DayPlannerView] Failed to toggle task: \(error)") }
         }
     }
 
@@ -519,7 +520,8 @@ struct DayPlannerView: View {
 
     private func deleteTask(_ task: DailyTask) {
         Task {
-            try? await service.deleteTask(by: task.id)
+            do { try await service.deleteTask(by: task.id) }
+            catch { print("[DayPlannerView] Failed to delete task: \(error)") }
         }
     }
 
@@ -527,7 +529,8 @@ struct DayPlannerView: View {
         let idsToDelete = selectedTasks
         Task {
             for id in idsToDelete {
-                try? await service.deleteTask(by: id)
+                do { try await service.deleteTask(by: id) }
+                catch { print("[DayPlannerView] Failed to delete task \(id): \(error)") }
             }
             withAnimation {
                 selectedTasks.removeAll()

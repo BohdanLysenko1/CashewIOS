@@ -68,7 +68,7 @@ final class NotificationService: NotificationServiceProtocol {
 
         // Create trigger based on the reminder's trigger date
         let components = Calendar.current.dateComponents(
-            [.year, .month, .day, .hour, .minute],
+            [.year, .month, .day, .hour, .minute, .second],
             from: triggerDate
         )
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)

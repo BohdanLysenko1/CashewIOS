@@ -12,6 +12,9 @@ struct EventDetailView: View {
     @State private var isDeleting = false
     @State private var error: String?
     @State private var showError = false
+    @State private var shareURL: URL?
+    @State private var isGeneratingShare = false
+    @State private var showCollaborators = false
 
     private var event: Event? {
         container.eventService.event(by: eventId)
@@ -41,6 +44,24 @@ struct EventDetailView: View {
                             Label("Edit", systemImage: "pencil")
                         }
 
+                        Button {
+                            Task { await generateShareLink() }
+                        } label: {
+                            Label(
+                                isGeneratingShare ? "Generating…" : "Share Event",
+                                systemImage: "square.and.arrow.up"
+                            )
+                        }
+                        .disabled(isGeneratingShare)
+
+                        Button {
+                            showCollaborators = true
+                        } label: {
+                            Label("Manage Access", systemImage: "person.2")
+                        }
+
+                        Divider()
+
                         Button(role: .destructive) {
                             showDeleteConfirmation = true
                         } label: {
@@ -61,6 +82,20 @@ struct EventDetailView: View {
                         event: event
                     )
                 )
+            }
+        }
+        .sheet(isPresented: .init(
+            get: { shareURL != nil },
+            set: { if !$0 { shareURL = nil } }
+        )) {
+            if let url = shareURL {
+                ShareSheet(items: [url])
+                    .presentationDetents([.medium])
+            }
+        }
+        .sheet(isPresented: $showCollaborators) {
+            if let event {
+                CollaboratorsView(resource: .event(event))
             }
         }
         .confirmationDialog(
@@ -90,6 +125,11 @@ struct EventDetailView: View {
     private func eventContent(_ event: Event) -> some View {
         ScrollView {
             VStack(spacing: 16) {
+                // Shared by banner
+                if let name = event.ownerName {
+                    sharedByBanner(name: name)
+                }
+
                 // Hero Header
                 eventHeader(event)
 
@@ -538,6 +578,35 @@ struct EventDetailView: View {
         } else {
             return "\(minutes) minute\(minutes == 1 ? "" : "s")"
         }
+    }
+
+    private func generateShareLink() async {
+        guard let event else { return }
+        isGeneratingShare = true
+        do {
+            shareURL = try await container.shareService.createInviteLink(for: .event(event))
+        } catch {
+            self.error = error.localizedDescription
+            showError = true
+        }
+        isGeneratingShare = false
+    }
+
+    private func sharedByBanner(name: String) -> some View {
+        HStack(spacing: AppTheme.Space.sm) {
+            Image(systemName: "person.fill.checkmark")
+                .font(.caption)
+                .foregroundStyle(.pink)
+            Text("Shared by \(name)")
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundStyle(.pink)
+            Spacer()
+        }
+        .padding(.horizontal, AppTheme.Space.md)
+        .padding(.vertical, AppTheme.Space.sm)
+        .background(Color.pink.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
     }
 
     private func deleteEvent() {

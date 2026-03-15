@@ -37,10 +37,7 @@ final class DayPlannerService: DayPlannerServiceProtocol {
                 }
                 if task1.startTime != nil { return true }
                 if task2.startTime != nil { return false }
-                // Unscheduled: incomplete first, then by creation time
-                if task1.isCompleted != task2.isCompleted {
-                    return !task1.isCompleted
-                }
+                // Unscheduled: sort by creation time (completed tasks stay in place)
                 return task1.createdAt < task2.createdAt
             }
     }

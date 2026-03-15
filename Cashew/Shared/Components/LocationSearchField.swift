@@ -60,26 +60,33 @@ struct LocationSearchField: View {
     }
 
     private func selectSuggestion(_ suggestion: MKLocalSearchCompletion) {
+        let displayText = [suggestion.title, suggestion.subtitle]
+            .filter { !$0.isEmpty }
+            .joined(separator: ", ")
+
+        // Set state synchronously before going async so onChange fires
+        // while isSelecting = true and doesn't re-trigger search.
         isSelecting = true
         isShowingSuggestions = false
         completer.clear()
+        text = displayText
 
-        let request = MKLocalSearch.Request(completion: suggestion)
-        let search = MKLocalSearch(request: request)
+        let request = MKLocalSearch.Request()
+        request.naturalLanguageQuery = displayText
+        request.region = MKCoordinateRegion(MKMapRect.world)
+        request.resultTypes = .address
 
-        search.start { response, _ in
-            if let mapItem = response?.mapItems.first {
-                let coordinate = mapItem.location.coordinate
-                text = [suggestion.title, suggestion.subtitle]
-                    .filter { !$0.isEmpty }
-                    .joined(separator: ", ")
-                latitude = coordinate.latitude
-                longitude = coordinate.longitude
-            } else {
-                text = suggestion.title
+        MKLocalSearch(request: request).start { response, _ in
+            // Only update coordinates — text is already set, touching it
+            // again would re-trigger onChange and re-show suggestions.
+            let mapItem = response?.mapItems.first(where: {
+                $0.pointOfInterestCategory == nil
+            }) ?? response?.mapItems.first
+            if let mapItem {
+                latitude = mapItem.location.coordinate.latitude
+                longitude = mapItem.location.coordinate.longitude
             }
-            // Delay resetting to next run-loop cycle so the onChange from setting `text` is suppressed
-            Task { @MainActor in isSelecting = false }
+            isSelecting = false
         }
     }
 }
@@ -96,6 +103,13 @@ private final class LocationCompleter: NSObject, @preconcurrency MKLocalSearchCo
     override init() {
         completer = MKLocalSearchCompleter()
         completer.resultTypes = [.address, .pointOfInterest]
+        completer.pointOfInterestFilter = MKPointOfInterestFilter(including: [
+            .airport, .amusementPark, .aquarium, .beach, .campground,
+            .hotel, .marina, .museum, .nationalPark, .park,
+            .stadium, .theater, .university, .winery, .zoo
+        ])
+        // Use a world-wide region so suggestions aren't biased toward the user's location
+        completer.region = MKCoordinateRegion(MKMapRect.world)
         super.init()
         completer.delegate = self
     }
@@ -109,12 +123,14 @@ private final class LocationCompleter: NSObject, @preconcurrency MKLocalSearchCo
     }
 
     func clear() {
+        completer.queryFragment = ""
         suggestions = []
     }
 
     // MARK: - MKLocalSearchCompleterDelegate
 
     func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
+        guard !completer.queryFragment.isEmpty else { return }
         suggestions = Array(completer.results.prefix(5))
     }
 

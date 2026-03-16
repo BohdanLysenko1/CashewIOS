@@ -3,6 +3,7 @@ import SwiftUI
 struct DashboardView: View {
 
     @Environment(AppContainer.self) private var container
+    @Environment(OnboardingCoordinator.self) private var onboardingCoordinator
     @State private var isLoading = true
     @State private var showAddTask = false
     @State private var showDayPlanner = false
@@ -425,6 +426,14 @@ struct DashboardView: View {
                 .padding(.horizontal, AppTheme.cardPadding)
                 .padding(.vertical, 18)
             }
+            .onGeometryChange(for: CGRect.self) { proxy in
+                proxy.frame(in: .global)
+            } action: { frame in
+                onboardingCoordinator.registerFrame(
+                    id: "anchor_dashboard_planmyday",
+                    frame: frame
+                )
+            }
         }
         .buttonStyle(.plain)
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
@@ -615,4 +624,5 @@ struct DashboardView: View {
 #Preview {
     DashboardView()
         .environment(AppContainer())
+        .environment(OnboardingCoordinator())
 }

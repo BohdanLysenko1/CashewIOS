@@ -6,6 +6,7 @@ import Observation
 final class MockAuthService: AuthServiceProtocol {
 
     private(set) var isAuthenticated = false
+    private(set) var isRestoringSession = false
     private(set) var currentUser: AppUser? = nil
 
     func signIn() async throws {

@@ -3,6 +3,7 @@ import SwiftUI
 struct EventsView: View {
 
     @Environment(AppContainer.self) private var container
+    @Environment(OnboardingCoordinator.self) private var onboardingCoordinator
     @State private var isLoading = true
     @State private var error: Error?
     @State private var showAddEvent = false
@@ -93,6 +94,14 @@ struct EventsView: View {
                             showAddEvent = true
                         } label: {
                             Image(systemName: "plus")
+                                .onGeometryChange(for: CGRect.self) { proxy in
+                                    proxy.frame(in: .global)
+                                } action: { frame in
+                                    onboardingCoordinator.registerFrame(
+                                        id: "anchor_events_toolbar",
+                                        frame: frame
+                                    )
+                                }
                         }
                     }
 
@@ -416,4 +425,5 @@ struct EventsView: View {
 #Preview {
     EventsView()
         .environment(AppContainer())
+        .environment(OnboardingCoordinator())
 }

@@ -48,6 +48,17 @@ enum AppTheme {
 
     // MARK: - Background Colors
 
+    /// Deep navy/indigo — shared by the onboarding welcome and completion screens.
+    static let onboardingBackground = LinearGradient(
+        colors: [
+            Color(red: 0.05, green: 0.07, blue: 0.20),
+            Color(red: 0.10, green: 0.04, blue: 0.26),
+            Color(red: 0.03, green: 0.11, blue: 0.23)
+        ],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
     static let cardBackground = Color(.systemBackground)
     static let secondaryBackground = Color(.secondarySystemBackground)
 

@@ -7,4 +7,5 @@ enum UserDefaultsKeys {
     static let hasRequestedNotificationPermission = "hasRequestedNotificationPermission"
     static let customEventCategories = "customEventCategories"
     static let customTaskCategories = "customTaskCategories"
+    static let hasCompletedOnboarding = "hasCompletedOnboarding"
 }

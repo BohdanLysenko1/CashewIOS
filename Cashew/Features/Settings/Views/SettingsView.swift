@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
 
     @Environment(AppContainer.self) private var container
+    @Environment(OnboardingCoordinator.self) private var onboardingCoordinator
     @State private var showSignOutError = false
     @State private var signOutErrorMessage = ""
     @State private var isCheckingCloud = false
@@ -22,6 +23,14 @@ struct SettingsView: View {
                             .frame(width: 32, height: 32)
                             .background(Color.blue.gradient)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .onGeometryChange(for: CGRect.self) { proxy in
+                                proxy.frame(in: .global)
+                            } action: { frame in
+                                onboardingCoordinator.registerFrame(
+                                    id: "anchor_settings_icloud",
+                                    frame: frame
+                                )
+                            }
 
                         Toggle("iCloud Sync", isOn: $syncService.isSyncEnabled)
                             .disabled(isCheckingCloud)
@@ -64,6 +73,25 @@ struct SettingsView: View {
                     Text("Cloud")
                 } footer: {
                     Text("Sync your trips and events across all your devices using iCloud.")
+                }
+
+                // Help Section
+                Section("Help") {
+                    Button {
+                        onboardingCoordinator.restart()
+                    } label: {
+                        HStack(spacing: 14) {
+                            Image(systemName: "questionmark.circle")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 32, height: 32)
+                                .background(Color.purple.gradient)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                            Text("Replay Tutorial")
+                                .foregroundStyle(.primary)
+                        }
+                    }
                 }
 
                 // About Section
@@ -165,4 +193,5 @@ private struct SyncStatusView: View {
 #Preview {
     SettingsView()
         .environment(AppContainer())
+        .environment(OnboardingCoordinator())
 }

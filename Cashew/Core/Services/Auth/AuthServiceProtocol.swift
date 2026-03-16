@@ -3,6 +3,7 @@ import Foundation
 @MainActor
 protocol AuthServiceProtocol: AnyObject {
     var isAuthenticated: Bool { get }
+    var isRestoringSession: Bool { get }
     var currentUser: AppUser? { get }
 
     func signIn() async throws

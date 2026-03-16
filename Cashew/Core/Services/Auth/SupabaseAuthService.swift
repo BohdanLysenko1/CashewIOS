@@ -9,6 +9,7 @@ import CryptoKit
 final class SupabaseAuthService: AuthServiceProtocol {
 
     private(set) var isAuthenticated = false
+    private(set) var isRestoringSession = true
     private(set) var currentUser: AppUser? = nil
 
     private let client = SupabaseManager.client
@@ -28,6 +29,7 @@ final class SupabaseAuthService: AuthServiceProtocol {
         } catch {
             isAuthenticated = false
         }
+        isRestoringSession = false
     }
 
     // MARK: - Apple Sign In

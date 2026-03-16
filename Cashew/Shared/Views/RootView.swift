@@ -7,7 +7,12 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if container.authService.isAuthenticated {
+            if container.authService.isRestoringSession {
+                // Hold here while the stored session is being verified.
+                // Showing nothing prevents the login screen from flashing
+                // before we know whether the user is already signed in.
+                Color(.systemBackground).ignoresSafeArea()
+            } else if container.authService.isAuthenticated {
                 MainTabView()
             } else {
                 authView

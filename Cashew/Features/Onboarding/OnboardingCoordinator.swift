@@ -9,6 +9,8 @@ final class OnboardingCoordinator {
     var currentStep: OnboardingStep = .welcome
     private(set) var isTransitioning = false
 
+    private let haptics = UIImpactFeedbackGenerator(style: .light)
+
     /// Frames registered by each content view (global coordinates).
     /// Mutated only via registerFrame(id:frame:) — read externally through currentHighlightFrame.
     private(set) var registeredFrames: [String: CGRect] = [:]
@@ -29,7 +31,7 @@ final class OnboardingCoordinator {
     func advance() {
         guard !isTransitioning else { return }
         isTransitioning = true
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        haptics.impactOccurred()
         // complete() carries its own withAnimation — call it outside the step animation
         // block so the two animation contexts don't nest.
         if let next = currentStep.next {
@@ -46,7 +48,7 @@ final class OnboardingCoordinator {
     func goBack() {
         guard !isTransitioning, let prev = currentStep.previous else { return }
         isTransitioning = true
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        haptics.impactOccurred()
         withAnimation(Self.stepAnimation) {
             currentStep = prev
         }
@@ -68,8 +70,8 @@ final class OnboardingCoordinator {
     /// Resets the completion flag so the tour will also replay on the next cold launch.
     func restart() {
         UserDefaults.standard.set(false, forKey: UserDefaultsKeys.hasCompletedOnboarding)
-        // Clear stale frames — views will re-register via onGeometryChange on next layout.
-        registeredFrames.removeAll()
+        // Do NOT clear registeredFrames — views won't re-fire onGeometryChange unless
+        // their geometry actually changes, so existing frames remain valid for replay.
         activate()
     }
 

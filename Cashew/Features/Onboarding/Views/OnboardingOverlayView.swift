@@ -184,11 +184,11 @@ private struct TooltipCard: View {
 // Step dot-pill row — each dot is a Capsule; active is wider + accent-coloured
 private struct StepDots: View {
     let current: OnboardingStep
-    private let inner = OnboardingStep.tourSteps
+    private let steps = OnboardingStep.tourSteps
 
     var body: some View {
         HStack(spacing: 6) {
-            ForEach(inner) { s in
+            ForEach(steps) { s in
                 let active = s == current
                 Capsule()
                     .fill(active ? current.iconColor : Color.white.opacity(0.18))
@@ -227,7 +227,7 @@ private struct StepFooter: View {
     let step: OnboardingStep
     let onBack: () -> Void
     let onNext: () -> Void
-    private let inner = OnboardingStep.tourSteps
+    private let steps = OnboardingStep.tourSteps
 
     var body: some View {
         HStack(alignment: .center, spacing: 10) {
@@ -245,8 +245,8 @@ private struct StepFooter: View {
             }
 
             // Step counter
-            if let idx = inner.firstIndex(of: step) {
-                Text(String(localized: "\(idx + 1) of \(inner.count)",
+            if let idx = steps.firstIndex(of: step) {
+                Text(String(localized: "\(idx + 1) of \(steps.count)",
                             comment: "Onboarding step counter — first number is current step, second is total"))
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundStyle(Color.white.opacity(0.35))
@@ -271,3 +271,4 @@ private struct StepFooter: View {
         }
     }
 }
+

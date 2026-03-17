@@ -144,9 +144,8 @@ struct MainTabView: View {
         }
     }
 
-    /// User tapped "Let's Go!" on the completion screen.
+    /// Called by fullScreenCover's onDismiss after the completion sheet has fully animated out.
     private func finishTour() {
-        showCompletion = false
         coordinator.complete()
     }
 }

@@ -23,7 +23,6 @@ DerivedData/
 # Swift Package Manager
 .build/
 Packages/
-Package.resolved
 
 # CocoaPods
 Pods/

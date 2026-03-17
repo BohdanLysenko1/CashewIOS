@@ -100,19 +100,13 @@ final class SupabaseAuthService: AuthServiceProtocol {
     }
 
     func signUpWithEmail(email: String, password: String, displayName: String) async throws {
-        let response = try await client.auth.signUp(email: email, password: password)
-        let userId = response.user.id
-        // Upsert the profile row
-        try await client
-            .from(SupabaseSchema.Table.users)
-            .upsert([
-                "id": userId.uuidString,
-                "email": email,
-                "display_name": displayName
-            ])
-            .execute()
+        let response = try await client.auth.signUp(
+            email: email,
+            password: password,
+            data: ["display_name": .string(displayName)]
+        )
         isAuthenticated = true
-        await fetchCurrentUser(id: userId)
+        await fetchCurrentUser(id: response.user.id)
     }
 
     func signOut() async throws {

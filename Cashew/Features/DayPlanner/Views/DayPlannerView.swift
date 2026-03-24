@@ -24,8 +24,6 @@ struct DayPlannerView: View {
                     // Date selector
                     dateSelector
 
-                    Divider()
-
                     // Content
                     if isLoading {
                         loadingView
@@ -38,7 +36,7 @@ struct DayPlannerView: View {
                     deleteBar
                 }
             }
-            .background(Color(.systemGroupedBackground))
+            .background(AppTheme.background)
             .navigationTitle("My Day")
             .toolbar {
                 if isSelectMode {
@@ -159,7 +157,7 @@ struct DayPlannerView: View {
                 .padding(.horizontal)
                 .padding(.vertical, 12)
             }
-            .background(Color(.systemBackground))
+            .background(AppTheme.surfaceContainerLowest)
             .onAppear {
                 let today = Calendar.current.startOfDay(for: service.selectedDate)
                 Task {
@@ -242,11 +240,11 @@ struct DayPlannerView: View {
                     if total > 0 {
                         Text("\(completed) of \(total) tasks completed")
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
                     } else {
                         Text("No tasks planned")
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
                     }
                 }
 
@@ -284,7 +282,7 @@ struct DayPlannerView: View {
 
         return ZStack {
             Circle()
-                .stroke(Color(.systemGray5), lineWidth: 6)
+                .stroke(AppTheme.surfaceContainerHigh, lineWidth: 6)
                 .frame(width: 50, height: 50)
 
             Circle()
@@ -315,10 +313,6 @@ struct DayPlannerView: View {
                 VStack(spacing: 0) {
                     ForEach(service.scheduledTasks) { task in
                         selectableTaskRow(task)
-
-                        if task.id != service.scheduledTasks.last?.id {
-                            Divider().padding(.leading, 50)
-                        }
                     }
                 }
                 .background(AppTheme.cardBackground)
@@ -362,10 +356,6 @@ struct DayPlannerView: View {
                             onDelete: { deleteTask(task) }
                         )
                     }
-
-                    if task.id != service.unscheduledTasks.last?.id {
-                        Divider().padding(.leading, 50)
-                    }
                 }
             }
             .background(AppTheme.cardBackground)
@@ -381,7 +371,7 @@ struct DayPlannerView: View {
             Text(title)
                 .font(.subheadline)
                 .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
         }
     }
 
@@ -391,7 +381,7 @@ struct DayPlannerView: View {
         VStack(spacing: 16) {
             Image(systemName: "sun.max")
                 .font(.system(size: 50))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
 
             VStack(spacing: 6) {
                 Text("No Tasks Planned")
@@ -399,7 +389,7 @@ struct DayPlannerView: View {
 
                 Text("Add tasks to plan your day")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
             }
 
             Button {
@@ -454,7 +444,7 @@ struct DayPlannerView: View {
                         Text(label)
                             .font(.caption)
                     }
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
                 }
             }
 
@@ -605,7 +595,7 @@ private struct DateTab: View {
             }
         }
         .frame(width: 50, height: 70)
-        .background(isSelected ? Color.blue : (isToday ? Color.blue.opacity(0.1) : Color(.secondarySystemBackground)))
+        .background(isSelected ? AppTheme.primary : (isToday ? AppTheme.primary.opacity(0.1) : AppTheme.surfaceContainerLow))
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }

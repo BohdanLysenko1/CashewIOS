@@ -130,7 +130,7 @@ final class ShareService {
 
             let event: EventDTO = try await client
                 .from(SupabaseSchema.Table.events)
-                .select(SupabaseSchema.Select.tripWithOwner)
+                .select(SupabaseSchema.Select.eventWithOwner)
                 .eq("id", value: invite.resourceId.uuidString)
                 .single()
                 .execute()

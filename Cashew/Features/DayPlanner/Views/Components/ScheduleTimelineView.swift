@@ -24,13 +24,13 @@ struct ScheduleTimelineView: View {
                             Text(Self.timeFormatter.string(from: startTime))
                                 .font(.caption)
                                 .fontWeight(.semibold)
-                                .foregroundStyle(task.isCompleted ? .secondary : .primary)
+                                .foregroundStyle(task.isCompleted ? AppTheme.onSurfaceVariant : AppTheme.onSurface)
                         }
 
                         if let endTime = task.endTime {
                             Text(Self.timeFormatter.string(from: endTime))
                                 .font(.caption2)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(AppTheme.onSurfaceVariant)
                         }
                     }
                     .frame(width: 55, alignment: .trailing)
@@ -43,7 +43,7 @@ struct ScheduleTimelineView: View {
 
                         if task.id != tasks.last?.id {
                             Rectangle()
-                                .fill(Color(.systemGray4))
+                                .fill(AppTheme.surfaceContainerHigh)
                                 .frame(width: 2)
                                 .frame(maxHeight: .infinity)
                         }
@@ -73,7 +73,7 @@ struct ScheduleTimelineView: View {
                     .font(.subheadline)
                     .fontWeight(.medium)
                     .strikethrough(task.isCompleted)
-                    .foregroundStyle(task.isCompleted ? .secondary : .primary)
+                    .foregroundStyle(task.isCompleted ? AppTheme.onSurfaceVariant : AppTheme.onSurface)
 
                 HStack(spacing: 6) {
                     HStack(spacing: 4) {
@@ -96,7 +96,7 @@ struct ScheduleTimelineView: View {
                         Text(link.label)
                             .font(.caption)
                     }
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
                 }
             }
 

@@ -33,20 +33,20 @@ struct CalendarTaskRow: View {
                     .font(.subheadline)
                     .fontWeight(.medium)
                     .strikethrough(task.isCompleted)
-                    .foregroundStyle(task.isCompleted ? .secondary : .primary)
+                    .foregroundStyle(task.isCompleted ? AppTheme.onSurfaceVariant : AppTheme.onSurface)
                     .lineLimit(1)
 
                 HStack(spacing: 6) {
                     // Category
                     Label(task.categoryDisplayName, systemImage: task.category.icon)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
 
                     // Time if scheduled
                     if let timeRange = task.formattedTimeRange {
                         Text("· \(timeRange)")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
                     }
 
                     if task.routineId != nil {

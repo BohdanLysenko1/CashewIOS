@@ -166,7 +166,7 @@ struct EventFormView: View {
                             Text("Days")
                             Spacer()
                             Text(selectedDaysText)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(AppTheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -276,7 +276,7 @@ struct EventFormView: View {
 
             HStack {
                 Text(viewModel.currency)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
                 TextField("Cost (optional)", text: $viewModel.costString)
                     .keyboardType(.decimalPad)
             }
@@ -350,7 +350,7 @@ struct DayOfWeekPicker: View {
                 } label: {
                     HStack {
                         Text(day.displayName)
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(AppTheme.onSurface)
                         Spacer()
                         if selectedDays.contains(day) {
                             Image(systemName: "checkmark")
@@ -385,7 +385,7 @@ struct AddReminderSheet: View {
                     } label: {
                         HStack {
                             Text(interval.displayName)
-                                .foregroundStyle(isAdded ? .secondary : .primary)
+                                .foregroundStyle(isAdded ? AppTheme.onSurfaceVariant : AppTheme.onSurface)
                             Spacer()
                             if isAdded {
                                 Image(systemName: "checkmark")

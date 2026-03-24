@@ -50,8 +50,8 @@ struct TodaysMissionView: View {
                 taskSection
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
-        .shadow(color: .blue.opacity(0.22), radius: 12, x: 0, y: 6)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
+        .shadow(color: AppTheme.cardShadow, radius: AppTheme.cardShadowRadius, x: 0, y: AppTheme.cardShadowY)
     }
 
     // MARK: - Hero Header
@@ -114,11 +114,7 @@ struct TodaysMissionView: View {
 
     private var heroBackground: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color(red: 0.2, green: 0.5, blue: 1.0), Color(red: 0.3, green: 0.15, blue: 0.85)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+            AppTheme.heroGradient
             // Subtle highlight
             LinearGradient(
                 colors: [.white.opacity(0.1), .clear],
@@ -186,17 +182,13 @@ struct TodaysMissionView: View {
         VStack(spacing: 0) {
             ForEach(visibleTasks) { task in
                 taskRow(task)
-                if task.id != visibleTasks.last?.id {
-                    Divider()
-                        .padding(.leading, AppTheme.cardPadding + 8 + 12) // align past dot
-                }
             }
 
             if tasks.count > 4 {
                 HStack {
                     Text("+ \(tasks.count - 4) more task\(tasks.count - 4 == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(AppTheme.TextStyle.caption)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                     Spacer()
                 }
                 .padding(.horizontal, AppTheme.cardPadding)
@@ -211,31 +203,29 @@ struct TodaysMissionView: View {
         HStack(spacing: 12) {
             // Category dot
             Circle()
-                .fill(task.isCompleted ? Color.green : task.category.color)
+                .fill(task.isCompleted ? Color(red: 0.20, green: 0.72, blue: 0.45) : task.category.color)
                 .frame(width: 8, height: 8)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(task.title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                    .font(AppTheme.TextStyle.bodyBold)
                     .strikethrough(task.isCompleted)
-                    .foregroundStyle(task.isCompleted ? .secondary : .primary)
+                    .foregroundStyle(task.isCompleted ? AppTheme.onSurfaceVariant : AppTheme.onSurface)
                     .lineLimit(1)
 
                 Text(taskSubtitle(task))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .font(AppTheme.TextStyle.micro)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
             }
 
             Spacer()
 
             Text("+\(XPCalculator.xp(for: task)) XP")
-                .font(.caption2)
-                .fontWeight(.bold)
-                .foregroundStyle(task.isCompleted ? .green : .secondary)
+                .font(AppTheme.TextStyle.captionBold)
+                .foregroundStyle(task.isCompleted ? AppTheme.tertiary : AppTheme.onSurfaceVariant)
                 .padding(.horizontal, 7)
                 .padding(.vertical, 3)
-                .background(task.isCompleted ? Color.green.opacity(0.1) : Color(.systemGray6))
+                .background(task.isCompleted ? AppTheme.tertiary.opacity(0.10) : AppTheme.surfaceContainerLow)
                 .clipShape(Capsule())
         }
         .padding(.horizontal, AppTheme.cardPadding)

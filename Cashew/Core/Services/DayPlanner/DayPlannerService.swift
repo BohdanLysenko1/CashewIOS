@@ -182,14 +182,14 @@ final class DayPlannerService: DayPlannerServiceProtocol {
     }
 
     func deleteRoutine(by id: UUID) async throws {
-        try await routineRepository.delete(by: id)
-        routines.removeAll { $0.id == id }
-
-        // Remove all tasks generated from this routine
+        // Delete tasks first so a failure doesn't orphan them after the routine is gone
         let tasksToRemove = allTasks.filter { $0.routineId == id }
         for task in tasksToRemove {
             try await deleteTask(by: task.id)
         }
+
+        try await routineRepository.delete(by: id)
+        routines.removeAll { $0.id == id }
     }
 
     func toggleRoutineEnabled(_ routine: DailyRoutine) async throws {

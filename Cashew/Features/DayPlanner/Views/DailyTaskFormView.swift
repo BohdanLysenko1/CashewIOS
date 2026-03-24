@@ -237,13 +237,13 @@ struct DailyTaskFormView: View {
                         HapticManager.impact(.light)
                     } label: {
                         Image(systemName: subtask.isCompleted ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(subtask.isCompleted ? .green : .secondary)
+                            .foregroundStyle(subtask.isCompleted ? .green : AppTheme.onSurfaceVariant)
                     }
                     .buttonStyle(.plain)
 
                     TextField("Subtask", text: $subtask.title)
                         .strikethrough(subtask.isCompleted)
-                        .foregroundStyle(subtask.isCompleted ? .secondary : .primary)
+                        .foregroundStyle(subtask.isCompleted ? AppTheme.onSurfaceVariant : AppTheme.onSurface)
                 }
             }
             .onDelete { indexSet in subtasks.remove(atOffsets: indexSet) }
@@ -271,7 +271,7 @@ struct DailyTaskFormView: View {
             if !subtasks.isEmpty {
                 let done = subtasks.filter(\.isCompleted).count
                 Text("\(done) of \(subtasks.count) completed")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
             }
         }
     }

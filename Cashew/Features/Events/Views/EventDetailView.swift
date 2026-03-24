@@ -144,20 +144,19 @@ struct EventDetailView: View {
                                 .foregroundStyle(event.category.color)
                                 .frame(width: 28)
                             Text("Category")
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(AppTheme.onSurfaceVariant)
                             Spacer()
                             CategoryBadge(category: event.category, customName: event.customCategoryName, style: .prominent)
                         }
 
-                        Divider().padding(.leading, 44)
-
+                        
                         HStack {
                             Image(systemName: event.priority.icon)
                                 .font(.system(size: 20))
                                 .foregroundStyle(priorityColor(event.priority))
                                 .frame(width: 28)
                             Text("Priority")
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(AppTheme.onSurfaceVariant)
                             Spacer()
                             Text(event.priority.displayName)
                                 .fontWeight(.medium)
@@ -165,8 +164,7 @@ struct EventDetailView: View {
                         }
 
                         if !event.location.isEmpty {
-                            Divider().padding(.leading, 44)
-                            if let lat = event.locationLatitude, let lng = event.locationLongitude {
+                                                        if let lat = event.locationLatitude, let lng = event.locationLongitude {
                                 TappableLocationRow(
                                     icon: "mappin.circle.fill", iconColor: .red,
                                     label: "Location", value: event.location,
@@ -178,8 +176,7 @@ struct EventDetailView: View {
                         }
 
                         if !event.address.isEmpty {
-                            Divider().padding(.leading, 44)
-                            detailRow(icon: "map.fill", iconColor: .orange, label: "Address", value: event.address)
+                                                        detailRow(icon: "map.fill", iconColor: .orange, label: "Address", value: event.address)
                         }
                     }
                     .padding()
@@ -195,15 +192,14 @@ struct EventDetailView: View {
                         if event.isAllDay {
                             detailRow(icon: "calendar.circle.fill", iconColor: .blue, label: "Date", value: event.date.formatted(date: .long, time: .omitted))
 
-                            Divider().padding(.leading, 44)
-
+                            
                             HStack {
                                 Image(systemName: "sun.max.fill")
                                     .font(.system(size: 20))
                                     .foregroundStyle(.orange)
                                     .frame(width: 28)
                                 Text("All Day")
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(AppTheme.onSurfaceVariant)
                                 Spacer()
                                 Text("Yes")
                                     .fontWeight(.medium)
@@ -213,27 +209,24 @@ struct EventDetailView: View {
                             detailRow(icon: "play.circle.fill", iconColor: .green, label: "Starts", value: event.date.formatted(date: .long, time: .shortened))
 
                             if let endDate = event.endDate {
-                                Divider().padding(.leading, 44)
-
+                                
                                 detailRow(icon: "stop.circle.fill", iconColor: .red, label: "Ends", value: endDate.formatted(date: .long, time: .shortened))
 
-                                Divider().padding(.leading, 44)
-
+                                
                                 detailRow(icon: "clock.fill", iconColor: .purple, label: "Duration", value: durationText(from: event.date, to: endDate))
                             }
                         }
 
                         // Recurrence
                         if let rule = event.recurrenceRule {
-                            Divider().padding(.leading, 44)
-
+                            
                             HStack {
                                 Image(systemName: "repeat")
                                     .font(.system(size: 20))
                                     .foregroundStyle(.blue)
                                     .frame(width: 28)
                                 Text("Repeats")
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(AppTheme.onSurfaceVariant)
                                 Spacer()
                                 Text(rule.displayText)
                                     .font(.subheadline)
@@ -260,16 +253,12 @@ struct EventDetailView: View {
                                         .foregroundStyle(.orange)
                                         .frame(width: 28)
                                     Text(reminder.interval.displayName)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(AppTheme.onSurfaceVariant)
                                     Spacer()
                                     if reminder.isEnabled {
                                         Image(systemName: "checkmark.circle.fill")
                                             .foregroundStyle(.green)
                                     }
-                                }
-
-                                if reminder.id != event.reminders.last?.id {
-                                    Divider().padding(.leading, 44)
                                 }
                             }
                         }
@@ -296,21 +285,16 @@ struct EventDetailView: View {
                                         .font(.subheadline)
                                     Spacer()
                                     Image(systemName: "arrow.up.right.square")
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(AppTheme.onSurfaceVariant)
                                 }
                             }
 
                             if let cost = event.cost {
-                                if event.url != nil {
-                                    Divider().padding(.leading, 44)
-                                }
-
                                 detailRow(icon: "creditcard.fill", iconColor: .green, label: "Cost", value: formatCost(cost, currency: event.currency))
                             }
 
                             ForEach(nonPhotoAttachments) { attachment in
-                                Divider().padding(.leading, 44)
-
+                                
                                 HStack {
                                     Image(systemName: attachment.type.icon)
                                         .font(.system(size: 20))
@@ -344,7 +328,7 @@ struct EventDetailView: View {
 
                         Text(event.notes)
                             .font(.body)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding()
                     }
@@ -362,8 +346,7 @@ struct EventDetailView: View {
                     VStack(spacing: 12) {
                         detailRow(icon: "plus.circle.fill", iconColor: .gray, label: "Created", value: event.createdAt.formatted(date: .abbreviated, time: .shortened))
 
-                        Divider().padding(.leading, 44)
-
+                        
                         detailRow(icon: "pencil.circle.fill", iconColor: .gray, label: "Updated", value: event.updatedAt.formatted(date: .abbreviated, time: .shortened))
                     }
                     .padding()
@@ -373,7 +356,7 @@ struct EventDetailView: View {
             }
             .padding()
         }
-        .background(Color(.systemGroupedBackground))
+        .background(AppTheme.background)
     }
 
     private func priorityColor(_ priority: EventPriority) -> Color {
@@ -415,12 +398,12 @@ struct EventDetailView: View {
                         } label: {
                             Label(event.location, systemImage: "location.fill")
                                 .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(AppTheme.onSurfaceVariant)
                         }
                     } else {
                         Label(event.location, systemImage: "location.fill")
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
                     }
                 }
             }
@@ -470,7 +453,7 @@ struct EventDetailView: View {
                         .foregroundStyle(.blue)
                     Text(days == 1 ? "day away" : "days away")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
@@ -479,10 +462,10 @@ struct EventDetailView: View {
             } else if days < 0 {
                 Text("Past event")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
-                    .background(Color(.tertiarySystemBackground))
+                    .background(AppTheme.surfaceContainerLow)
                     .clipShape(Capsule())
             }
         }
@@ -496,12 +479,12 @@ struct EventDetailView: View {
             Text(title)
                 .font(.subheadline)
                 .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
         }
         .padding(.horizontal)
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemBackground))
+        .background(AppTheme.surfaceContainerLow)
     }
 
     private func detailRow(icon: String, iconColor: Color, label: String, value: String) -> some View {
@@ -511,7 +494,7 @@ struct EventDetailView: View {
                 .foregroundStyle(iconColor)
                 .frame(width: 28)
             Text(label)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
             Spacer()
             Text(value)
                 .fontWeight(.medium)
@@ -540,21 +523,17 @@ struct EventDetailView: View {
                                     .font(.subheadline)
                                     .fontWeight(.medium)
                                     .strikethrough(task.isCompleted)
-                                    .foregroundStyle(task.isCompleted ? .secondary : .primary)
+                                    .foregroundStyle(task.isCompleted ? AppTheme.onSurfaceVariant : AppTheme.onSurface)
 
                                 Text(task.date.formatted(date: .abbreviated, time: .omitted))
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(AppTheme.onSurfaceVariant)
                             }
 
                             Spacer()
                         }
                         .padding(.horizontal)
                         .padding(.vertical, 10)
-
-                        if task.id != linkedTasks.last?.id {
-                            Divider().padding(.leading, 50)
-                        }
                     }
                 }
                 .padding(.vertical, 4)

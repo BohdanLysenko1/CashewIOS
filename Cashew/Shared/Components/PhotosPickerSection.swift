@@ -88,7 +88,7 @@ struct PhotosPickerSection: View {
                         .frame(width: 22, height: 22)
                     Image(systemName: "xmark")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(AppTheme.onSurface)
                 }
             }
             .offset(x: 6, y: -6)
@@ -106,7 +106,7 @@ struct PhotosPickerSection: View {
         ) {
             ZStack {
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.secondarySystemGroupedBackground))
+                    .fill(AppTheme.surfaceContainerLow)
                     .frame(width: tileSize, height: tileSize)
 
                 RoundedRectangle(cornerRadius: 12)
@@ -130,7 +130,7 @@ struct PhotosPickerSection: View {
                         Text("Add")
                             .font(.caption2)
                             .fontWeight(.medium)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
                     }
                 }
             }

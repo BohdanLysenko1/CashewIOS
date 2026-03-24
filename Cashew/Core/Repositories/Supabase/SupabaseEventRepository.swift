@@ -24,6 +24,7 @@ struct EventDTO: Codable {
     let customCategoryName: String?
     let tripId: UUID?
     let reminders: [Reminder]
+    let recurrenceRule: RecurrenceRule?
     let attachments: [Attachment]
     let createdAt: Date
     let updatedAt: Date
@@ -41,7 +42,9 @@ struct EventDTO: Codable {
         case isAllDay             = "is_all_day"
         case customCategoryName   = "custom_category_name"
         case tripId               = "trip_id"
-        case reminders, attachments
+        case reminders
+        case recurrenceRule       = "recurrence_rule"
+        case attachments
         case createdAt            = "created_at"
         case updatedAt            = "updated_at"
     }
@@ -62,6 +65,7 @@ struct EventDTO: Codable {
             isAllDay: isAllDay,
             priority: EventPriority(rawValue: priority) ?? .medium,
             reminders: reminders,
+            recurrenceRule: recurrenceRule,
             attachments: attachments,
             url: url.flatMap { URL(string: $0) },
             cost: cost.map { Decimal($0) },
@@ -95,6 +99,7 @@ private struct EventPayload: Encodable {
     let customCategoryName: String?
     let tripId: UUID?
     let reminders: [Reminder]
+    let recurrenceRule: RecurrenceRule?
     let attachments: [Attachment]
 
     enum CodingKeys: String, CodingKey {
@@ -107,6 +112,7 @@ private struct EventPayload: Encodable {
         case isAllDay           = "is_all_day"
         case customCategoryName = "custom_category_name"
         case tripId             = "trip_id"
+        case recurrenceRule     = "recurrence_rule"
     }
 
     init(event: Event, ownerId: UUID) {
@@ -129,6 +135,7 @@ private struct EventPayload: Encodable {
         self.customCategoryName = event.customCategoryName
         self.tripId = event.tripId
         self.reminders = event.reminders
+        self.recurrenceRule = event.recurrenceRule
         self.attachments = event.attachments
     }
 }

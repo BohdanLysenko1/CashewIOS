@@ -151,15 +151,14 @@ struct TripDetailView: View {
                             detailRow(icon: "mappin.circle.fill", iconColor: .red, label: "Destination", value: trip.destination)
                         }
 
-                        Divider().padding(.leading, 44)
-
+                        
                         HStack {
                             Image(systemName: "flag.circle.fill")
                                 .font(.system(size: 20))
                                 .foregroundStyle(.blue)
                                 .frame(width: 28)
                             Text("Status")
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(AppTheme.onSurfaceVariant)
                             Spacer()
                             StatusBadge(status: trip.computedStatus, style: .prominent)
                         }
@@ -176,12 +175,10 @@ struct TripDetailView: View {
                     VStack(spacing: 12) {
                         detailRow(icon: "airplane.departure", iconColor: .green, label: "Start", value: trip.startDate.formatted(date: .long, time: .omitted))
 
-                        Divider().padding(.leading, 44)
-
+                        
                         detailRow(icon: "airplane.arrival", iconColor: .orange, label: "End", value: trip.endDate.formatted(date: .long, time: .omitted))
 
-                        Divider().padding(.leading, 44)
-
+                        
                         detailRow(icon: "clock.fill", iconColor: .purple, label: "Duration", value: durationText(from: trip.startDate, to: trip.endDate))
                     }
                     .padding()
@@ -199,7 +196,7 @@ struct TripDetailView: View {
 
                         Text(trip.notes)
                             .font(.body)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding()
                     }
@@ -217,8 +214,7 @@ struct TripDetailView: View {
                     VStack(spacing: 12) {
                         detailRow(icon: "plus.circle.fill", iconColor: .gray, label: "Created", value: trip.createdAt.formatted(date: .abbreviated, time: .shortened))
 
-                        Divider().padding(.leading, 44)
-
+                        
                         detailRow(icon: "pencil.circle.fill", iconColor: .gray, label: "Updated", value: trip.updatedAt.formatted(date: .abbreviated, time: .shortened))
                     }
                     .padding()
@@ -228,7 +224,7 @@ struct TripDetailView: View {
             }
             .padding()
         }
-        .background(Color(.systemGroupedBackground))
+        .background(AppTheme.background)
     }
 
     // MARK: - Quick Actions Grid
@@ -378,12 +374,12 @@ struct TripDetailView: View {
                             Text(trip.destination)
                         }
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                     }
                 } else {
                     Text(trip.destination)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                 }
             }
 
@@ -398,7 +394,7 @@ struct TripDetailView: View {
                             .foregroundStyle(.blue)
                         Text("days until departure")
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
@@ -434,12 +430,12 @@ struct TripDetailView: View {
             Text(title)
                 .font(.subheadline)
                 .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
         }
         .padding(.horizontal)
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemBackground))
+        .background(AppTheme.surfaceContainerLow)
     }
 
     private func detailRow(icon: String, iconColor: Color, label: String, value: String) -> some View {
@@ -449,7 +445,7 @@ struct TripDetailView: View {
                 .foregroundStyle(iconColor)
                 .frame(width: 28)
             Text(label)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
             Spacer()
             Text(value)
                 .fontWeight(.medium)
@@ -478,21 +474,17 @@ struct TripDetailView: View {
                                     .font(.subheadline)
                                     .fontWeight(.medium)
                                     .strikethrough(task.isCompleted)
-                                    .foregroundStyle(task.isCompleted ? .secondary : .primary)
+                                    .foregroundStyle(task.isCompleted ? AppTheme.onSurfaceVariant : AppTheme.onSurface)
 
                                 Text(task.date.formatted(date: .abbreviated, time: .omitted))
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(AppTheme.onSurfaceVariant)
                             }
 
                             Spacer()
                         }
                         .padding(.horizontal)
                         .padding(.vertical, 10)
-
-                        if task.id != linkedTasks.last?.id {
-                            Divider().padding(.leading, 50)
-                        }
                     }
                 }
                 .padding(.vertical, 4)
@@ -574,7 +566,7 @@ private struct QuickActionCard: View {
 
                 Image(systemName: "chevron.right")
                     .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
             }
 
             VStack(alignment: .leading, spacing: 4) {
@@ -584,14 +576,14 @@ private struct QuickActionCard: View {
 
                 Text(subtitle)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
             }
 
             if let progress {
                 GeometryReader { geometry in
                     ZStack(alignment: .leading) {
                         RoundedRectangle(cornerRadius: 3)
-                            .fill(Color(.systemGray5))
+                            .fill(AppTheme.surfaceContainerHigh)
                             .frame(height: 6)
 
                         RoundedRectangle(cornerRadius: 3)

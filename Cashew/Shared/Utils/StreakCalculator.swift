@@ -41,7 +41,7 @@ enum StreakCalculator {
         var current = 0
         var best = 0
         var temp = 0
-        var currentLocked = false
+        var currentFound = false
 
         for dayOffset in 0..<lookbackDays {
             guard let date = calendar.date(byAdding: .day, value: -dayOffset, to: today) else { break }
@@ -54,19 +54,21 @@ enum StreakCalculator {
             if completed {
                 temp += 1
                 best = max(best, temp)
-                if !currentLocked {
+                if !currentFound {
                     current = temp
                 }
             } else if dayOffset == 0 {
-                currentLocked = true // today is not done; current streak is locked at 0 for now
-                continue
+                continue // Today not done yet — grace period (matches currentStreak)
             } else {
-                currentLocked = true
+                if !currentFound {
+                    current = temp
+                    currentFound = true
+                }
                 temp = 0
-                // Once current streak is established, stop scanning for best streak
-                if current != 0 { break }
             }
         }
+        if !currentFound { current = temp }
+        best = max(best, temp)
         return (current, best)
     }
 }

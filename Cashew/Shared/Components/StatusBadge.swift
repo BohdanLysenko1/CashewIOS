@@ -17,8 +17,7 @@ struct StatusBadge: View {
                     .frame(width: 6, height: 6)
             }
             Text(status.displayName)
-                .font(.caption2)
-                .fontWeight(.semibold)
+                .font(AppTheme.TextStyle.captionBold)
         }
         .padding(.horizontal, style == .prominent ? 10 : 8)
         .padding(.vertical, style == .prominent ? 5 : 4)
@@ -33,11 +32,11 @@ struct StatusBadge: View {
 extension TripStatus {
     var color: Color {
         switch self {
-        case .planning: .blue
-        case .upcoming: .orange
-        case .active: .green
-        case .completed: .gray
-        case .cancelled: .red
+        case .planning: AppTheme.primary
+        case .upcoming: AppTheme.secondary
+        case .active: Color(red: 0.20, green: 0.72, blue: 0.45)
+        case .completed: AppTheme.onSurfaceVariant
+        case .cancelled: AppTheme.tertiary
         }
     }
 

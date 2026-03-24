@@ -35,7 +35,7 @@ struct TripPackingView: View {
             }
             .padding()
         }
-        .background(Color(.systemGroupedBackground))
+        .background(AppTheme.background)
         .navigationTitle("Packing List")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -62,7 +62,7 @@ struct TripPackingView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Packing Progress")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
 
                     let packed = trip.packingItems.filter { $0.isPacked }.count
                     let total = trip.packingItems.count
@@ -76,7 +76,7 @@ struct TripPackingView: View {
 
                 ZStack {
                     Circle()
-                        .stroke(Color(.systemGray5), lineWidth: 8)
+                        .stroke(AppTheme.surfaceContainerHigh, lineWidth: 8)
                         .frame(width: 60, height: 60)
 
                     Circle()
@@ -119,7 +119,7 @@ struct TripPackingView: View {
         VStack(spacing: 16) {
             Image(systemName: "bag")
                 .font(.system(size: 50))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
 
             VStack(spacing: 6) {
                 Text("No Items Yet")
@@ -127,7 +127,7 @@ struct TripPackingView: View {
 
                 Text("Start adding items to your packing list")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
             }
 
             Button {
@@ -166,10 +166,10 @@ struct TripPackingView: View {
                 let packed = items.filter { $0.isPacked }.count
                 Text("\(packed)/\(items.count)")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
             }
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppTheme.surfaceContainerLow)
 
             // Items
             VStack(spacing: 0) {
@@ -180,10 +180,6 @@ struct TripPackingView: View {
                         editingItem = item
                     } onDelete: {
                         deleteItem(item)
-                    }
-
-                    if item.id != items.last?.id {
-                        Divider().padding(.leading, 50)
                     }
                 }
             }
@@ -200,7 +196,7 @@ struct TripPackingView: View {
             Text("Quick Add")
                 .font(.subheadline)
                 .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
                 .padding(.horizontal)
 
             ScrollView(.horizontal, showsIndicators: false) {
@@ -213,7 +209,7 @@ struct TripPackingView: View {
                                 .font(.caption)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
-                                .background(Color(.secondarySystemBackground))
+                                .background(AppTheme.surfaceContainerLow)
                                 .clipShape(Capsule())
                         }
                         .buttonStyle(.plain)
@@ -297,7 +293,7 @@ private struct PackingItemRow: View {
             } label: {
                 Image(systemName: item.isPacked ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 22))
-                    .foregroundStyle(item.isPacked ? .green : .secondary)
+                    .foregroundStyle(item.isPacked ? .green : AppTheme.onSurfaceVariant)
             }
             .buttonStyle(.plain)
 
@@ -305,12 +301,12 @@ private struct PackingItemRow: View {
                 Text(item.name)
                     .font(.subheadline)
                     .strikethrough(item.isPacked)
-                    .foregroundStyle(item.isPacked ? .secondary : .primary)
+                    .foregroundStyle(item.isPacked ? AppTheme.onSurfaceVariant : AppTheme.onSurface)
 
                 if item.quantity > 1 {
                     Text("Qty: \(item.quantity)")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                 }
             }
 

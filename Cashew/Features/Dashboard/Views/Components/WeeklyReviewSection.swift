@@ -106,29 +106,25 @@ struct WeeklyReviewSection: View {
                 VStack(alignment: .leading, spacing: 2) {
                     SectionHeader(icon: "chart.line.uptrend.xyaxis", title: "This Week", gradient: AppTheme.dayPlannerGradient)
                     Text("From \(weekStartLabel)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(AppTheme.TextStyle.caption)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                 }
 
                 Spacer()
 
                 if xpThisWeek > 0 {
                     Label("+\(xpThisWeek) XP", systemImage: "star.fill")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.orange)
+                        .font(AppTheme.TextStyle.captionBold)
+                        .foregroundStyle(AppTheme.tertiary)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
-                        .background(Color.orange.opacity(0.12))
+                        .background(AppTheme.tertiary.opacity(0.12))
                         .clipShape(Capsule())
                 }
             }
             .padding(AppTheme.cardPadding)
 
-            Divider()
-                .padding(.horizontal, AppTheme.cardPadding)
-
-            // Rows
+            // Rows (whitespace separation, no dividers)
             statRow(
                 label: "Tasks completed",
                 value: "\(thisWeekCompleted) / \(thisWeekTotal)",
@@ -136,9 +132,6 @@ struct WeeklyReviewSection: View {
                 showProgress: true,
                 progress: thisWeekTotal > 0 ? Double(thisWeekCompleted) / Double(thisWeekTotal) : 0
             )
-
-            Divider()
-                .padding(.horizontal, AppTheme.cardPadding)
 
             statRow(
                 label: "Completion rate",
@@ -148,9 +141,6 @@ struct WeeklyReviewSection: View {
                 progress: 0
             )
 
-            Divider()
-                .padding(.horizontal, AppTheme.cardPadding)
-
             statRow(
                 label: "Events",
                 value: "\(thisWeekEvents)",
@@ -158,9 +148,6 @@ struct WeeklyReviewSection: View {
                 showProgress: false,
                 progress: 0
             )
-
-            Divider()
-                .padding(.horizontal, AppTheme.cardPadding)
 
             statRow(
                 label: "Active routines",
@@ -171,7 +158,7 @@ struct WeeklyReviewSection: View {
             )
         }
         .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
         .shadow(color: AppTheme.cardShadow, radius: AppTheme.cardShadowRadius, x: 0, y: AppTheme.cardShadowY)
     }
 
@@ -181,16 +168,15 @@ struct WeeklyReviewSection: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(label)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(AppTheme.TextStyle.body)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
 
                 Spacer()
 
                 HStack(spacing: 6) {
                     Text(value)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.primary)
+                        .font(AppTheme.TextStyle.bodyBold)
+                        .foregroundStyle(AppTheme.onSurface)
                         .monospacedDigit()
 
                     if let trend, trend != 0 {
@@ -200,7 +186,7 @@ struct WeeklyReviewSection: View {
             }
 
             if showProgress {
-                AppProgressBar(progress: progress, color: .blue)
+                AppProgressBar(progress: progress, color: AppTheme.primary)
             }
         }
         .padding(.horizontal, AppTheme.cardPadding)

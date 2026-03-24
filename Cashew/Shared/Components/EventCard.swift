@@ -33,7 +33,7 @@ struct EventCard: View {
     // MARK: - Full Card
 
     private var fullCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: AppTheme.cardInternalSpacing) {
             // Header with icon and category
             HStack(alignment: .top) {
                 // Category icon
@@ -42,14 +42,14 @@ struct EventCard: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(event.title)
-                        .font(.headline)
-                        .fontWeight(.semibold)
+                        .font(AppTheme.TextStyle.sectionTitle)
+                        .foregroundStyle(AppTheme.onSurface)
                         .lineLimit(2)
 
                     if !event.location.isEmpty {
                         Label(event.location, systemImage: "location.fill")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .font(AppTheme.TextStyle.secondary)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
                             .labelStyle(.titleAndIcon)
                             .lineLimit(1)
                     }
@@ -60,24 +60,21 @@ struct EventCard: View {
                 CategoryBadge(category: event.category, customName: event.customCategoryName)
             }
 
-            Divider()
-
-            // Date and time info
+            // Date and time info (whitespace separation, no divider)
             HStack(spacing: 16) {
                 // Date
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Date")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .font(AppTheme.TextStyle.micro)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                         .textCase(.uppercase)
 
                     HStack(spacing: 4) {
                         Image(systemName: "calendar")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .font(AppTheme.TextStyle.micro)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
                         Text(Self.dateFormatter.string(from: event.date))
-                            .font(.caption)
-                            .fontWeight(.medium)
+                            .font(AppTheme.TextStyle.captionBold)
                     }
                 }
 
@@ -85,30 +82,28 @@ struct EventCard: View {
                 if !event.isAllDay {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Time")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
+                            .font(AppTheme.TextStyle.micro)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
                             .textCase(.uppercase)
 
                         HStack(spacing: 4) {
                             Image(systemName: "clock")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
+                                .font(AppTheme.TextStyle.micro)
+                                .foregroundStyle(AppTheme.onSurfaceVariant)
                             Text(timeDisplay)
-                                .font(.caption)
-                                .fontWeight(.medium)
+                                .font(AppTheme.TextStyle.captionBold)
                         }
                     }
                 } else {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Duration")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
+                            .font(AppTheme.TextStyle.micro)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
                             .textCase(.uppercase)
 
                         Text("All Day")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundStyle(.blue)
+                            .font(AppTheme.TextStyle.captionBold)
+                            .foregroundStyle(AppTheme.primary)
                     }
                 }
 
@@ -139,22 +134,21 @@ struct EventCard: View {
             VStack(alignment: .leading, spacing: 2) {
                 // Line 1: Title
                 Text(event.title)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.primary)
+                    .font(AppTheme.TextStyle.bodyBold)
+                    .foregroundStyle(AppTheme.onSurface)
                     .lineLimit(1)
 
                 // Line 2: Time · Category
                 Text(compactSubtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(AppTheme.TextStyle.caption)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
                     .lineLimit(1)
 
                 // Line 3: Location (optional)
                 if !event.location.isEmpty {
                     Label(event.location, systemImage: "location")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .font(AppTheme.TextStyle.micro)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                         .labelStyle(.titleAndIcon)
                         .lineLimit(1)
                 }
@@ -233,45 +227,41 @@ struct EventCard: View {
 
     private var pastBadge: some View {
         Text("Past")
-            .font(.caption2)
-            .fontWeight(.bold)
+            .font(AppTheme.TextStyle.captionBold)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(.gray.opacity(0.15))
-            .foregroundStyle(.gray)
+            .background(AppTheme.surfaceContainerHigh)
+            .foregroundStyle(AppTheme.onSurfaceVariant)
             .clipShape(Capsule())
     }
 
     private var todayBadge: some View {
         Text("Today")
-            .font(.caption2)
-            .fontWeight(.bold)
+            .font(AppTheme.TextStyle.captionBold)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(.red.opacity(0.15))
-            .foregroundStyle(.red)
+            .background(AppTheme.tertiary.opacity(0.15))
+            .foregroundStyle(AppTheme.tertiary)
             .clipShape(Capsule())
     }
 
     private var tomorrowBadge: some View {
         Text("Tomorrow")
-            .font(.caption2)
-            .fontWeight(.bold)
+            .font(AppTheme.TextStyle.captionBold)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(.orange.opacity(0.15))
-            .foregroundStyle(.orange)
+            .background(AppTheme.secondary.opacity(0.15))
+            .foregroundStyle(AppTheme.secondary)
             .clipShape(Capsule())
     }
 
     private func upcomingBadge(days: Int) -> some View {
         Text("In \(days)d")
-            .font(.caption2)
-            .fontWeight(.bold)
+            .font(AppTheme.TextStyle.captionBold)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(.blue.opacity(0.15))
-            .foregroundStyle(.blue)
+            .background(AppTheme.primary.opacity(0.15))
+            .foregroundStyle(AppTheme.primary)
             .clipShape(Capsule())
     }
 }

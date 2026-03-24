@@ -55,14 +55,14 @@ struct CustomCategoryPickerRows: View {
                 .background(
                     isSelected
                         ? AnyShapeStyle(Color.teal.gradient)
-                        : AnyShapeStyle(Color(.secondarySystemGroupedBackground))
+                        : AnyShapeStyle(AppTheme.surfaceContainerLow)
                 )
                 .foregroundStyle(isSelected ? .white : .primary)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
                         .strokeBorder(
-                            isSelected ? Color.clear : Color(.separator),
+                            isSelected ? Color.clear : AppTheme.surfaceContainerHigh,
                             lineWidth: 1
                         )
                 )
@@ -83,7 +83,7 @@ struct CustomCategoryPickerRows: View {
                         .frame(width: 18, height: 18)
                     Image(systemName: "xmark")
                         .font(.system(size: 7, weight: .bold))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(AppTheme.onSurface)
                 }
             }
             .offset(x: 5, y: -5)

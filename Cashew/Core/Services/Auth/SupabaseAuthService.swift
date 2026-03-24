@@ -10,13 +10,40 @@ final class SupabaseAuthService: AuthServiceProtocol {
 
     private(set) var isAuthenticated = false
     private(set) var isRestoringSession = true
+    private(set) var isRecoveringPassword = false
     private(set) var currentUser: AppUser? = nil
 
     private let client = SupabaseManager.client
     private var currentNonce: String?
+    private static var delegateKey: UInt8 = 0
 
     init() {
         Task { await restoreSession() }
+        Task { await listenToAuthEvents() }
+    }
+
+    private func listenToAuthEvents() async {
+        for await (event, session) in client.auth.authStateChanges {
+            switch event {
+            case .passwordRecovery:
+                isAuthenticated = true
+                isRecoveringPassword = true
+                if let id = session?.user.id {
+                    await fetchCurrentUser(id: id)
+                }
+            case .signedIn:
+                // Handles deep-link callbacks (email confirmation, invite links).
+                // Direct sign-in methods (signInWithEmail, signIn, etc.) set state
+                // themselves, so skip if already authenticated to avoid redundant work.
+                guard !isAuthenticated else { break }
+                isAuthenticated = true
+                if let id = session?.user.id {
+                    await fetchCurrentUser(id: id)
+                }
+            default:
+                break
+            }
+        }
     }
 
     // MARK: - Session Restore
@@ -103,8 +130,13 @@ final class SupabaseAuthService: AuthServiceProtocol {
         let response = try await client.auth.signUp(
             email: email,
             password: password,
-            data: ["display_name": .string(displayName)]
+            data: ["display_name": .string(displayName)],
+            redirectTo: URL(string: "cashew://login-callback")
         )
+        // If email confirmation is required, session is nil until the user confirms
+        guard response.session != nil else {
+            throw AuthError.emailConfirmationRequired
+        }
         isAuthenticated = true
         await fetchCurrentUser(id: response.user.id)
     }
@@ -112,12 +144,45 @@ final class SupabaseAuthService: AuthServiceProtocol {
     func signOut() async throws {
         try await client.auth.signOut()
         isAuthenticated = false
+        isRecoveringPassword = false
         currentUser = nil
+    }
+
+    func handleAuthCallback(url: URL) async throws {
+        // Just exchange the code/token with Supabase. The resulting auth state
+        // change (.signedIn or .passwordRecovery) is handled by listenToAuthEvents,
+        // which sets isAuthenticated and isRecoveringPassword appropriately.
+        _ = try await client.auth.session(from: url)
+    }
+
+    func handlePasswordResetCallback(url: URL) async throws {
+        // Set the flag *before* exchanging the token so the UI never
+        // flashes MainTabView when the .signedIn event fires first.
+        isRecoveringPassword = true
+        _ = try await client.auth.session(from: url)
+    }
+
+    func updatePassword(_ newPassword: String) async throws {
+        try await client.auth.update(user: UserAttributes(password: newPassword))
+    }
+
+    func sendPasswordReset(email: String) async throws {
+        try await client.auth.resetPasswordForEmail(email, redirectTo: URL(string: "cashew://reset-callback"))
+    }
+
+    func updateDisplayName(_ name: String) async throws {
+        guard let userId = currentUser?.id else { return }
+        try await client
+            .from(SupabaseSchema.Table.users)
+            .update(["display_name": name])
+            .eq("id", value: userId.uuidString)
+            .execute()
+        currentUser?.displayName = name
     }
 
     // MARK: - User Fetch
 
-    func fetchCurrentUser(id: UUID) async {
+    private func fetchCurrentUser(id: UUID) async {
         do {
             let user: AppUser = try await client
                 .from(SupabaseSchema.Table.users)
@@ -145,7 +210,7 @@ final class SupabaseAuthService: AuthServiceProtocol {
             let controller = ASAuthorizationController(authorizationRequests: [request])
             controller.delegate = delegate
             // Retain delegate for the duration of the request
-            objc_setAssociatedObject(controller, "delegate", delegate, .OBJC_ASSOCIATION_RETAIN)
+            objc_setAssociatedObject(controller, &SupabaseAuthService.delegateKey, delegate, .OBJC_ASSOCIATION_RETAIN)
             controller.performRequests()
         }
     }
@@ -170,11 +235,13 @@ final class SupabaseAuthService: AuthServiceProtocol {
 enum AuthError: LocalizedError {
     case invalidCredential
     case cancelled
+    case emailConfirmationRequired
 
     var errorDescription: String? {
         switch self {
         case .invalidCredential: return "Invalid Apple credential."
         case .cancelled: return "Sign in was cancelled."
+        case .emailConfirmationRequired: return "Check your inbox and confirm your email to continue."
         }
     }
 }

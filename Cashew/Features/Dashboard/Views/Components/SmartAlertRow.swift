@@ -51,9 +51,9 @@ enum SmartAlertType {
 
     var iconColor: Color {
         switch urgency {
-        case .critical: return .red
-        case .warning:  return .orange
-        case .info:     return .blue
+        case .critical: return AppTheme.tertiary
+        case .warning:  return AppTheme.secondary
+        case .info:     return AppTheme.primary
         }
     }
 
@@ -146,26 +146,19 @@ struct SmartAlertsSection: View {
                 primaryAlert(primary)
 
                 if !secondary.isEmpty {
-                    Divider()
-                        .padding(.leading, AppTheme.cardPadding)
-
                     ForEach(Array(secondary.enumerated()), id: \.offset) { index, alert in
                         secondaryRow(alert)
-                        if index < secondary.count - 1 {
-                            Divider()
-                                .padding(.leading, AppTheme.cardPadding)
-                        }
                     }
                 }
             }
         }
         .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
         .shadow(color: AppTheme.cardShadow, radius: AppTheme.cardShadowRadius, x: 0, y: AppTheme.cardShadowY)
         // Urgency accent border on the left
         .overlay(alignment: .leading) {
             RoundedRectangle(cornerRadius: 3)
-                .fill(primary?.iconColor ?? .orange)
+                .fill(primary?.iconColor ?? AppTheme.secondary)
                 .frame(width: 3)
                 .padding(.vertical, 1)
         }
@@ -182,12 +175,11 @@ struct SmartAlertsSection: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(alert.title)
-                    .font(.subheadline)
-                    .fontWeight(.bold)
-                    .foregroundStyle(.primary)
+                    .font(AppTheme.TextStyle.bodyBold)
+                    .foregroundStyle(AppTheme.onSurface)
                 Text(alert.subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(AppTheme.TextStyle.caption)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
             }
 
             Spacer(minLength: 0)
@@ -207,8 +199,8 @@ struct SmartAlertsSection: View {
                 .frame(width: 16)
 
             Text(alert.title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(AppTheme.TextStyle.caption)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
                 .lineLimit(1)
 
             Spacer(minLength: 0)

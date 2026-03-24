@@ -31,13 +31,13 @@ struct TappableLocationRow: View {
                     .foregroundStyle(iconColor)
                     .frame(width: 28)
                 Text(label)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
                 Spacer()
                 Text(value)
                     .fontWeight(.medium)
                 Image(systemName: "arrow.up.right.square")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
             }
         }
         .buttonStyle(.plain)

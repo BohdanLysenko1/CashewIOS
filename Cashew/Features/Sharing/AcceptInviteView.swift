@@ -45,7 +45,7 @@ struct AcceptInviteView: View {
             ProgressView()
             Text("Loading invite…")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -76,12 +76,12 @@ struct AcceptInviteView: View {
                 if let sharedBy = sharedBy(for: resource) {
                     Text("Shared by \(sharedBy)")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                 }
 
                 Text(subtitle(for: resource))
                     .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
                     .multilineTextAlignment(.center)
                     .padding(.top, AppTheme.Space.xs)
             }
@@ -117,7 +117,7 @@ struct AcceptInviteView: View {
                 .foregroundStyle(.orange)
             Text(message)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, AppTheme.Space.xxl)
             Button("Close") { dismiss() }

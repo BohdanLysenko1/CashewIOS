@@ -220,7 +220,7 @@ struct DashboardView: View {
                     scrollContent
                 }
             }
-            .background(Color(.systemGroupedBackground))
+            .background(AppTheme.background)
             .overlay {
                 if let newLevel = gamification.pendingLevelUp {
                     ZStack {
@@ -328,11 +328,11 @@ struct DashboardView: View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(greeting)
-                    .font(.title2)
-                    .fontWeight(.bold)
+                    .font(AppTheme.TextStyle.title)
+                    .foregroundStyle(AppTheme.onSurface)
                 Text(formattedDate)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(AppTheme.TextStyle.secondary)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
             }
 
             Spacer()
@@ -340,12 +340,10 @@ struct DashboardView: View {
             Button { showProgress = true } label: {
                 HStack(spacing: 6) {
                     Text("⭐️ Lv \(gamification.currentLevel)")
-                        .font(.caption)
-                        .fontWeight(.black)
+                        .font(AppTheme.TextStyle.captionBold)
                         .foregroundStyle(.white)
                     Text(gamification.levelTitle)
-                        .font(.caption)
-                        .fontWeight(.semibold)
+                        .font(AppTheme.TextStyle.caption)
                         .foregroundStyle(.white.opacity(0.85))
                     Image(systemName: "chevron.right")
                         .font(.system(size: 9, weight: .bold))
@@ -355,7 +353,7 @@ struct DashboardView: View {
                 .padding(.vertical, 6)
                 .background(AppTheme.gamificationGradient)
                 .clipShape(Capsule())
-                .shadow(color: .purple.opacity(0.3), radius: 4, x: 0, y: 2)
+                .shadow(color: AppTheme.tertiary.opacity(0.3), radius: 4, x: 0, y: 2)
             }
             .buttonStyle(.plain)
         }
@@ -374,11 +372,7 @@ struct DashboardView: View {
         Button { showDayPlanner = true } label: {
             ZStack {
                 // Background gradient
-                LinearGradient(
-                    colors: [Color(red: 0.15, green: 0.45, blue: 0.95), Color(red: 0.25, green: 0.2, blue: 0.9)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                AppTheme.dayPlannerGradient
                 // Highlight overlay
                 LinearGradient(
                     colors: [.white.opacity(0.08), .clear],
@@ -436,8 +430,8 @@ struct DashboardView: View {
             }
         }
         .buttonStyle(.plain)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
-        .shadow(color: .blue.opacity(0.3), radius: 10, x: 0, y: 5)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
+        .shadow(color: AppTheme.primary.opacity(0.25), radius: 12, x: 0, y: 6)
     }
 
     private var addTaskRow: some View {
@@ -448,17 +442,14 @@ struct DashboardView: View {
                     .foregroundStyle(AppTheme.dayPlannerGradient)
 
                 Text("Add Task")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.primary)
+                    .font(AppTheme.TextStyle.bodyBold)
+                    .foregroundStyle(AppTheme.onSurface)
 
                 Spacer()
             }
             .padding(.horizontal, AppTheme.cardPadding)
             .padding(.vertical, 14)
-            .background(AppTheme.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
-            .shadow(color: AppTheme.cardShadow, radius: AppTheme.cardShadowRadius, x: 0, y: AppTheme.cardShadowY)
+            .cardStyle()
         }
         .buttonStyle(.plain)
     }
@@ -475,7 +466,7 @@ struct DashboardView: View {
                     unit: "XP",
                     label: "Today",
                     icon: "star.fill",
-                    color: .purple
+                    color: AppTheme.tertiary
                 )
 
                 progressStatTile(
@@ -483,7 +474,7 @@ struct DashboardView: View {
                     unit: "d",
                     label: "Streak",
                     icon: "flame.fill",
-                    color: .purple
+                    color: AppTheme.tertiary
                 )
 
                 Button { showProgress = true } label: {
@@ -492,7 +483,7 @@ struct DashboardView: View {
                         unit: "",
                         label: gamification.levelTitle,
                         icon: "trophy.fill",
-                        color: .purple
+                        color: AppTheme.tertiary
                     )
                 }
                 .buttonStyle(.plain)
@@ -510,49 +501,42 @@ struct DashboardView: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .lastTextBaseline, spacing: 2) {
                 Text(value)
-                    .font(.title3)
-                    .fontWeight(.black)
-                    .monospacedDigit()
+                    .font(AppTheme.TextStyle.statMedium)
+                    .foregroundStyle(AppTheme.onSurface)
                 if !unit.isEmpty {
                     Text(unit)
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.secondary)
+                        .font(AppTheme.TextStyle.captionBold)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                 }
             }
 
             Text(label)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+                .font(AppTheme.TextStyle.micro)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
                 .lineLimit(1)
         }
         .padding(AppTheme.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(color.opacity(AppTheme.statTileBackgroundOpacity))
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.statTileCornerRadius))
-        .overlay(
-            RoundedRectangle(cornerRadius: AppTheme.statTileCornerRadius)
-                .stroke(color.opacity(AppTheme.statTileBorderOpacity), lineWidth: 1)
-        )
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.statTileCornerRadius, style: .continuous))
     }
 
     // MARK: - XP Progress Bar
 
     private var xpProgressBar: some View {
         VStack(alignment: .leading, spacing: 5) {
-            AppProgressBar(progress: gamification.levelProgress, color: .purple)
+            AppProgressBar(progress: gamification.levelProgress, color: AppTheme.tertiary)
 
             HStack {
                 Spacer()
                 if gamification.isMaxLevel {
                     Text("Max Level")
-                        .font(.caption2)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.purple)
+                        .font(AppTheme.TextStyle.captionBold)
+                        .foregroundStyle(AppTheme.tertiary)
                 } else {
                     Text("\(gamification.xpToNextLevel) XP to Level \(gamification.currentLevel + 1)")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .font(AppTheme.TextStyle.caption)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                 }
             }
         }

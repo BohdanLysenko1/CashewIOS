@@ -11,7 +11,9 @@ struct RootView: View {
                 // Hold here while the stored session is being verified.
                 // Showing nothing prevents the login screen from flashing
                 // before we know whether the user is already signed in.
-                Color(.systemBackground).ignoresSafeArea()
+                AppTheme.background.ignoresSafeArea()
+            } else if container.authService.isRecoveringPassword {
+                ResetPasswordView()
             } else if container.authService.isAuthenticated {
                 MainTabView()
             } else {
@@ -19,6 +21,7 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut, value: container.authService.isAuthenticated)
+        .animation(.easeInOut, value: container.authService.isRecoveringPassword)
     }
 
     @ViewBuilder

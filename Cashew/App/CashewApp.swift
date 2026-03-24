@@ -53,18 +53,31 @@ struct CashewApp: App {
 
     // MARK: - Deep Link Handling
 
-    /// Handles: cashew://join/<token>
     private func handleDeepLink(_ url: URL) {
-        guard
-            url.scheme == "cashew",
-            url.host == "join",
-            let token = url.pathComponents.dropFirst().first,
-            !token.isEmpty
-        else { return }
+        guard url.scheme == "cashew" else { return }
 
-        // Only handle if authenticated
-        guard container.authService.isAuthenticated else { return }
-        pendingInviteToken = token
+        switch url.host {
+        case "login-callback":
+            // Email confirmation / magic link callback from Supabase
+            Task {
+                try? await container.authService.handleAuthCallback(url: url)
+            }
+        case "reset-callback":
+            // Password reset callback from Supabase
+            Task {
+                try? await container.authService.handlePasswordResetCallback(url: url)
+            }
+        case "join":
+            // cashew://join/<token>
+            guard
+                let token = url.pathComponents.dropFirst().first,
+                !token.isEmpty,
+                container.authService.isAuthenticated
+            else { return }
+            pendingInviteToken = token
+        default:
+            break
+        }
     }
 
     // MARK: - Notifications

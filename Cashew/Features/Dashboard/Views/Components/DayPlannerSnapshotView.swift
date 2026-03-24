@@ -36,8 +36,8 @@ struct DayPlannerSnapshotView: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(AppTheme.dayPlannerGradient)
                     Text("Today's Plan")
-                        .font(.headline)
-                        .fontWeight(.bold)
+                        .font(AppTheme.TextStyle.sectionTitle)
+                        .foregroundStyle(AppTheme.onSurface)
                 }
 
                 Spacer()
@@ -74,15 +74,15 @@ struct DayPlannerSnapshotView: View {
         HStack(spacing: 12) {
             Image(systemName: "sparkles")
                 .font(.title2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("No tasks planned")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                    .font(AppTheme.TextStyle.bodyBold)
+                    .foregroundStyle(AppTheme.onSurface)
                 Text("Tap + to plan your day")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(AppTheme.TextStyle.caption)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
             }
 
             Spacer()
@@ -96,7 +96,7 @@ struct DayPlannerSnapshotView: View {
         VStack(spacing: 6) {
             ZStack {
                 Circle()
-                    .stroke(Color(.systemGray5), lineWidth: 7)
+                    .stroke(AppTheme.surfaceContainerHigh, lineWidth: 7)
                     .frame(width: 64, height: 64)
 
                 Circle()
@@ -111,16 +111,16 @@ struct DayPlannerSnapshotView: View {
 
                 VStack(spacing: 0) {
                     Text("\(completedCount)")
-                        .font(.system(size: 18, weight: .bold))
+                        .font(AppTheme.TextStyle.sectionTitle)
+                        .foregroundStyle(AppTheme.onSurface)
                     Text("of \(tasks.count)")
-                        .font(.system(size: 9))
-                        .foregroundStyle(.secondary)
+                        .font(AppTheme.TextStyle.micro)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                 }
             }
 
             Text(progressLabel)
-                .font(.caption2)
-                .fontWeight(.semibold)
+                .font(AppTheme.TextStyle.captionBold)
                 .foregroundStyle(progressColor)
         }
     }
@@ -153,9 +153,8 @@ struct DayPlannerSnapshotView: View {
         VStack(alignment: .leading, spacing: 8) {
             if let next = nextTask {
                 Text("NEXT UP")
-                    .font(.caption2)
-                    .fontWeight(.bold)
-                    .foregroundStyle(.secondary)
+                    .font(AppTheme.TextStyle.captionBold)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
                     .tracking(0.5)
 
                 HStack(spacing: 8) {
@@ -165,42 +164,41 @@ struct DayPlannerSnapshotView: View {
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(next.title)
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
+                            .font(AppTheme.TextStyle.bodyBold)
+                            .foregroundStyle(AppTheme.onSurface)
                             .lineLimit(1)
 
                         HStack(spacing: 4) {
                             if let timeRange = next.formattedTimeRange {
                                 Image(systemName: "clock")
-                                    .font(.caption2)
+                                    .font(AppTheme.TextStyle.micro)
                                 Text(timeRange)
-                                    .font(.caption)
+                                    .font(AppTheme.TextStyle.caption)
                             } else {
                                 Image(systemName: next.category.icon)
-                                    .font(.caption2)
+                                    .font(AppTheme.TextStyle.micro)
                                 Text(next.categoryDisplayName)
-                                    .font(.caption)
+                                    .font(AppTheme.TextStyle.caption)
                             }
                         }
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                     }
                 }
             } else {
                 Text("ALL TASKS DONE")
-                    .font(.caption2)
-                    .fontWeight(.bold)
-                    .foregroundStyle(.green)
+                    .font(AppTheme.TextStyle.captionBold)
+                    .foregroundStyle(Color(red: 0.20, green: 0.72, blue: 0.45))
                     .tracking(0.5)
 
                 Text("Great work today!")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(AppTheme.TextStyle.body)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .background(AppTheme.surfaceContainerLow)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.badgeCornerRadius, style: .continuous))
     }
 
     // MARK: - Mini Timeline
@@ -211,9 +209,8 @@ struct DayPlannerSnapshotView: View {
                 HStack(spacing: 10) {
                     // Time
                     Text(timeString(task.startTime))
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundStyle(.secondary)
+                        .font(AppTheme.TextStyle.captionBold)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                         .frame(width: 52, alignment: .trailing)
                         .monospacedDigit()
 
@@ -221,25 +218,24 @@ struct DayPlannerSnapshotView: View {
                     VStack(spacing: 0) {
                         if index > 0 {
                             Rectangle()
-                                .fill(Color(.systemGray4))
+                                .fill(AppTheme.surfaceContainerHigh)
                                 .frame(width: 1, height: 8)
                         }
                         Circle()
-                            .fill(task.isCompleted ? Color.green : task.category.color)
+                            .fill(task.isCompleted ? Color(red: 0.20, green: 0.72, blue: 0.45) : task.category.color)
                             .frame(width: 8, height: 8)
                         if index < min(scheduledTasks.count, 4) - 1 {
                             Rectangle()
-                                .fill(Color(.systemGray4))
+                                .fill(AppTheme.surfaceContainerHigh)
                                 .frame(width: 1, height: 8)
                         }
                     }
 
                     // Title
                     Text(task.title)
-                        .font(.caption)
-                        .fontWeight(.medium)
+                        .font(AppTheme.TextStyle.caption)
                         .strikethrough(task.isCompleted)
-                        .foregroundStyle(task.isCompleted ? .secondary : .primary)
+                        .foregroundStyle(task.isCompleted ? AppTheme.onSurfaceVariant : AppTheme.onSurface)
                         .lineLimit(1)
 
                     Spacer()
@@ -255,8 +251,8 @@ struct DayPlannerSnapshotView: View {
 
             if scheduledTasks.count > 4 {
                 Text("+\(scheduledTasks.count - 4) more")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .font(AppTheme.TextStyle.caption)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
                     .padding(.top, 4)
             }
         }

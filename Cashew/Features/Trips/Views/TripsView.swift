@@ -228,7 +228,7 @@ struct TripsView: View {
             .padding(.vertical, 8)
             .padding(.bottom, isSelectMode && !selectedTrips.isEmpty ? 70 : 0)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(AppTheme.background)
         .navigationDestination(for: UUID.self) { tripId in
             TripDetailView(tripId: tripId)
         }
@@ -277,18 +277,18 @@ struct TripsView: View {
                         .fontWeight(.semibold)
                     Text("\(completedTrips.count)")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
-                        .background(Color(.systemGray5))
+                        .background(AppTheme.surfaceContainerHigh)
                         .clipShape(Capsule())
                     Spacer()
                     Image(systemName: "chevron.right")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                         .rotationEffect(.degrees(showCompleted ? 90 : 0))
                 }
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
                 .padding()
                 .background(AppTheme.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
@@ -336,7 +336,7 @@ struct TripsView: View {
 
                 Text("Start planning your next adventure!")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
                     .multilineTextAlignment(.center)
             }
 

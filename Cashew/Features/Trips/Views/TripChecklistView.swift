@@ -42,7 +42,7 @@ struct TripChecklistView: View {
             }
             .padding()
         }
-        .background(Color(.systemGroupedBackground))
+        .background(AppTheme.background)
         .navigationTitle("Checklist")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -69,7 +69,7 @@ struct TripChecklistView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Checklist Progress")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
 
                     let completed = completedItems.count
                     let total = trip.checklistItems.count
@@ -83,7 +83,7 @@ struct TripChecklistView: View {
 
                 ZStack {
                     Circle()
-                        .stroke(Color(.systemGray5), lineWidth: 8)
+                        .stroke(AppTheme.surfaceContainerHigh, lineWidth: 8)
                         .frame(width: 60, height: 60)
 
                     Circle()
@@ -142,20 +142,20 @@ struct TripChecklistView: View {
                 Text(title)
                     .font(.subheadline)
                     .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
 
                 Spacer()
 
                 Text("\(items.count)")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
-                    .background(Color(.systemGray5))
+                    .background(AppTheme.surfaceContainerHigh)
                     .clipShape(Capsule())
             }
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppTheme.surfaceContainerLow)
 
             VStack(spacing: 0) {
                 ForEach(items) { item in
@@ -165,10 +165,6 @@ struct TripChecklistView: View {
                         editingItem = item
                     } onDelete: {
                         deleteItem(item)
-                    }
-
-                    if item.id != items.last?.id {
-                        Divider().padding(.leading, 50)
                     }
                 }
             }
@@ -184,7 +180,7 @@ struct TripChecklistView: View {
         VStack(spacing: 16) {
             Image(systemName: "checklist")
                 .font(.system(size: 50))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
 
             VStack(spacing: 6) {
                 Text("No Tasks Yet")
@@ -192,7 +188,7 @@ struct TripChecklistView: View {
 
                 Text("Create a pre-trip checklist")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
             }
 
             Button {
@@ -216,7 +212,7 @@ struct TripChecklistView: View {
             Text("Common Tasks")
                 .font(.subheadline)
                 .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
                 .padding(.horizontal)
 
             VStack(spacing: 8) {
@@ -230,7 +226,7 @@ struct TripChecklistView: View {
 
                             Text(task)
                                 .font(.subheadline)
-                                .foregroundStyle(.primary)
+                                .foregroundStyle(AppTheme.onSurface)
 
                             Spacer()
                         }
@@ -319,7 +315,7 @@ private struct ChecklistItemRow: View {
                     Text(item.title)
                         .font(.subheadline)
                         .strikethrough(item.isCompleted)
-                        .foregroundStyle(item.isCompleted ? .secondary : .primary)
+                        .foregroundStyle(item.isCompleted ? AppTheme.onSurfaceVariant : AppTheme.onSurface)
 
                     if showPriority && item.priority != .medium {
                         Image(systemName: item.priority.icon)

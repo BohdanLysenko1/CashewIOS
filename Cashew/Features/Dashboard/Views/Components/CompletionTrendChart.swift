@@ -46,12 +46,11 @@ struct CompletionTrendChart: View {
                 Spacer()
 
                 Text("Avg \(Int(weekAverage * 100))%")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
+                    .font(AppTheme.TextStyle.captionBold)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(Color(.tertiarySystemBackground))
+                    .background(AppTheme.surfaceContainerLow)
                     .clipShape(Capsule())
             }
 
@@ -68,7 +67,7 @@ struct CompletionTrendChart: View {
                         // Day label
                         Text(dayLabel(data.date))
                             .font(.system(size: 9, weight: index == 6 ? .bold : .medium))
-                            .foregroundStyle(index == 6 ? .primary : .secondary)
+                            .foregroundStyle(index == 6 ? AppTheme.onSurface : AppTheme.onSurfaceVariant)
                             .frame(maxWidth: .infinity)
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
@@ -80,12 +79,12 @@ struct CompletionTrendChart: View {
             // Summary
             HStack(spacing: 16) {
                 Label("\(totalCompletedThisWeek) done", systemImage: "checkmark.circle.fill")
-                    .font(.caption)
-                    .foregroundStyle(.green)
+                    .font(AppTheme.TextStyle.caption)
+                    .foregroundStyle(Color(red: 0.20, green: 0.72, blue: 0.45))
 
                 Label("\(totalTasksThisWeek - totalCompletedThisWeek) missed", systemImage: "xmark.circle.fill")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(AppTheme.TextStyle.caption)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
             }
         }
         .padding(AppTheme.cardPadding)
@@ -100,18 +99,15 @@ struct CompletionTrendChart: View {
 
     private func barGradient(for data: (date: Date, rate: Double, completed: Int, total: Int), isToday: Bool) -> LinearGradient {
         if data.total == 0 {
-            return LinearGradient(colors: [Color(.systemGray5)], startPoint: .bottom, endPoint: .top)
+            return LinearGradient(colors: [AppTheme.surfaceContainerHigh], startPoint: .bottom, endPoint: .top)
         }
         if data.rate >= 1.0 {
-            // All done — success green
-            return LinearGradient(colors: [.green, .mint], startPoint: .bottom, endPoint: .top)
+            return LinearGradient(colors: [Color(red: 0.20, green: 0.72, blue: 0.45), Color(red: 0.30, green: 0.82, blue: 0.55)], startPoint: .bottom, endPoint: .top)
         }
         if isToday {
-            // Today highlighted with task blue
             return AppTheme.dayPlannerGradient
         }
-        // Partial completion — muted task blue
-        return LinearGradient(colors: [.blue.opacity(0.4), .blue.opacity(0.7)], startPoint: .bottom, endPoint: .top)
+        return LinearGradient(colors: [AppTheme.primary.opacity(0.4), AppTheme.primary.opacity(0.7)], startPoint: .bottom, endPoint: .top)
     }
 
     private static let dayLabelFormatter: DateFormatter = {

@@ -14,7 +14,7 @@ struct PlayerProgressView: View {
             }
             .padding()
         }
-        .background(Color(.systemGroupedBackground))
+        .background(AppTheme.background)
         .navigationTitle("My Progress")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -27,18 +27,14 @@ struct PlayerProgressView: View {
             ZStack {
                 // Track
                 Circle()
-                    .stroke(Color(.systemGray5), lineWidth: 14)
+                    .stroke(AppTheme.surfaceContainerHigh, lineWidth: 14)
                     .frame(width: 160, height: 160)
 
                 // Fill
                 Circle()
                     .trim(from: 0, to: gamification.levelProgress)
                     .stroke(
-                        LinearGradient(
-                            colors: [Color("AccentColor"), Color("AccentColor").opacity(0.6)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
+                        AppTheme.primaryGradient,
                         style: StrokeStyle(lineWidth: 14, lineCap: .round)
                     )
                     .frame(width: 160, height: 160)
@@ -48,12 +44,12 @@ struct PlayerProgressView: View {
                 // Center
                 VStack(spacing: 2) {
                     Text("\(gamification.currentLevel)")
-                        .font(.system(size: 48, weight: .black))
+                        .font(.system(size: 48, weight: .black, design: .rounded))
+                        .foregroundStyle(AppTheme.onSurface)
                         .monospacedDigit()
                     Text("LEVEL")
-                        .font(.caption2)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.secondary)
+                        .font(AppTheme.TextStyle.captionBold)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                         .tracking(2)
                 }
             }
@@ -61,24 +57,24 @@ struct PlayerProgressView: View {
             // Title + XP
             VStack(spacing: 6) {
                 Text(gamification.levelTitle)
-                    .font(.title2)
-                    .fontWeight(.bold)
+                    .font(AppTheme.TextStyle.title)
+                    .foregroundStyle(AppTheme.onSurface)
 
                 if gamification.isMaxLevel {
                     Text("Maximum level reached!")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .font(AppTheme.TextStyle.body)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                 } else {
                     Text("\(gamification.xpToNextLevel) XP to Level \(gamification.currentLevel + 1)")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .font(AppTheme.TextStyle.body)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                 }
             }
         }
         .padding(.vertical, 24)
         .frame(maxWidth: .infinity)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
+        .background(AppTheme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
         .shadow(color: AppTheme.cardShadow, radius: AppTheme.cardShadowRadius, x: 0, y: AppTheme.cardShadowY)
     }
 
@@ -90,19 +86,19 @@ struct PlayerProgressView: View {
                 value: "\(gamification.totalXP)",
                 label: "Total XP",
                 icon: "star.fill",
-                color: .orange
+                color: AppTheme.tertiary
             )
             statCell(
                 value: "\(Int(gamification.levelProgress * 100))%",
                 label: "Level Progress",
                 icon: "chart.bar.fill",
-                color: Color("AccentColor")
+                color: AppTheme.primary
             )
             statCell(
                 value: gamification.isMaxLevel ? "MAX" : "\(GamificationService.levels.count - gamification.currentLevel)",
                 label: gamification.isMaxLevel ? "Level" : "Levels Left",
                 icon: "flag.fill",
-                color: .green
+                color: AppTheme.secondary
             )
         }
     }
@@ -113,18 +109,17 @@ struct PlayerProgressView: View {
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(color)
             Text(value)
-                .font(.title3)
-                .fontWeight(.black)
-                .monospacedDigit()
+                .font(AppTheme.TextStyle.statMedium)
+                .foregroundStyle(AppTheme.onSurface)
             Text(label)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+                .font(AppTheme.TextStyle.micro)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
+        .background(AppTheme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
         .shadow(color: AppTheme.cardShadow, radius: AppTheme.cardShadowRadius, x: 0, y: AppTheme.cardShadowY)
     }
 
@@ -135,10 +130,10 @@ struct PlayerProgressView: View {
             HStack(spacing: 8) {
                 Image(systemName: "map.fill")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color("AccentColor"))
+                    .foregroundStyle(AppTheme.primaryGradient)
                 Text("Level Roadmap")
-                    .font(.headline)
-                    .fontWeight(.bold)
+                    .font(AppTheme.TextStyle.sectionTitle)
+                    .foregroundStyle(AppTheme.onSurface)
             }
             .padding(.horizontal, AppTheme.cardPadding)
             .padding(.top, AppTheme.cardPadding)
@@ -152,8 +147,8 @@ struct PlayerProgressView: View {
             }
             .padding(.bottom, AppTheme.cardPadding)
         }
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
+        .background(AppTheme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
         .shadow(color: AppTheme.cardShadow, radius: AppTheme.cardShadowRadius, x: 0, y: AppTheme.cardShadowY)
     }
 
@@ -167,8 +162,8 @@ struct PlayerProgressView: View {
             ZStack {
                 Circle()
                     .fill(isReached
-                          ? LinearGradient(colors: [Color("AccentColor"), Color("AccentColor").opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                          : LinearGradient(colors: [Color(.systemGray5), Color(.systemGray5)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                          ? LinearGradient(colors: [AppTheme.primary, AppTheme.primaryContainer], startPoint: .topLeading, endPoint: .bottomTrailing)
+                          : LinearGradient(colors: [AppTheme.surfaceContainerHigh, AppTheme.surfaceContainerHigh], startPoint: .topLeading, endPoint: .bottomTrailing))
                     .frame(width: 36, height: 36)
 
                 if isReached && !isCurrent {
@@ -178,7 +173,7 @@ struct PlayerProgressView: View {
                 } else {
                     Text("\(entry.level)")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(isReached ? .white : .secondary)
+                        .foregroundStyle(isReached ? .white : AppTheme.onSurfaceVariant)
                 }
             }
 
@@ -186,25 +181,23 @@ struct PlayerProgressView: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(entry.title)
-                        .font(.subheadline)
-                        .fontWeight(isCurrent ? .bold : .medium)
-                        .foregroundStyle(isReached ? .primary : .secondary)
+                        .font(AppTheme.TextStyle.bodyBold)
+                        .foregroundStyle(isReached ? AppTheme.onSurface : AppTheme.onSurfaceVariant)
 
                     if isCurrent {
                         Text("CURRENT")
-                            .font(.caption2)
-                            .fontWeight(.bold)
-                            .foregroundStyle(Color("AccentColor"))
+                            .font(AppTheme.TextStyle.captionBold)
+                            .foregroundStyle(AppTheme.primary)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Color("AccentColor").opacity(0.12))
+                            .background(AppTheme.primary.opacity(0.12))
                             .clipShape(Capsule())
                     }
                 }
 
                 Text(entry.xpRequired == 0 ? "Starting level" : "\(entry.xpRequired) XP required")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(AppTheme.TextStyle.caption)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
             }
 
             Spacer()
@@ -213,16 +206,15 @@ struct PlayerProgressView: View {
             if isCurrent && !gamification.isMaxLevel {
                 VStack(alignment: .trailing, spacing: 3) {
                     Text("\(Int(gamification.levelProgress * 100))%")
-                        .font(.caption2)
-                        .fontWeight(.bold)
-                        .foregroundStyle(Color("AccentColor"))
+                        .font(AppTheme.TextStyle.captionBold)
+                        .foregroundStyle(AppTheme.primary)
 
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
                             RoundedRectangle(cornerRadius: 3)
-                                .fill(Color(.systemGray5))
+                                .fill(AppTheme.surfaceContainerHigh)
                             RoundedRectangle(cornerRadius: 3)
-                                .fill(Color("AccentColor"))
+                                .fill(AppTheme.primary)
                                 .frame(width: geo.size.width * gamification.levelProgress)
                                 .animation(.spring(response: 0.5), value: gamification.levelProgress)
                         }
@@ -232,21 +224,21 @@ struct PlayerProgressView: View {
             } else if isNext {
                 Image(systemName: "lock.fill")
                     .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
             } else if !isReached {
                 Image(systemName: "lock.fill")
                     .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
             }
         }
         .padding(.horizontal, AppTheme.cardPadding)
         .padding(.vertical, 10)
-        .background(isCurrent ? Color("AccentColor").opacity(0.06) : Color.clear)
+        .background(isCurrent ? AppTheme.primary.opacity(0.06) : Color.clear)
     }
 
     private func connectorLine(reached: Bool) -> some View {
         Rectangle()
-            .fill(reached ? Color("AccentColor").opacity(0.3) : Color(.systemGray5))
+            .fill(reached ? AppTheme.primary.opacity(0.3) : AppTheme.surfaceContainerHigh)
             .frame(width: 2, height: 12)
             .padding(.leading, AppTheme.cardPadding + 17)
     }
@@ -258,25 +250,25 @@ struct PlayerProgressView: View {
             HStack(spacing: 8) {
                 Image(systemName: "bolt.fill")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.yellow)
+                    .foregroundStyle(AppTheme.gamificationGradient)
                 Text("Streak Multipliers")
-                    .font(.headline)
-                    .fontWeight(.bold)
+                    .font(AppTheme.TextStyle.sectionTitle)
+                    .foregroundStyle(AppTheme.onSurface)
             }
 
             VStack(spacing: 10) {
-                multiplierRow(icon: "flame", label: "Default", multiplier: "×1.0", active: true, color: .secondary)
-                multiplierRow(icon: "flame.fill", label: "7-day streak", multiplier: "×1.5", active: false, color: .orange)
-                multiplierRow(icon: "flame.fill", label: "14-day streak", multiplier: "×2.0", active: false, color: .red)
+                multiplierRow(icon: "flame", label: "Default", multiplier: "×1.0", active: true, color: AppTheme.onSurfaceVariant)
+                multiplierRow(icon: "flame.fill", label: "7-day streak", multiplier: "×1.5", active: false, color: AppTheme.secondary)
+                multiplierRow(icon: "flame.fill", label: "14-day streak", multiplier: "×2.0", active: false, color: AppTheme.tertiary)
             }
 
             Text("Maintain your daily routines to earn bonus XP on every completed task.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(AppTheme.TextStyle.caption)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
         }
         .padding(AppTheme.cardPadding)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
+        .background(AppTheme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
         .shadow(color: AppTheme.cardShadow, radius: AppTheme.cardShadowRadius, x: 0, y: AppTheme.cardShadowY)
     }
 
@@ -288,15 +280,14 @@ struct PlayerProgressView: View {
                 .frame(width: 28)
 
             Text(label)
-                .font(.subheadline)
-                .foregroundStyle(active ? .primary : .secondary)
+                .font(AppTheme.TextStyle.body)
+                .foregroundStyle(active ? AppTheme.onSurface : AppTheme.onSurfaceVariant)
 
             Spacer()
 
             Text(multiplier)
-                .font(.subheadline)
-                .fontWeight(.bold)
-                .foregroundStyle(active ? color : .secondary)
+                .font(AppTheme.TextStyle.bodyBold)
+                .foregroundStyle(active ? color : AppTheme.onSurfaceVariant)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
                 .background(color.opacity(active ? 0.15 : 0.06))

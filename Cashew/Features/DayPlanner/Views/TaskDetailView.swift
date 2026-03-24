@@ -110,10 +110,10 @@ struct TaskDetailView: View {
 
                 HStack(spacing: 6) {
                     Image(systemName: liveTask.isCompleted ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(liveTask.isCompleted ? .green : .secondary)
+                        .foregroundStyle(liveTask.isCompleted ? .green : AppTheme.onSurfaceVariant)
                     Text(liveTask.isCompleted ? "Completed" : "Pending")
                         .font(.caption)
-                        .foregroundStyle(liveTask.isCompleted ? .green : .secondary)
+                        .foregroundStyle(liveTask.isCompleted ? .green : AppTheme.onSurfaceVariant)
                 }
                 .fontWeight(.medium)
             }
@@ -128,7 +128,7 @@ struct TaskDetailView: View {
         Section("Schedule") {
             LabeledContent {
                 Text(liveTask.date, style: .date)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(AppTheme.onSurface)
             } label: {
                 Label("Date", systemImage: "calendar")
             }
@@ -136,7 +136,7 @@ struct TaskDetailView: View {
             if let timeRange = liveTask.formattedTimeRange {
                 LabeledContent {
                     Text(timeRange)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(AppTheme.onSurface)
                 } label: {
                     Label("Time", systemImage: "clock")
                 }
@@ -145,7 +145,7 @@ struct TaskDetailView: View {
             if let duration = liveTask.duration {
                 LabeledContent {
                     Text(formattedDuration(duration))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(AppTheme.onSurface)
                 } label: {
                     Label("Duration", systemImage: "hourglass")
                 }
@@ -176,7 +176,7 @@ struct TaskDetailView: View {
                     } label: {
                         Image(systemName: subtask.isCompleted ? "checkmark.circle.fill" : "circle")
                             .font(.system(size: 20))
-                            .foregroundStyle(subtask.isCompleted ? .green : .secondary)
+                            .foregroundStyle(subtask.isCompleted ? .green : AppTheme.onSurfaceVariant)
                             .symbolEffect(.bounce, value: subtask.isCompleted)
                     }
                     .buttonStyle(.plain)
@@ -184,7 +184,7 @@ struct TaskDetailView: View {
                     Text(subtask.title)
                         .font(.body)
                         .strikethrough(subtask.isCompleted)
-                        .foregroundStyle(subtask.isCompleted ? .secondary : .primary)
+                        .foregroundStyle(subtask.isCompleted ? AppTheme.onSurfaceVariant : AppTheme.onSurface)
                         .animation(.easeInOut(duration: 0.2), value: subtask.isCompleted)
 
                     Spacer()
@@ -238,12 +238,12 @@ struct TaskDetailView: View {
         Section {
             LabeledContent {
                 Text(liveTask.createdAt, style: .date)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
             } label: {
                 Label("Created", systemImage: "clock.badge.checkmark")
             }
         }
-        .foregroundStyle(.secondary)
+        .foregroundStyle(AppTheme.onSurfaceVariant)
     }
 
     // MARK: - Actions

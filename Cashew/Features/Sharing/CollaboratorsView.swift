@@ -49,7 +49,7 @@ struct CollaboratorsView: View {
                     } else if collaborators.isEmpty {
                         Text("No collaborators yet")
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
                     } else {
                         ForEach(collaborators) { user in
                             collaboratorRow(user)
@@ -105,7 +105,7 @@ struct CollaboratorsView: View {
                 if isOwner {
                     Text("You")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                 }
             }
         }
@@ -135,7 +135,7 @@ struct CollaboratorsView: View {
                     .fontWeight(.medium)
                 Text(user.email)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
             }
 
             Spacer()

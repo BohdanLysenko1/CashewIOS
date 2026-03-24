@@ -54,7 +54,7 @@ struct CalendarView: View {
 
                     dragHandle
                 }
-                .background(Color(.systemBackground))
+                .background(AppTheme.surfaceContainerLowest)
 
                 // Content
                 if isLoading {
@@ -123,7 +123,7 @@ struct CalendarView: View {
                 Text("Calendar")
                     .font(.subheadline)
                     .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
                     .textCase(.uppercase)
                     .tracking(0.5)
 
@@ -165,7 +165,7 @@ struct CalendarView: View {
                 } label: {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(AppTheme.onSurface)
                         .frame(width: 44, height: 40)
                 }
 
@@ -176,10 +176,10 @@ struct CalendarView: View {
                         Text(displayedMonth.formatted(.dateTime.year().month(.wide)))
                             .font(.title2)
                             .fontWeight(.bold)
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(AppTheme.onSurface)
                         Image(systemName: "chevron.down")
                             .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -192,14 +192,14 @@ struct CalendarView: View {
                 } label: {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(AppTheme.onSurface)
                         .frame(width: 44, height: 40)
                 }
             }
             .padding(.horizontal, 8)
             .padding(.bottom, 6)
         }
-        .background(Color(.systemBackground))
+        .background(AppTheme.surfaceContainerLowest)
     }
 
     // MARK: - Drag Handle
@@ -207,7 +207,7 @@ struct CalendarView: View {
     private var dragHandle: some View {
         VStack(spacing: 0) {
             Capsule()
-                .fill(Color(.systemGray4))
+                .fill(AppTheme.surfaceContainerHigh)
                 .frame(width: 40, height: 4)
                 .padding(.vertical, 8)
         }
@@ -291,7 +291,7 @@ struct CalendarView: View {
                     }
                 }
         )
-        .background(Color(.systemGroupedBackground))
+        .background(AppTheme.background)
     }
 
     // MARK: - Sections
@@ -310,7 +310,7 @@ struct CalendarView: View {
                     Text(selectedDate.formatted(.dateTime.weekday(.wide)))
                         .font(.caption)
                         .fontWeight(.medium)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                         .textCase(.uppercase)
 
                     Text(selectedDate.formatted(.dateTime.month(.wide).day().year()))
@@ -340,11 +340,11 @@ struct CalendarView: View {
                 HStack(spacing: 10) {
                     Image(systemName: "moon.stars")
                         .font(.system(size: 22))
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
 
                     Text("Nothing scheduled")
                         .font(.subheadline)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 28)
@@ -398,7 +398,7 @@ struct CalendarView: View {
                 weekTotal: weekTotal
             ))
             .font(.caption)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(AppTheme.onSurfaceVariant)
 
             Spacer()
         }
@@ -460,7 +460,7 @@ struct CalendarView: View {
 
                     Image(systemName: "chevron.right")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                         .rotationEffect(.degrees(showUpcoming ? 90 : 0))
                 }
                 .padding(.vertical, 10)
@@ -492,11 +492,11 @@ struct CalendarView: View {
                 HStack(spacing: 8) {
                     ZStack {
                         Circle()
-                            .fill(Color(.systemGray5))
+                            .fill(AppTheme.surfaceContainerHigh)
                             .frame(width: 28, height: 28)
                         Image(systemName: "clock.arrow.counterclockwise")
                             .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
                     }
 
                     Text("Past")
@@ -506,17 +506,17 @@ struct CalendarView: View {
                     Text("\(count)")
                         .font(.caption2)
                         .fontWeight(.bold)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                         .padding(.horizontal, 7)
                         .padding(.vertical, 3)
-                        .background(Color(.systemGray5))
+                        .background(AppTheme.surfaceContainerHigh)
                         .clipShape(Capsule())
 
                     Spacer()
 
                     Image(systemName: "chevron.right")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                         .rotationEffect(.degrees(showPast ? 90 : 0))
                 }
                 .padding(.vertical, 10)

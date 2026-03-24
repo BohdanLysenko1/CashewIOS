@@ -28,8 +28,6 @@ struct TripItineraryView: View {
             // Date selector
             dateSelector
 
-            Divider()
-
             // Activities for selected day
             ScrollView {
                 VStack(spacing: 16) {
@@ -43,7 +41,7 @@ struct TripItineraryView: View {
                 }
                 .padding()
             }
-            .background(Color(.systemGroupedBackground))
+            .background(AppTheme.background)
         }
         .navigationTitle("Itinerary")
         .toolbar {
@@ -86,7 +84,7 @@ struct TripItineraryView: View {
                 .padding(.horizontal)
                 .padding(.vertical, 12)
             }
-            .background(Color(.systemBackground))
+            .background(AppTheme.surfaceContainerLowest)
             .onAppear {
                 proxy.scrollTo(selectedDate, anchor: .center)
             }
@@ -99,7 +97,7 @@ struct TripItineraryView: View {
         VStack(spacing: 16) {
             Image(systemName: "calendar.badge.plus")
                 .font(.system(size: 50))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
 
             VStack(spacing: 6) {
                 Text("No Activities")
@@ -107,7 +105,7 @@ struct TripItineraryView: View {
 
                 Text("Plan activities for this day")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
             }
 
             Button {
@@ -180,7 +178,7 @@ private struct DateTab: View {
             }
         }
         .frame(width: 50, height: 70)
-        .background(isSelected ? Color.blue : Color(.secondarySystemBackground))
+        .background(isSelected ? AppTheme.primary : AppTheme.surfaceContainerLow)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
@@ -211,7 +209,7 @@ private struct ActivityCard: View {
                 if let endTime = activity.endTime {
                     Text(Self.timeFormatter.string(from: endTime))
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                 }
             }
             .frame(width: 50)
@@ -233,7 +231,7 @@ private struct ActivityCard: View {
 
                         Text(activity.category.displayName)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
                     }
 
                     Spacer()
@@ -248,19 +246,19 @@ private struct ActivityCard: View {
                 if !activity.location.isEmpty {
                     Label(activity.location, systemImage: "mappin")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                 }
 
                 if let cost = activity.cost {
                     Label(formatCost(cost, currency: activity.currency), systemImage: "creditcard")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                 }
 
                 if !activity.notes.isEmpty {
                     Text(activity.notes)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                         .lineLimit(2)
                 }
             }
@@ -356,7 +354,7 @@ struct ActivityFormView: View {
 
                     HStack {
                         Text(trip.currency)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
                         TextField("Cost (optional)", text: $costString)
                             .keyboardType(.decimalPad)
                     }

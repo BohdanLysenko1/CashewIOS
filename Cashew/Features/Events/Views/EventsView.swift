@@ -202,7 +202,7 @@ struct EventsView: View {
             .padding(.vertical, 14)
             .background(Color.red)
             .foregroundStyle(.white)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
             .padding(.horizontal, 24)
             .padding(.bottom, 8)
         }
@@ -228,7 +228,7 @@ struct EventsView: View {
             .padding(.vertical, 8)
             .padding(.bottom, isSelectMode && !selectedEvents.isEmpty ? 70 : 0)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(AppTheme.background)
         .navigationDestination(for: UUID.self) { eventId in
             EventDetailView(eventId: eventId)
         }
@@ -271,24 +271,24 @@ struct EventsView: View {
             } label: {
                 HStack {
                     Image(systemName: "clock.arrow.circlepath")
-                        .foregroundStyle(.gray)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                     Text("Past Events")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                        .font(AppTheme.TextStyle.bodyBold)
+                        .foregroundStyle(AppTheme.onSurface)
                     Text("\(pastEvents.count)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(AppTheme.TextStyle.caption)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
-                        .background(Color(.systemGray5))
+                        .background(AppTheme.surfaceContainerHigh)
                         .clipShape(Capsule())
                     Spacer()
                     Image(systemName: "chevron.right")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                         .rotationEffect(.degrees(showPast ? 90 : 0))
                 }
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
                 .padding()
                 .background(AppTheme.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
@@ -307,7 +307,7 @@ struct EventsView: View {
         HStack(spacing: 12) {
             Image(systemName: selectedEvents.contains(event.id) ? "checkmark.circle.fill" : "circle")
                 .font(.system(size: 24))
-                .foregroundStyle(selectedEvents.contains(event.id) ? .blue : .secondary)
+                .foregroundStyle(selectedEvents.contains(event.id) ? AppTheme.primary : AppTheme.onSurfaceVariant)
 
             EventCard(event: event)
         }
@@ -331,12 +331,12 @@ struct EventsView: View {
 
             VStack(spacing: 8) {
                 Text("No Events")
-                    .font(.title2)
-                    .fontWeight(.bold)
+                    .font(AppTheme.TextStyle.title)
+                    .foregroundStyle(AppTheme.onSurface)
 
                 Text("Create events to track your activities!")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(AppTheme.TextStyle.body)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
                     .multilineTextAlignment(.center)
             }
 

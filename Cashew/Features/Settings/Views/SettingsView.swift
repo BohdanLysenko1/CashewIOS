@@ -8,12 +8,36 @@ struct SettingsView: View {
     @State private var signOutErrorMessage = ""
     @State private var isCheckingCloud = false
     @State private var showCloudUnavailableAlert = false
+    @State private var showEditProfile = false
 
     var body: some View {
         @Bindable var syncService = container.syncService
 
         NavigationStack {
             List {
+                // Profile Section
+                Section {
+                    Button {
+                        showEditProfile = true
+                    } label: {
+                        HStack(spacing: 14) {
+                            profileAvatar
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(container.authService.currentUser?.displayName ?? "")
+                                    .font(.headline)
+                                    .foregroundStyle(AppTheme.onSurface)
+                                Text(container.authService.currentUser?.email ?? "")
+                                    .font(.caption)
+                                    .foregroundStyle(AppTheme.onSurfaceVariant)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.onSurfaceVariant)
+                        }
+                    }
+                }
+
                 // Cloud Section
                 Section {
                     HStack(spacing: 14) {
@@ -53,7 +77,7 @@ struct SettingsView: View {
                                 Text("Last Sync")
                                 Spacer()
                                 Text(lastSync, style: .relative)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(AppTheme.onSurfaceVariant)
                             }
                         }
 
@@ -89,7 +113,7 @@ struct SettingsView: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 8))
 
                             Text("Replay Tutorial")
-                                .foregroundStyle(.primary)
+                                .foregroundStyle(AppTheme.onSurface)
                         }
                     }
                 }
@@ -100,7 +124,7 @@ struct SettingsView: View {
                         Label("Version", systemImage: "info.circle")
                         Spacer()
                         Text("1.0.0")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
                     }
                 }
 
@@ -129,7 +153,31 @@ struct SettingsView: View {
             } message: {
                 Text(signOutErrorMessage)
             }
+            .sheet(isPresented: $showEditProfile) {
+                EditProfileView()
+                    .environment(container)
+            }
         }
+    }
+
+    private var profileAvatar: some View {
+        ZStack {
+            Circle()
+                .fill(Color.blue.gradient)
+                .frame(width: 44, height: 44)
+            Text(initials)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.white)
+        }
+    }
+
+    private var initials: String {
+        let name = container.authService.currentUser?.displayName ?? ""
+        let parts = name.split(separator: " ")
+        if parts.count >= 2 {
+            return "\(parts[0].prefix(1))\(parts[1].prefix(1))".uppercased()
+        }
+        return String(name.prefix(2)).uppercased()
     }
 
     private func checkCloudAvailability() {
@@ -166,14 +214,14 @@ private struct SyncStatusView: View {
         switch status {
         case .idle:
             Text("Idle")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
         case .syncing:
             HStack(spacing: 6) {
                 ProgressView()
                     .scaleEffect(0.8)
                 Text("Syncing...")
             }
-            .foregroundStyle(.secondary)
+            .foregroundStyle(AppTheme.onSurfaceVariant)
         case .success:
             HStack(spacing: 4) {
                 Image(systemName: "checkmark.circle.fill")

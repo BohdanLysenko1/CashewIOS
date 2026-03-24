@@ -150,7 +150,7 @@ struct CalendarFilterSheet: View {
             Text(title)
                 .font(.caption)
                 .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
                 .textCase(.uppercase)
                 .tracking(0.5)
 
@@ -173,16 +173,16 @@ struct CalendarFilterSheet: View {
             VStack(spacing: 8) {
                 Image(systemName: icon)
                     .font(.system(size: 22, weight: .medium))
-                    .foregroundStyle(isOn ? color : Color(.tertiaryLabel))
+                    .foregroundStyle(isOn ? color : AppTheme.onSurfaceVariant)
 
                 Text(label)
                     .font(.caption)
                     .fontWeight(.semibold)
-                    .foregroundStyle(isOn ? color : Color(.tertiaryLabel))
+                    .foregroundStyle(isOn ? color : AppTheme.onSurfaceVariant)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
-            .background(isOn ? color.opacity(0.1) : Color(.secondarySystemGroupedBackground))
+            .background(isOn ? color.opacity(0.1) : AppTheme.surfaceContainerLow)
             .clipShape(RoundedRectangle(cornerRadius: 14))
             .overlay(
                 RoundedRectangle(cornerRadius: 14)
@@ -215,8 +215,8 @@ private struct FilterChip: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .background(isSelected ? color : Color(.secondarySystemGroupedBackground))
-            .foregroundStyle(isSelected ? .white : Color(.label))
+            .background(isSelected ? color : AppTheme.surfaceContainerLow)
+            .foregroundStyle(isSelected ? .white : AppTheme.onSurface)
             .clipShape(Capsule())
         }
         .buttonStyle(.plain)

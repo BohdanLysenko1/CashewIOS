@@ -10,7 +10,10 @@ enum SupabaseManager {
         supabaseURL: projectURL,
         supabaseKey: anonKey,
         options: .init(
-            auth: .init(emitLocalSessionAsInitialSession: true)
+            auth: .init(
+                storage: KeychainLocalStorage(service: "com.bohdanlysenko.Cashew", accessGroup: nil),
+                emitLocalSessionAsInitialSession: true
+            )
         )
     )
 }

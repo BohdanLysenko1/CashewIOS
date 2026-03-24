@@ -98,7 +98,7 @@ struct MiniTimelineStripView: View {
                     ctx.fill(
                         Path(roundedRect: CGRect(x: 0, y: trackY, width: size.width, height: 14),
                              cornerRadius: 5),
-                        with: .color(Color(.systemGray5))
+                        with: .color(AppTheme.surfaceContainerHigh)
                     )
 
                     // 2. Duration blocks (events + tasks with start+end) — 2-lane layout
@@ -187,7 +187,7 @@ struct MiniTimelineStripView: View {
                 ForEach(Array(anchorLabels.enumerated()), id: \.offset) { _, anchor in
                     Text(anchor.label)
                         .font(.system(size: 9, weight: .medium, design: .rounded))
-                        .foregroundStyle(Color(.tertiaryLabel))
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                         .frame(width: 32, alignment: .center)
                         .offset(x: anchor.fraction * geo.size.width - 16, y: 2)
                 }
@@ -365,12 +365,12 @@ private struct TimelineTooltipBubble: View {
                 Text(title)
                     .font(.caption2)
                     .fontWeight(.semibold)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(AppTheme.onSurface)
                     .lineLimit(1)
             }
             Text(time)
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
@@ -422,13 +422,13 @@ private struct MiniTimelineStripPreviewData {
         VStack(alignment: .leading, spacing: 20) {
             Group {
                 Text("Rich day — events + tasks + today indicator")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(AppTheme.onSurfaceVariant)
                 MiniTimelineStripView(events: data.richDay, tasks: data.mixedTasks, selectedDate: data.now)
             }
 
             Group {
                 Text("Tasks only (blocks + ticks)")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(AppTheme.onSurfaceVariant)
                 MiniTimelineStripView(
                     events: [],
                     tasks: data.mixedTasks + [
@@ -442,7 +442,7 @@ private struct MiniTimelineStripPreviewData {
 
             Group {
                 Text("Single event")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(AppTheme.onSurfaceVariant)
                 MiniTimelineStripView(
                     events: [data.event("Morning Meeting", hour: 10, duration: 1, category: .meeting)],
                     tasks: [], selectedDate: data.now
@@ -451,7 +451,7 @@ private struct MiniTimelineStripPreviewData {
 
             Group {
                 Text("Empty — no timed items")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(AppTheme.onSurfaceVariant)
                 MiniTimelineStripView(events: [], tasks: [],
                                       selectedDate: data.cal.date(byAdding: .day, value: -1, to: data.now)!)
             }

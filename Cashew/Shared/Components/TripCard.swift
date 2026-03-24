@@ -27,7 +27,7 @@ struct TripCard: View {
     // MARK: - Full Card
 
     private var fullCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: AppTheme.cardInternalSpacing) {
             // Header with icon and status
             HStack(alignment: .top) {
                 // Trip icon
@@ -36,13 +36,13 @@ struct TripCard: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(trip.name)
-                        .font(.headline)
-                        .fontWeight(.semibold)
+                        .font(AppTheme.TextStyle.sectionTitle)
+                        .foregroundStyle(AppTheme.onSurface)
                         .lineLimit(1)
 
                     Text(trip.destination)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .font(AppTheme.TextStyle.secondary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                         .lineLimit(1)
                 }
 
@@ -51,9 +51,7 @@ struct TripCard: View {
                 StatusBadge(status: trip.computedStatus, style: .prominent)
             }
 
-            Divider()
-
-            // Date range
+            // Date range (whitespace separation, no divider)
             HStack(spacing: 16) {
                 dateItem(label: "Start", date: trip.startDate, icon: "calendar")
                 dateItem(label: "End", date: trip.endDate, icon: "calendar.badge.checkmark")
@@ -72,32 +70,31 @@ struct TripCard: View {
             // Tinted airplane icon circle
             ZStack {
                 Circle()
-                    .fill(Color.blue.opacity(0.14))
+                    .fill(AppTheme.secondary.opacity(0.14))
                     .frame(width: 36, height: 36)
                 Image(systemName: "airplane")
                     .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(AppTheme.secondary)
             }
 
             VStack(alignment: .leading, spacing: 2) {
                 // Line 1: Trip name
                 Text(trip.name)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.primary)
+                    .font(AppTheme.TextStyle.bodyBold)
+                    .foregroundStyle(AppTheme.onSurface)
                     .lineLimit(1)
 
                 // Line 2: Date range · Status
                 Text(compactSubtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(AppTheme.TextStyle.caption)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
                     .lineLimit(1)
 
                 // Line 3: Destination
                 if !trip.destination.isEmpty {
                     Label(trip.destination, systemImage: "location")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .font(AppTheme.TextStyle.micro)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                         .labelStyle(.titleAndIcon)
                         .lineLimit(1)
                 }
@@ -119,17 +116,16 @@ struct TripCard: View {
     private func dateItem(label: String, date: Date, icon: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label)
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+                .font(AppTheme.TextStyle.micro)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
                 .textCase(.uppercase)
 
             HStack(spacing: 4) {
                 Image(systemName: icon)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .font(AppTheme.TextStyle.micro)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
                 Text(Self.dateFormatter.string(from: date))
-                    .font(.caption)
-                    .fontWeight(.medium)
+                    .font(AppTheme.TextStyle.captionBold)
             }
         }
     }
@@ -141,12 +137,11 @@ struct TripCard: View {
                 if days > 0 {
                     VStack(alignment: .trailing, spacing: 2) {
                         Text("\(days)")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .foregroundStyle(.blue)
+                            .font(AppTheme.TextStyle.statMedium)
+                            .foregroundStyle(AppTheme.primary)
                         Text("days left")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .font(AppTheme.TextStyle.micro)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
                     }
                 }
             }

@@ -35,7 +35,7 @@ struct DailyTaskRow: View {
                         .font(.subheadline)
                         .fontWeight(.medium)
                         .strikethrough(task.isCompleted)
-                        .foregroundStyle(task.isCompleted ? .secondary : .primary)
+                        .foregroundStyle(task.isCompleted ? AppTheme.onSurfaceVariant : AppTheme.onSurface)
                         .animation(.easeInOut(duration: 0.2), value: task.isCompleted)
 
                     HStack(spacing: 8) {
@@ -54,7 +54,7 @@ struct DailyTaskRow: View {
                         if let timeRange = task.formattedTimeRange {
                             Text(timeRange)
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(AppTheme.onSurfaceVariant)
                         }
 
                         if task.hasSubtasks {
@@ -64,7 +64,7 @@ struct DailyTaskRow: View {
                                 Text(task.subtaskProgress)
                                     .font(.caption)
                             }
-                            .foregroundStyle(task.allSubtasksCompleted ? .green : .secondary)
+                            .foregroundStyle(task.allSubtasksCompleted ? .green : AppTheme.onSurfaceVariant)
                         }
 
                         if let icon = linkIcon, let label = linkLabel {
@@ -74,7 +74,7 @@ struct DailyTaskRow: View {
                                 Text(label)
                                     .font(.caption)
                             }
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -91,13 +91,13 @@ struct DailyTaskRow: View {
                     } label: {
                         Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
                             .font(.caption2)
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
                     }
                     .buttonStyle(.plain)
                 } else {
                     Image(systemName: "chevron.right")
                         .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                 }
             }
             .padding(.vertical, 10)
@@ -114,7 +114,6 @@ struct DailyTaskRow: View {
             // Subtask list (expanded)
             if isExpanded && task.hasSubtasks {
                 VStack(spacing: 0) {
-                    Divider().padding(.leading)
                     ForEach(task.subtasks) { subtask in
                         HStack(spacing: 12) {
                             Spacer().frame(width: 20)
@@ -125,24 +124,20 @@ struct DailyTaskRow: View {
                             } label: {
                                 Image(systemName: subtask.isCompleted ? "checkmark.circle.fill" : "circle")
                                     .font(.system(size: 18))
-                                    .foregroundStyle(subtask.isCompleted ? .green : .secondary)
+                                    .foregroundStyle(subtask.isCompleted ? .green : AppTheme.onSurfaceVariant)
                             }
                             .buttonStyle(.plain)
 
                             Text(subtask.title)
                                 .font(.subheadline)
                                 .strikethrough(subtask.isCompleted)
-                                .foregroundStyle(subtask.isCompleted ? .secondary : .primary)
+                                .foregroundStyle(subtask.isCompleted ? AppTheme.onSurfaceVariant : AppTheme.onSurface)
                                 .animation(.easeInOut(duration: 0.2), value: subtask.isCompleted)
 
                             Spacer()
                         }
                         .padding(.vertical, 8)
                         .padding(.horizontal)
-
-                        if subtask.id != task.subtasks.last?.id {
-                            Divider().padding(.leading, 52)
-                        }
                     }
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))

@@ -7,9 +7,12 @@ struct DetailRow: View {
     var body: some View {
         HStack {
             Text(label)
-                .foregroundStyle(.secondary)
+                .font(AppTheme.TextStyle.body)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
             Spacer()
             Text(value)
+                .font(AppTheme.TextStyle.bodyBold)
+                .foregroundStyle(AppTheme.onSurface)
         }
     }
 }

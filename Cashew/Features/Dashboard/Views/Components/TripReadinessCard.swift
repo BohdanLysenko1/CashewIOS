@@ -37,9 +37,8 @@ struct TripReadinessCard: View {
             VStack(alignment: .leading, spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(trip.name)
-                        .font(.subheadline)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.primary)
+                        .font(AppTheme.TextStyle.bodyBold)
+                        .foregroundStyle(AppTheme.onSurface)
                         .lineLimit(1)
 
                     HStack(spacing: 3) {
@@ -47,12 +46,12 @@ struct TripReadinessCard: View {
                             .font(.system(size: 10))
                             .foregroundStyle(.orange)
                         Text(trip.destination)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .font(AppTheme.TextStyle.caption)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
                         if !daysLabel.isEmpty {
                             Text("· \(daysLabel)")
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
+                                .font(AppTheme.TextStyle.caption)
+                                .foregroundStyle(AppTheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -76,8 +75,8 @@ struct TripReadinessCard: View {
                     }
                 } else {
                     Text("No items added yet")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
+                        .font(AppTheme.TextStyle.caption)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                 }
             }
 
@@ -91,8 +90,8 @@ struct TripReadinessCard: View {
                     .foregroundStyle(readinessColor)
                     .monospacedDigit()
                 Text("ready")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .font(AppTheme.TextStyle.caption)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
             }
         }
         .padding(AppTheme.cardPadding)
@@ -101,16 +100,15 @@ struct TripReadinessCard: View {
     private func progressRow(label: String, progress: Double, fraction: String) -> some View {
         HStack(spacing: 8) {
             Text(label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(AppTheme.TextStyle.caption)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
                 .frame(width: 56, alignment: .leading)
 
             AppProgressBar(progress: progress, color: barColor(progress))
 
             Text(fraction)
-                .font(.caption)
-                .fontWeight(.medium)
-                .foregroundStyle(.secondary)
+                .font(AppTheme.TextStyle.caption).fontWeight(.medium)
+                .foregroundStyle(AppTheme.onSurface)
                 .monospacedDigit()
                 .frame(width: 24, alignment: .trailing)
         }
@@ -141,23 +139,15 @@ struct TripReadinessSection: View {
             }
             .padding(AppTheme.cardPadding)
 
-            Divider()
-                .padding(.horizontal, AppTheme.cardPadding)
-
             ForEach(trips) { trip in
                 NavigationLink(value: trip.id) {
                     TripReadinessCard(trip: trip)
                 }
                 .buttonStyle(.plain)
-
-                if trip.id != trips.last?.id {
-                    Divider()
-                        .padding(.horizontal, AppTheme.cardPadding)
-                }
             }
         }
         .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
         .shadow(
             color: AppTheme.cardShadow,
             radius: AppTheme.cardShadowRadius,

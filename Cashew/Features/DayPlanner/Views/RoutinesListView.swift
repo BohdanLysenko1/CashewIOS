@@ -69,7 +69,7 @@ struct RoutinesListView: View {
         VStack(spacing: 16) {
             Image(systemName: "repeat")
                 .font(.system(size: 50))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
 
             VStack(spacing: 6) {
                 Text("No Routines Yet")
@@ -77,7 +77,7 @@ struct RoutinesListView: View {
 
                 Text("Create routines for tasks that repeat daily")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
                     .multilineTextAlignment(.center)
             }
 
@@ -137,19 +137,19 @@ private struct RoutineRow: View {
                 Text(routine.title)
                     .font(.subheadline)
                     .fontWeight(.medium)
-                    .foregroundStyle(routine.isEnabled ? .primary : .secondary)
+                    .foregroundStyle(routine.isEnabled ? AppTheme.onSurface : AppTheme.onSurfaceVariant)
 
                 HStack(spacing: 8) {
                     // Repeat pattern
                     Text(routine.repeatDescription)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
 
                     // Time if set
                     if let startTime = routine.startTime {
                         Text("at \(Self.timeFormatter.string(from: startTime))")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
                     }
                 }
             }

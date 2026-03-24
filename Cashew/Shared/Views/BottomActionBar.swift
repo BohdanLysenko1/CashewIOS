@@ -11,8 +11,9 @@ struct BottomActionBar<Content: View>: View {
         .padding(.horizontal, 24)
         .padding(.vertical, 12)
         .background(.ultraThinMaterial)
+        .background(AppTheme.surfaceContainerLowest.opacity(0.80))
         .clipShape(Capsule())
-        .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
+        .shadow(color: AppTheme.cardShadow, radius: AppTheme.cardShadowRadius, x: 0, y: AppTheme.cardShadowY)
         .padding(.bottom, 8)
     }
 }
@@ -31,7 +32,7 @@ struct BottomActionButton: View {
                     .font(.caption2)
                     .fontWeight(.medium)
             }
-            .foregroundStyle(.primary)
+            .foregroundStyle(AppTheme.onSurface)
         }
     }
 }

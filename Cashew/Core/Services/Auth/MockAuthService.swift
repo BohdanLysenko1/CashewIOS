@@ -7,6 +7,7 @@ final class MockAuthService: AuthServiceProtocol {
 
     private(set) var isAuthenticated = false
     private(set) var isRestoringSession = false
+    private(set) var isRecoveringPassword = false
     private(set) var currentUser: AppUser? = nil
 
     func signIn() async throws {
@@ -26,6 +27,19 @@ final class MockAuthService: AuthServiceProtocol {
 
     func signOut() async throws {
         isAuthenticated = false
+        isRecoveringPassword = false
         currentUser = nil
+    }
+
+    func handleAuthCallback(url: URL) async throws {}
+    func handlePasswordResetCallback(url: URL) async throws {
+        isRecoveringPassword = true
+    }
+
+    func updatePassword(_ newPassword: String) async throws {}
+    func sendPasswordReset(email: String) async throws {}
+
+    func updateDisplayName(_ name: String) async throws {
+        currentUser?.displayName = name
     }
 }

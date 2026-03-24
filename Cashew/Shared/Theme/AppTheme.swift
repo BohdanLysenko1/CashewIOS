@@ -1,52 +1,91 @@
 import SwiftUI
 
-// MARK: - App Colors
+// MARK: - Design Tokens  (The Luminous Productivity Framework)
 
 enum AppTheme {
 
-    // MARK: - Primary Colors
+    // ─────────────────────────────────────────────
+    // MARK: - Color Palette
+    // ─────────────────────────────────────────────
 
+    // Primary
+    static let primary        = Color(red: 0.21, green: 0.26, blue: 0.91)   // #3642e9
+    static let primaryDim     = Color(red: 0.20, green: 0.18, blue: 0.78)   // darker stop for gradients
+    static let primaryContainer = Color(red: 0.56, green: 0.59, blue: 1.00) // #8f97ff
+    static let onPrimary      = Color.white
+
+    // Secondary — used to distinguish "Trips"
+    static let secondary      = Color(red: 0.45, green: 0.21, blue: 0.80)   // #7335cc
+    static let secondaryContainer = Color(red: 0.60, green: 0.40, blue: 0.90)
+
+    // Tertiary — used to distinguish "Events", rewards, streaks, XP
+    static let tertiary       = Color(red: 0.58, green: 0.22, blue: 0.48)   // #95377a
+    static let tertiaryContainer = Color(red: 0.75, green: 0.40, blue: 0.62)
+
+    // Neutral / Surface hierarchy  ("layers of fine paper")
+    static let background            = Color(red: 0.96, green: 0.96, blue: 0.97) // #f5f6f7
+    static let surface               = Color(red: 0.97, green: 0.97, blue: 0.98)
+    static let surfaceContainerLow   = Color(red: 0.95, green: 0.95, blue: 0.96)
+    static let surfaceContainer      = Color(red: 0.93, green: 0.93, blue: 0.95)
+    static let surfaceContainerHigh  = Color(red: 0.90, green: 0.90, blue: 0.92)
+    static let surfaceContainerLowest = Color.white                              // #ffffff
+
+    // On-surface text  (never use pure #000000)
+    static let onSurface        = Color(red: 0.17, green: 0.18, blue: 0.19)     // #2c2f30
+    static let onSurfaceVariant = Color(red: 0.40, green: 0.42, blue: 0.44)
+    static let outlineVariant   = Color(red: 0.17, green: 0.18, blue: 0.19).opacity(0.10) // ghost border
+
+    // ─────────────────────────────────────────────
+    // MARK: - Gradients
+    // ─────────────────────────────────────────────
+
+    // "Moments of Action" — hero CTAs, active states
     static let primaryGradient = LinearGradient(
-        colors: [Color("AccentColor"), Color("AccentColor").opacity(0.7)],
+        colors: [primary, primaryContainer],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
 
-    /// Blue — Tasks, planning, productivity
+    /// Tasks, planning, productivity  (uses primary range)
     static let dayPlannerGradient = LinearGradient(
-        colors: [.blue, .indigo],
+        colors: [primary, primaryDim],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
 
-    /// Orange — Trips, travel, adventure
+    /// Trips, travel — secondary accent
     static let tripGradient = LinearGradient(
-        colors: [Color(red: 1.0, green: 0.55, blue: 0.1), Color(red: 0.95, green: 0.35, blue: 0.05)],
+        colors: [secondary, secondaryContainer],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
 
-    /// Pink — Events, social
+    /// Events, social — tertiary accent
     static let eventGradient = LinearGradient(
-        colors: [.pink, Color(red: 0.9, green: 0.2, blue: 0.45)],
+        colors: [tertiary, tertiaryContainer],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
 
-    /// Purple — Achievement, XP, levels, streaks
+    /// Achievement, XP, levels, streaks — tertiary range per design "DO" rule
     static let gamificationGradient = LinearGradient(
-        colors: [.purple, .indigo],
+        colors: [tertiary, secondary],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
 
     static let calendarGradient = LinearGradient(
-        colors: [.orange, .red],
+        colors: [primary, secondary],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
 
-    // MARK: - Background Colors
+    // Signature "Mission / Hero" card fill
+    static let heroGradient = LinearGradient(
+        colors: [primary, secondary],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
 
     /// Deep navy/indigo — shared by the onboarding welcome and completion screens.
     static let onboardingBackground = LinearGradient(
@@ -59,78 +98,115 @@ enum AppTheme {
         endPoint: .bottomTrailing
     )
 
-    static let cardBackground = Color(.systemBackground)
-    static let secondaryBackground = Color(.secondarySystemBackground)
+    // ─────────────────────────────────────────────
+    // MARK: - Surface Shortcuts (backward-compatible)
+    // ─────────────────────────────────────────────
 
-    // MARK: - Shadows
+    static let cardBackground = surfaceContainerLowest
+    static let secondaryBackground = surfaceContainerLow
 
-    static let cardShadow = Color.black.opacity(0.08)
-    static let cardShadowRadius: CGFloat = 8
-    static let cardShadowY: CGFloat = 4
+    // ─────────────────────────────────────────────
+    // MARK: - Elevation & Shadows
+    //   "Tonal Layering, not heavy drop shadows"
+    //   Signature Glow: on_surface 6%, blur 32-48, y 8
+    // ─────────────────────────────────────────────
 
-    // MARK: - Corners
+    static let cardShadow = onSurface.opacity(0.06)
+    static let cardShadowRadius: CGFloat = 32
+    static let cardShadowY: CGFloat = 8
 
-    static let cardCornerRadius: CGFloat = 16
-    static let badgeCornerRadius: CGFloat = 8
-    static let iconCornerRadius: CGFloat = 12
+    // ─────────────────────────────────────────────
+    // MARK: - Corner Radii
+    //   md = 1.5rem ≈ 24pt   (primary cards)
+    //   lg = 2rem   ≈ 32pt   (main container wrappers)
+    //   xl = 3rem   ≈ 48pt   (primary buttons)
+    // ─────────────────────────────────────────────
 
+    static let cardCornerRadius: CGFloat = 24
+    static let containerCornerRadius: CGFloat = 32
+    static let buttonCornerRadius: CGFloat = 48
+    static let badgeCornerRadius: CGFloat = 12
+    static let iconCornerRadius: CGFloat = 16
+
+    // ─────────────────────────────────────────────
     // MARK: - Spacing Scale (4pt base grid)
+    // ─────────────────────────────────────────────
 
     enum Space {
-        static let xxs: CGFloat = 2   // hairlines, tight insets
-        static let xs:  CGFloat = 4   // icon gaps, micro padding
-        static let sm:  CGFloat = 8   // small component gaps
-        static let md:  CGFloat = 12  // list row spacing, inner card gaps
-        static let lg:  CGFloat = 16  // card padding, section gaps
-        static let xl:  CGFloat = 20  // hero section padding
-        static let xxl: CGFloat = 24  // between major sections
-        static let xxxl: CGFloat = 32 // top-level scroll padding
+        static let xxs: CGFloat = 2
+        static let xs:  CGFloat = 4
+        static let sm:  CGFloat = 8
+        static let md:  CGFloat = 12
+        static let lg:  CGFloat = 16
+        static let xl:  CGFloat = 20
+        static let xxl: CGFloat = 24
+        static let xxxl: CGFloat = 32
+        // Design-doc large whitespace tokens
+        static let sectionBreak: CGFloat = 56   // ~7rem — use between major sections
+        static let heroBreak: CGFloat = 68      // ~8.5rem
     }
 
-    // Semantic aliases — use these in views
-    static let cardPadding: CGFloat  = Space.lg   // 16
-    static let listSpacing: CGFloat  = Space.md   // 12
+    // Semantic aliases
+    static let cardPadding: CGFloat  = Space.lg
+    static let listSpacing: CGFloat  = Space.md
+    // "spacing-4 (1.4rem)" from design doc → use inside cards instead of Dividers
+    static let cardInternalSpacing: CGFloat = 22
 
+    // ─────────────────────────────────────────────
     // MARK: - Progress Bars
+    // ─────────────────────────────────────────────
 
     static let progressBarHeight: CGFloat = 6
     static let progressBarCornerRadius: CGFloat = 3
 
-    // MARK: - Stat Tiles
+    // ─────────────────────────────────────────────
+    // MARK: - Stat Tiles (no border — tonal only)
+    // ─────────────────────────────────────────────
 
-    static let statTileCornerRadius: CGFloat = 12
+    static let statTileCornerRadius: CGFloat = 16
     static let statTileBackgroundOpacity: Double = 0.08
-    static let statTileBorderOpacity: Double = 0.15
+    static let statTileBorderOpacity: Double = 0.0  // "No-Line" rule
 
+    // ─────────────────────────────────────────────
     // MARK: - Typography
+    //   Display & Headlines: Plus Jakarta Sans  (fallback: .rounded system)
+    //   Body & Labels: Inter  (fallback: default system / SF Pro)
+    //   3:1 ratio between headline and body sizes
+    // ─────────────────────────────────────────────
 
     enum TextStyle {
-        // Display
-        static let heroTitle:    Font = .system(size: 28, weight: .black)
-        static let title:        Font = .system(size: 20, weight: .bold)
-        static let sectionTitle: Font = .system(size: 17, weight: .bold)
+        // Display — Plus Jakarta Sans feel (rounded, tight tracking)
+        static let displayLarge: Font = .system(size: 36, weight: .black, design: .rounded)
+        static let heroTitle:    Font = .system(size: 28, weight: .black, design: .rounded)
+        static let title:        Font = .system(size: 22, weight: .bold, design: .rounded)
+        static let sectionTitle: Font = .system(size: 17, weight: .bold, design: .rounded)
 
-        // Body
+        // Body — Inter feel (default SF Pro is very close to Inter)
+        static let bodyLarge:    Font = .system(size: 17, weight: .regular)
         static let bodyBold:     Font = .system(size: 15, weight: .semibold)
         static let body:         Font = .system(size: 15, weight: .regular)
         static let secondary:    Font = .system(size: 13, weight: .regular)
 
-        // Caption
+        // Caption / Label
         static let captionBold:  Font = .system(size: 11, weight: .semibold)
         static let caption:      Font = .system(size: 11, weight: .regular)
         static let micro:        Font = .system(size: 9,  weight: .medium)
 
-        // Label (monospaced for numbers)
-        static let statLarge:    Font = .system(size: 28, weight: .black).monospacedDigit()
-        static let statMedium:   Font = .system(size: 20, weight: .bold).monospacedDigit()
+        // Stats (monospaced digits)
+        static let statLarge:    Font = .system(size: 28, weight: .black, design: .rounded).monospacedDigit()
+        static let statMedium:   Font = .system(size: 20, weight: .bold, design: .rounded).monospacedDigit()
         static let statSmall:    Font = .system(size: 15, weight: .semibold).monospacedDigit()
     }
 
+    // ─────────────────────────────────────────────
     // MARK: - Section Headers
+    // ─────────────────────────────────────────────
 
     static let sectionIconSize: CGFloat = 16
 
+    // ─────────────────────────────────────────────
     // MARK: - Animation
+    // ─────────────────────────────────────────────
 
     static let springResponse: Double = 0.35
     static let springDamping: Double = 0.7
@@ -148,7 +224,24 @@ struct CardStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(AppTheme.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
+            .shadow(
+                color: AppTheme.cardShadow,
+                radius: AppTheme.cardShadowRadius,
+                x: 0,
+                y: AppTheme.cardShadowY
+            )
+    }
+}
+
+/// Glassmorphism modifier per design spec:
+/// surface_container_lowest 80% opacity + 20px backdrop blur.
+struct GlassStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .background(.ultraThinMaterial)
+            .background(AppTheme.surfaceContainerLowest.opacity(0.80))
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
             .shadow(
                 color: AppTheme.cardShadow,
                 radius: AppTheme.cardShadowRadius,
@@ -167,7 +260,7 @@ struct IconBackgroundStyle: ViewModifier {
             .foregroundStyle(.white)
             .frame(width: 36, height: 36)
             .background(color.gradient)
-            .clipShape(RoundedRectangle(cornerRadius: AppTheme.iconCornerRadius))
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.iconCornerRadius, style: .continuous))
     }
 }
 
@@ -180,7 +273,27 @@ struct GradientIconStyle: ViewModifier {
             .foregroundStyle(.white)
             .frame(width: 36, height: 36)
             .background(gradient)
-            .clipShape(RoundedRectangle(cornerRadius: AppTheme.iconCornerRadius))
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.iconCornerRadius, style: .continuous))
+    }
+}
+
+/// Input field container per design spec:
+/// surface_container background, no border. On focus → surface_container_lowest + ghost border.
+struct DesignFieldStyle: ViewModifier {
+    var isFocused: Bool = false
+
+    func body(content: Content) -> some View {
+        content
+            .font(.system(size: 16))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 14)
+            .background(isFocused ? AppTheme.surfaceContainerLowest : AppTheme.surfaceContainer)
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous)
+                    .stroke(isFocused ? AppTheme.primary.opacity(0.20) : .clear, lineWidth: 1)
+            )
+            .animation(.easeInOut(duration: 0.2), value: isFocused)
     }
 }
 
@@ -191,12 +304,20 @@ extension View {
         modifier(CardStyle())
     }
 
+    func glassStyle() -> some View {
+        modifier(GlassStyle())
+    }
+
     func iconBackground(_ color: Color) -> some View {
         modifier(IconBackgroundStyle(color: color))
     }
 
     func gradientIconBackground(_ gradient: LinearGradient) -> some View {
         modifier(GradientIconStyle(gradient: gradient))
+    }
+
+    func designField(isFocused: Bool = false) -> some View {
+        modifier(DesignFieldStyle(isFocused: isFocused))
     }
 }
 
@@ -214,8 +335,8 @@ struct SectionHeader: View {
                 .font(.system(size: AppTheme.sectionIconSize, weight: .semibold))
                 .foregroundStyle(gradient)
             Text(title)
-                .font(.headline)
-                .fontWeight(.bold)
+                .font(AppTheme.TextStyle.sectionTitle)
+                .foregroundStyle(AppTheme.onSurface)
         }
     }
 }

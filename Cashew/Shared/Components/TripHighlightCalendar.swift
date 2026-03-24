@@ -40,7 +40,7 @@ struct TripHighlightCalendar: View {
                 Text(day)
                     .font(.caption)
                     .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
                     .frame(maxWidth: .infinity)
             }
         }

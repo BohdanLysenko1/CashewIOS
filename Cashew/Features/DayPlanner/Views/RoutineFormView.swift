@@ -132,7 +132,7 @@ struct RoutineFormView: View {
                         Text("Days")
                         Spacer()
                         Text(selectedDaysText)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
                     }
                 }
             }

@@ -61,29 +61,28 @@ struct StreakCard: View {
 
             // Streak number
             Text("\(currentStreak)")
-                .font(.title2)
-                .fontWeight(.black)
-                .monospacedDigit()
+                .font(AppTheme.TextStyle.statMedium)
+                .foregroundStyle(AppTheme.onSurface)
 
             // Routine name
             Text(routine.title)
-                .font(.caption)
-                .fontWeight(.semibold)
+                .font(AppTheme.TextStyle.captionBold)
+                .foregroundStyle(AppTheme.onSurface)
                 .lineLimit(1)
                 .truncationMode(.tail)
 
             // Best streak
             if bestStreak > 0 {
                 Text("Best: \(bestStreak)")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .font(AppTheme.TextStyle.caption)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
             }
         }
         .frame(width: 110)
         .padding(.vertical, 14)
         .padding(.horizontal, 8)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .background(AppTheme.surfaceContainerLow)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.badgeCornerRadius, style: .continuous))
     }
 }
 
@@ -107,18 +106,17 @@ struct StreakTrackerSection: View {
             HStack(spacing: 8) {
                 Image(systemName: "flame.fill")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(LinearGradient(colors: [.orange, .red], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .foregroundStyle(AppTheme.gamificationGradient)
                 Text("Streaks")
-                    .font(.headline)
-                    .fontWeight(.bold)
+                    .font(AppTheme.TextStyle.sectionTitle)
+                    .foregroundStyle(AppTheme.onSurface)
 
                 Spacer()
 
                 if let topStreak = streakData.first, topStreak.current >= 3 {
                     Text("\(topStreak.current) day best!")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.orange)
+                        .font(AppTheme.TextStyle.captionBold)
+                        .foregroundStyle(AppTheme.tertiary)
                 }
             }
 
@@ -126,15 +124,15 @@ struct StreakTrackerSection: View {
                 HStack(spacing: 12) {
                     Image(systemName: "repeat")
                         .font(.title2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("No active routines")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
+                            .font(AppTheme.TextStyle.bodyBold)
+                            .foregroundStyle(AppTheme.onSurface)
                         Text("Create routines in My Day to track streaks")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .font(AppTheme.TextStyle.caption)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
                     }
 
                     Spacer()

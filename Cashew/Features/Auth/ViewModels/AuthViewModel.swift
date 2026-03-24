@@ -16,6 +16,9 @@ final class AuthViewModel {
     var username = ""
     var isLoading = false
     var errorMessage: String?
+    var showEmailConfirmation = false
+    var showForgotPassword = false
+    var passwordResetSent = false
 
     init(authService: AuthServiceProtocol) {
         self.authService = authService
@@ -49,6 +52,8 @@ final class AuthViewModel {
                 }
             } catch is CancellationError {
                 // no-op
+            } catch AuthError.emailConfirmationRequired {
+                showEmailConfirmation = true
             } catch {
                 errorMessage = error.localizedDescription
             }
@@ -64,6 +69,29 @@ final class AuthViewModel {
         signInTask = Task {
             do {
                 try await authService.signIn()
+            } catch is CancellationError {
+                // no-op
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            isLoading = false
+        }
+    }
+
+    func sendPasswordReset() {
+        let trimmed = email.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else {
+            errorMessage = "Enter your email address first."
+            return
+        }
+        signInTask?.cancel()
+        isLoading = true
+        errorMessage = nil
+        signInTask = Task {
+            do {
+                try await authService.sendPasswordReset(email: trimmed)
+                passwordResetSent = true
+                showForgotPassword = false
             } catch is CancellationError {
                 // no-op
             } catch {

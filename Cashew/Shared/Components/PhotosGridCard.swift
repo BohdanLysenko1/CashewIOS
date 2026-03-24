@@ -50,15 +50,15 @@ struct PhotosGridCard: View {
             Text("Photos")
                 .font(.subheadline)
                 .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
             Spacer()
             Text("\(photoAttachments.count) \(photoAttachments.count == 1 ? "photo" : "photos")")
                 .font(.caption)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
         }
         .padding(.horizontal)
         .padding(.vertical, 12)
-        .background(Color(.secondarySystemBackground))
+        .background(AppTheme.surfaceContainerLow)
     }
 
     // MARK: - Single Photo

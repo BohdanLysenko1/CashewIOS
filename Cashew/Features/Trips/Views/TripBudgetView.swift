@@ -22,7 +22,7 @@ struct TripBudgetView: View {
             }
             .padding()
         }
-        .background(Color(.systemGroupedBackground))
+        .background(AppTheme.background)
         .navigationTitle("Budget")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -55,7 +55,7 @@ struct TripBudgetView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Total Budget")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
 
                     if let budget = trip.budget {
                         Text(formatCurrency(budget))
@@ -64,7 +64,7 @@ struct TripBudgetView: View {
                     } else {
                         Text("Not set")
                             .font(.title2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
                     }
                 }
 
@@ -85,7 +85,7 @@ struct TripBudgetView: View {
                     GeometryReader { geometry in
                         ZStack(alignment: .leading) {
                             RoundedRectangle(cornerRadius: 6)
-                                .fill(Color(.systemGray5))
+                                .fill(AppTheme.surfaceContainerHigh)
                                 .frame(height: 12)
 
                             RoundedRectangle(cornerRadius: 6)
@@ -99,7 +99,7 @@ struct TripBudgetView: View {
                         VStack(alignment: .leading) {
                             Text("Spent")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(AppTheme.onSurfaceVariant)
                             Text(formatCurrency(trip.totalExpenses))
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
@@ -110,7 +110,7 @@ struct TripBudgetView: View {
                         VStack(alignment: .trailing) {
                             Text("Remaining")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(AppTheme.onSurfaceVariant)
                             Text(formatCurrency(trip.remainingBudget ?? 0))
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
@@ -160,10 +160,6 @@ struct TripBudgetView: View {
                             .fontWeight(.medium)
                     }
                     .padding(.horizontal)
-
-                    if item.category != expensesByCategory.last?.category {
-                        Divider().padding(.leading, 50)
-                    }
                 }
             }
             .padding(.vertical, 12)
@@ -193,7 +189,7 @@ struct TripBudgetView: View {
 
                 Text("\(trip.expenses.count) items")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
             }
             .padding(.horizontal)
 
@@ -201,11 +197,11 @@ struct TripBudgetView: View {
                 VStack(spacing: 12) {
                     Image(systemName: "creditcard")
                         .font(.system(size: 40))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
 
                     Text("No expenses yet")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
 
                     Button("Add Expense") {
                         showAddExpense = true
@@ -221,10 +217,6 @@ struct TripBudgetView: View {
                             editingExpense = expense
                         } onDelete: {
                             deleteExpense(expense)
-                        }
-
-                        if expense.id != trip.expenses.sorted(by: { $0.date > $1.date }).last?.id {
-                            Divider().padding(.leading, 50)
                         }
                     }
                 }
@@ -267,9 +259,9 @@ private struct ExpenseRow: View {
         HStack(spacing: 12) {
             Image(systemName: expense.category.icon)
                 .font(.system(size: 14))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
                 .frame(width: 28, height: 28)
-                .background(Color(.systemGray5))
+                .background(AppTheme.surfaceContainerHigh)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
 
             VStack(alignment: .leading, spacing: 2) {
@@ -279,7 +271,7 @@ private struct ExpenseRow: View {
 
                 Text(Self.dateFormatter.string(from: expense.date))
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
             }
 
             Spacer()
@@ -390,7 +382,7 @@ struct ExpenseFormView: View {
 
                     HStack {
                         Text(trip.currency)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
                         TextField("Amount", text: $amountString)
                             .keyboardType(.decimalPad)
                     }

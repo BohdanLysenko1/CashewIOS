@@ -37,20 +37,16 @@ struct LocationSearchField: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(suggestion.title)
                                     .font(.subheadline)
-                                    .foregroundStyle(.primary)
+                                    .foregroundStyle(AppTheme.onSurface)
                                 if !suggestion.subtitle.isEmpty {
                                     Text(suggestion.subtitle)
                                         .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(AppTheme.onSurfaceVariant)
                                 }
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.vertical, 8)
                             .padding(.horizontal, 4)
-                        }
-
-                        if suggestion != completer.suggestions.last {
-                            Divider()
                         }
                     }
                 }

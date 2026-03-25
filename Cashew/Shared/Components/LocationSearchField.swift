@@ -10,7 +10,7 @@ struct LocationSearchField: View {
     var label: String = "Location"
     var placeholder: String = "Search for a place..."
 
-    @State private var completer = LocationCompleter()
+    @State private var searcher = LocationSearcher()
     @State private var isShowingSuggestions = false
     /// True while we're programmatically updating `text` after a selection,
     /// so `onChange` doesn't re-trigger search and clear coordinates.
@@ -22,24 +22,24 @@ struct LocationSearchField: View {
                 .textContentType(.addressCity)
                 .onChange(of: text) { _, newValue in
                     guard !isSelecting else { return }
-                    completer.search(query: newValue)
+                    searcher.search(query: newValue)
                     isShowingSuggestions = !newValue.isEmpty
                     latitude = nil
                     longitude = nil
                 }
 
-            if isShowingSuggestions && !completer.suggestions.isEmpty {
+            if isShowingSuggestions && !searcher.results.isEmpty {
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(completer.suggestions, id: \.self) { suggestion in
+                    ForEach(searcher.results, id: \.self) { item in
                         Button {
-                            selectSuggestion(suggestion)
+                            selectItem(item)
                         } label: {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(suggestion.title)
+                                Text(item.name ?? "Unknown")
                                     .font(.subheadline)
                                     .foregroundStyle(AppTheme.onSurface)
-                                if !suggestion.subtitle.isEmpty {
-                                    Text(suggestion.subtitle)
+                                if let locality = formattedSubtitle(for: item), !locality.isEmpty {
+                                    Text(locality)
                                         .font(.caption)
                                         .foregroundStyle(AppTheme.onSurfaceVariant)
                                 }
@@ -55,82 +55,76 @@ struct LocationSearchField: View {
         }
     }
 
-    private func selectSuggestion(_ suggestion: MKLocalSearchCompletion) {
-        let displayText = [suggestion.title, suggestion.subtitle]
+    private func formattedSubtitle(for item: MKMapItem) -> String? {
+        let placemark = item.placemark
+        let parts = [placemark.locality, placemark.administrativeArea, placemark.country]
+            .compactMap { $0 }
+
+        // Drop the first component if it duplicates the item name
+        let filtered = parts.drop(while: { $0 == item.name })
+        let subtitle = filtered.joined(separator: ", ")
+        return subtitle.isEmpty ? nil : subtitle
+    }
+
+    private func selectItem(_ item: MKMapItem) {
+        let name = item.name ?? ""
+        let subtitle = formattedSubtitle(for: item) ?? ""
+        let displayText = [name, subtitle]
             .filter { !$0.isEmpty }
             .joined(separator: ", ")
 
-        // Set state synchronously before going async so onChange fires
-        // while isSelecting = true and doesn't re-trigger search.
         isSelecting = true
         isShowingSuggestions = false
-        completer.clear()
+        searcher.clear()
         text = displayText
 
-        let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = displayText
-        request.region = MKCoordinateRegion(MKMapRect.world)
-        request.resultTypes = .address
-
-        MKLocalSearch(request: request).start { response, _ in
-            // Only update coordinates — text is already set, touching it
-            // again would re-trigger onChange and re-show suggestions.
-            let mapItem = response?.mapItems.first(where: {
-                $0.pointOfInterestCategory == nil
-            }) ?? response?.mapItems.first
-            if let mapItem {
-                latitude = mapItem.location.coordinate.latitude
-                longitude = mapItem.location.coordinate.longitude
-            }
-            isSelecting = false
-        }
+        // Coordinates are already on the MKMapItem — no second lookup needed.
+        latitude = item.placemark.coordinate.latitude
+        longitude = item.placemark.coordinate.longitude
+        isSelecting = false
     }
 }
 
-// MARK: - Location Completer
+// MARK: - Location Searcher
 
 @Observable @MainActor
-private final class LocationCompleter: NSObject, @preconcurrency MKLocalSearchCompleterDelegate {
+private final class LocationSearcher {
 
-    var suggestions: [MKLocalSearchCompletion] = []
+    var results: [MKMapItem] = []
 
-    private let completer: MKLocalSearchCompleter
-
-    override init() {
-        completer = MKLocalSearchCompleter()
-        completer.resultTypes = [.address, .pointOfInterest]
-        completer.pointOfInterestFilter = MKPointOfInterestFilter(including: [
-            .airport, .amusementPark, .aquarium, .beach, .campground,
-            .hotel, .marina, .museum, .nationalPark, .park,
-            .stadium, .theater, .university, .winery, .zoo
-        ])
-        // Use a world-wide region so suggestions aren't biased toward the user's location
-        completer.region = MKCoordinateRegion(MKMapRect.world)
-        super.init()
-        completer.delegate = self
-    }
+    private var currentTask: Task<Void, Never>?
 
     func search(query: String) {
-        if query.isEmpty {
-            suggestions = []
-        } else {
-            completer.queryFragment = query
+        currentTask?.cancel()
+
+        guard !query.isEmpty else {
+            results = []
+            return
+        }
+
+        currentTask = Task {
+            // Debounce: wait briefly so we don't fire a request per keystroke
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+
+            let request = MKLocalSearch.Request()
+            request.naturalLanguageQuery = query
+            request.resultTypes = [.address, .pointOfInterest]
+            request.region = MKCoordinateRegion(MKMapRect.world)
+
+            do {
+                let response = try await MKLocalSearch(request: request).start()
+                guard !Task.isCancelled else { return }
+                results = Array(response.mapItems.prefix(5))
+            } catch {
+                guard !Task.isCancelled else { return }
+                results = []
+            }
         }
     }
 
     func clear() {
-        completer.queryFragment = ""
-        suggestions = []
-    }
-
-    // MARK: - MKLocalSearchCompleterDelegate
-
-    func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
-        guard !completer.queryFragment.isEmpty else { return }
-        suggestions = Array(completer.results.prefix(5))
-    }
-
-    func completer(_ completer: MKLocalSearchCompleter, didFailWithError error: Error) {
-        suggestions = []
+        currentTask?.cancel()
+        results = []
     }
 }

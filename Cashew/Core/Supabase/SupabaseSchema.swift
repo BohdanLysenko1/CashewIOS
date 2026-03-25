@@ -5,12 +5,14 @@ import Foundation
 enum SupabaseSchema {
 
     enum Table {
-        static let trips        = "trips"
-        static let events       = "events"
-        static let users        = "users"
-        static let tripShares   = "trip_shares"
-        static let eventShares  = "event_shares"
-        static let inviteLinks  = "invite_links"
+        static let trips          = "trips"
+        static let events         = "events"
+        static let users          = "users"
+        static let tripShares     = "trip_shares"
+        static let eventShares    = "event_shares"
+        static let inviteLinks    = "invite_links"
+        static let dailyTasks     = "daily_tasks"
+        static let dailyRoutines  = "daily_routines"
     }
 
     enum Select {

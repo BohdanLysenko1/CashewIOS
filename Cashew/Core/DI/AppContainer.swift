@@ -34,8 +34,8 @@ final class AppContainer {
         // Repositories — Supabase-backed by default
         let tripRepo = tripRepository ?? SupabaseTripRepository()
         let eventRepo = eventRepository ?? SupabaseEventRepository()
-        let taskRepo = dailyTaskRepository ?? LocalDailyTaskRepository()
-        let routineRepo = dailyRoutineRepository ?? LocalDailyRoutineRepository()
+        let taskRepo = dailyTaskRepository ?? SupabaseDailyTaskRepository()
+        let routineRepo = dailyRoutineRepository ?? SupabaseDailyRoutineRepository()
 
         // Notification service
         self.notificationService = notificationService ?? NotificationService()

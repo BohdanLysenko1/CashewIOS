@@ -56,14 +56,9 @@ struct LocationSearchField: View {
     }
 
     private func formattedSubtitle(for item: MKMapItem) -> String? {
-        let placemark = item.placemark
-        let parts = [placemark.locality, placemark.administrativeArea, placemark.country]
-            .compactMap { $0 }
-
-        // Drop the first component if it duplicates the item name
-        let filtered = parts.drop(while: { $0 == item.name })
-        let subtitle = filtered.joined(separator: ", ")
-        return subtitle.isEmpty ? nil : subtitle
+        // shortAddress gives "City, Country" — exactly the general location we want
+        guard let short = item.address?.shortAddress, !short.isEmpty else { return nil }
+        return short == item.name ? nil : short
     }
 
     private func selectItem(_ item: MKMapItem) {
@@ -78,9 +73,9 @@ struct LocationSearchField: View {
         searcher.clear()
         text = displayText
 
-        // Coordinates are already on the MKMapItem — no second lookup needed.
-        latitude = item.placemark.coordinate.latitude
-        longitude = item.placemark.coordinate.longitude
+        // location is non-optional on MKMapItem in iOS 26+
+        latitude = item.location.coordinate.latitude
+        longitude = item.location.coordinate.longitude
         isSelecting = false
     }
 }

@@ -284,18 +284,26 @@ private struct PackingItemRow: View {
     let onEdit: () -> Void
     let onDelete: () -> Void
 
+    @State private var checkScale: CGFloat = 1.0
+    @State private var showConfetti = false
+
     var body: some View {
         HStack(spacing: 12) {
             Button {
-                withAnimation(.spring(response: 0.3)) {
-                    onToggle()
-                }
+                triggerToggle()
             } label: {
                 Image(systemName: item.isPacked ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 22))
                     .foregroundStyle(item.isPacked ? .green : AppTheme.onSurfaceVariant)
+                    .scaleEffect(checkScale)
+                    .symbolEffect(.bounce, value: item.isPacked)
             }
             .buttonStyle(.plain)
+            .overlay(alignment: .center) {
+                if showConfetti {
+                    ConfettiView()
+                }
+            }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.name)
@@ -324,6 +332,32 @@ private struct PackingItemRow: View {
                 Label("Delete", systemImage: "trash")
             }
         }
+    }
+
+    private func triggerToggle() {
+        let completing = !item.isPacked
+        if completing {
+            HapticManager.notification(.success)
+        } else {
+            HapticManager.impact(.light)
+        }
+
+        withAnimation(.spring(response: AppTheme.springResponse, dampingFraction: 0.4)) {
+            checkScale = 1.35
+        }
+        withAnimation(.spring(response: AppTheme.springResponse, dampingFraction: 0.6).delay(0.15)) {
+            checkScale = 1.0
+        }
+
+        if completing {
+            showConfetti = true
+            Task {
+                try? await Task.sleep(for: .seconds(AppTheme.confettiLifetime))
+                showConfetti = false
+            }
+        }
+
+        onToggle()
     }
 }
 

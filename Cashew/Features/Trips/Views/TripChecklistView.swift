@@ -293,6 +293,9 @@ private struct ChecklistItemRow: View {
     let onEdit: () -> Void
     let onDelete: () -> Void
 
+    @State private var checkScale: CGFloat = 1.0
+    @State private var showConfetti = false
+
     private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateStyle = .short
@@ -302,13 +305,20 @@ private struct ChecklistItemRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Button {
-                onToggle()
+                triggerToggle()
             } label: {
                 Image(systemName: item.isCompleted ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 22))
                     .foregroundStyle(item.isCompleted ? .green : priorityColor)
+                    .scaleEffect(checkScale)
+                    .symbolEffect(.bounce, value: item.isCompleted)
             }
             .buttonStyle(.plain)
+            .overlay(alignment: .center) {
+                if showConfetti {
+                    ConfettiView()
+                }
+            }
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
@@ -363,6 +373,32 @@ private struct ChecklistItemRow: View {
     private var isOverdue: Bool {
         guard let dueDate = item.dueDate, !item.isCompleted else { return false }
         return dueDate < Date()
+    }
+
+    private func triggerToggle() {
+        let completing = !item.isCompleted
+        if completing {
+            HapticManager.notification(.success)
+        } else {
+            HapticManager.impact(.light)
+        }
+
+        withAnimation(.spring(response: AppTheme.springResponse, dampingFraction: 0.4)) {
+            checkScale = 1.35
+        }
+        withAnimation(.spring(response: AppTheme.springResponse, dampingFraction: 0.6).delay(0.15)) {
+            checkScale = 1.0
+        }
+
+        if completing {
+            showConfetti = true
+            Task {
+                try? await Task.sleep(for: .seconds(AppTheme.confettiLifetime))
+                showConfetti = false
+            }
+        }
+
+        onToggle()
     }
 }
 

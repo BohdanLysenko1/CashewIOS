@@ -6,13 +6,9 @@ struct SettingsView: View {
     @Environment(OnboardingCoordinator.self) private var onboardingCoordinator
     @State private var showSignOutError = false
     @State private var signOutErrorMessage = ""
-    @State private var isCheckingCloud = false
-    @State private var showCloudUnavailableAlert = false
     @State private var showEditProfile = false
 
     var body: some View {
-        @Bindable var syncService = container.syncService
-
         NavigationStack {
             List {
                 // Profile Section
@@ -36,67 +32,6 @@ struct SettingsView: View {
                                 .foregroundStyle(AppTheme.onSurfaceVariant)
                         }
                     }
-                }
-
-                // Cloud Section
-                Section {
-                    HStack(spacing: 14) {
-                        Image(systemName: "icloud")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 32, height: 32)
-                            .background(Color.blue.gradient)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .onGeometryChange(for: CGRect.self) { proxy in
-                                proxy.frame(in: .global)
-                            } action: { frame in
-                                onboardingCoordinator.registerFrame(
-                                    id: "anchor_settings_icloud",
-                                    frame: frame
-                                )
-                            }
-
-                        Toggle("iCloud Sync", isOn: $syncService.isSyncEnabled)
-                            .disabled(isCheckingCloud)
-                            .onChange(of: syncService.isSyncEnabled) { _, newValue in
-                                if newValue {
-                                    checkCloudAvailability()
-                                }
-                            }
-                    }
-
-                    if syncService.isSyncEnabled {
-                        HStack {
-                            Text("Status")
-                            Spacer()
-                            SyncStatusView(status: syncService.syncStatus)
-                        }
-
-                        if let lastSync = syncService.lastSyncDate {
-                            HStack {
-                                Text("Last Sync")
-                                Spacer()
-                                Text(lastSync, style: .relative)
-                                    .foregroundStyle(AppTheme.onSurfaceVariant)
-                            }
-                        }
-
-                        Button {
-                            Task { await container.syncService.sync() }
-                        } label: {
-                            HStack {
-                                Spacer()
-                                Label("Sync Now", systemImage: "arrow.triangle.2.circlepath")
-                                    .fontWeight(.medium)
-                                Spacer()
-                            }
-                        }
-                        .disabled(syncService.syncStatus == .syncing)
-                    }
-                } header: {
-                    Text("Cloud")
-                } footer: {
-                    Text("Sync your trips and events across all your devices using iCloud.")
                 }
 
                 // Help Section
@@ -143,11 +78,6 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
-            .alert("iCloud Unavailable", isPresented: $showCloudUnavailableAlert) {
-                Button("OK", role: .cancel) { }
-            } message: {
-                Text("Please sign in to iCloud in Settings to enable sync.")
-            }
             .alert("Sign Out Failed", isPresented: $showSignOutError) {
                 Button("OK", role: .cancel) { }
             } message: {
@@ -180,19 +110,6 @@ struct SettingsView: View {
         return String(name.prefix(2)).uppercased()
     }
 
-    private func checkCloudAvailability() {
-        isCheckingCloud = true
-        Task {
-            let available = await container.syncService.checkCloudAvailability()
-            isCheckingCloud = false
-
-            if !available {
-                container.syncService.isSyncEnabled = false
-                showCloudUnavailableAlert = true
-            }
-        }
-    }
-
     private func signOut() {
         Task {
             do {
@@ -205,38 +122,6 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - Sync Status View
-
-private struct SyncStatusView: View {
-    let status: SyncStatus
-
-    var body: some View {
-        switch status {
-        case .idle:
-            Text("Idle")
-                .foregroundStyle(AppTheme.onSurfaceVariant)
-        case .syncing:
-            HStack(spacing: 6) {
-                ProgressView()
-                    .scaleEffect(0.8)
-                Text("Syncing...")
-            }
-            .foregroundStyle(AppTheme.onSurfaceVariant)
-        case .success:
-            HStack(spacing: 4) {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                Text("Synced")
-            }
-        case .failed:
-            HStack(spacing: 4) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-                Text("Failed")
-            }
-        }
-    }
-}
 
 #Preview {
     SettingsView()

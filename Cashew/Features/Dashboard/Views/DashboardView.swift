@@ -8,6 +8,9 @@ struct DashboardView: View {
     @State private var showAddTask = false
     @State private var showDayPlanner = false
     @State private var showProgress = false
+    @State private var showCreationWizard = false
+    @State private var navigationPath = NavigationPath()
+    @State private var pendingNavigationId: UUID?
     @State private var error: String?
 
     private var tripService: TripServiceProtocol { container.tripService }
@@ -211,7 +214,7 @@ struct DashboardView: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             Group {
                 if isLoading {
                     ProgressView()
@@ -276,6 +279,17 @@ struct DashboardView: View {
             }
             .sheet(isPresented: $showDayPlanner) {
                 DayPlannerView()
+            }
+            .fullScreenCover(isPresented: $showCreationWizard) {
+                TripEventCreationWizardView { createdId in
+                    pendingNavigationId = createdId
+                }
+            }
+            .onChange(of: showCreationWizard) { _, isShowing in
+                if !isShowing, let id = pendingNavigationId {
+                    navigationPath.append(id)
+                    pendingNavigationId = nil
+                }
             }
         }
     }
@@ -364,7 +378,7 @@ struct DashboardView: View {
     private var quickActionsSection: some View {
         VStack(spacing: 10) {
             planMyDayCard
-            addTaskRow
+            createTripOrEventRow
         }
     }
 
@@ -452,6 +466,57 @@ struct DashboardView: View {
             .cardStyle()
         }
         .buttonStyle(.plain)
+    }
+
+    private var createTripOrEventRow: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            showCreationWizard = true
+        } label: {
+            ZStack {
+                AppTheme.tripGradient
+                LinearGradient(
+                    colors: [.white.opacity(0.08), .clear],
+                    startPoint: .top,
+                    endPoint: .center
+                )
+
+                HStack(spacing: 16) {
+                    ZStack {
+                        Circle()
+                            .fill(.white.opacity(0.15))
+                            .frame(width: 52, height: 52)
+                        Image(systemName: "globe.americas.fill")
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("New Trip or Event")
+                            .font(.title3)
+                            .fontWeight(.bold)
+                            .foregroundStyle(.white)
+                        Text("Plan a getaway or schedule an event")
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.75))
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.8))
+                        .padding(10)
+                        .background(.white.opacity(0.15))
+                        .clipShape(Circle())
+                }
+                .padding(.horizontal, AppTheme.cardPadding)
+                .padding(.vertical, 18)
+            }
+        }
+        .buttonStyle(.plain)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
+        .shadow(color: AppTheme.secondary.opacity(0.25), radius: 12, x: 0, y: 6)
     }
 
     // MARK: - Progress

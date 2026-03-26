@@ -62,14 +62,16 @@ struct TripReadinessCard: View {
                             progressRow(
                                 label: "Packing",
                                 progress: trip.packingProgress,
-                                fraction: "\(packingPacked)/\(trip.packingItems.count)"
+                                done: packingPacked,
+                                total: trip.packingItems.count
                             )
                         }
                         if !trip.checklistItems.isEmpty {
                             progressRow(
                                 label: "Checklist",
                                 progress: trip.checklistProgress,
-                                fraction: "\(checklistDone)/\(trip.checklistItems.count)"
+                                done: checklistDone,
+                                total: trip.checklistItems.count
                             )
                         }
                     }
@@ -97,20 +99,47 @@ struct TripReadinessCard: View {
         .padding(AppTheme.cardPadding)
     }
 
-    private func progressRow(label: String, progress: Double, fraction: String) -> some View {
+    private func progressRow(label: String, progress: Double, done: Int, total: Int) -> some View {
         HStack(spacing: 8) {
             Text(label)
                 .font(AppTheme.TextStyle.caption)
                 .foregroundStyle(AppTheme.onSurfaceVariant)
                 .frame(width: 56, alignment: .leading)
 
-            AppProgressBar(progress: progress, color: barColor(progress))
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    // Track
+                    Capsule()
+                        .fill(barColor(progress).opacity(0.15))
+                        .frame(height: 6)
 
-            Text(fraction)
-                .font(AppTheme.TextStyle.caption).fontWeight(.medium)
-                .foregroundStyle(AppTheme.onSurface)
-                .monospacedDigit()
-                .frame(width: 24, alignment: .trailing)
+                    // Fill
+                    Capsule()
+                        .fill(barColor(progress))
+                        .frame(width: geo.size.width * progress, height: 6)
+                        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: progress)
+
+                    // Count badge — floats at the right edge of the fill, clamped so it's always visible
+                    let badgeX = min(
+                        max(geo.size.width * progress - 14, 0),
+                        geo.size.width - 28
+                    )
+                    Text("\(done)/\(total)")
+                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(progress > 0.55 ? .white : barColor(progress))
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule().fill(progress > 0.55
+                                ? barColor(progress)
+                                : barColor(progress).opacity(0.15))
+                        )
+                        .offset(x: badgeX, y: -10)
+                }
+                .frame(height: 6)
+                .padding(.top, 10)
+            }
+            .frame(height: 26)
         }
     }
 

@@ -49,13 +49,19 @@ final class EventFormViewModel {
     // MARK: - Validation
 
     var isValid: Bool {
-        !title.trimmingCharacters(in: .whitespaces).isEmpty &&
-        (!hasEndDate || (endDate ?? date) >= date)
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hasValidCustomCategory = category != .custom || customCategoryError == nil
+        let hasValidCost = costError == nil
+
+        return !trimmedTitle.isEmpty &&
+            (!hasEndDate || (endDate ?? date) >= date) &&
+            hasValidCustomCategory &&
+            hasValidCost
     }
 
     var titleError: String? {
         if title.isEmpty { return nil }
-        if title.trimmingCharacters(in: .whitespaces).isEmpty {
+        if title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return "Title cannot be empty"
         }
         return nil
@@ -67,6 +73,20 @@ final class EventFormViewModel {
             return "End time must be after start time"
         }
         return nil
+    }
+
+    var customCategoryError: String? {
+        guard category == .custom else { return nil }
+        if customCategoryName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return "Custom category name is required"
+        }
+        return nil
+    }
+
+    var costError: String? {
+        let trimmed = costString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        return parseCost(trimmed) == nil ? "Enter a valid cost" : nil
     }
 
     // MARK: - Dependencies
@@ -134,10 +154,10 @@ final class EventFormViewModel {
             daysOfWeek: recurrenceFrequency == .weekly && !selectedDaysOfWeek.isEmpty ? selectedDaysOfWeek : nil
         ) : nil
 
-        let url = URL(string: urlString)
-        let cost = Decimal(string: costString)
-        let resolvedCustomName: String? = category == .custom && !customCategoryName.trimmingCharacters(in: .whitespaces).isEmpty
-            ? customCategoryName.trimmingCharacters(in: .whitespaces)
+        let url = normalizeURL(urlString)
+        let cost = parseCost(costString)
+        let resolvedCustomName: String? = category == .custom && !customCategoryName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? customCategoryName.trimmingCharacters(in: .whitespacesAndNewlines)
             : nil
 
         if let name = resolvedCustomName {
@@ -148,13 +168,13 @@ final class EventFormViewModel {
             if let existingEvent {
                 let updatedEvent = Event(
                     id: existingEvent.id,
-                    title: title.trimmingCharacters(in: .whitespaces),
+                    title: title.trimmingCharacters(in: .whitespacesAndNewlines),
                     date: date,
                     endDate: hasEndDate ? endDate : nil,
-                    location: location.trimmingCharacters(in: .whitespaces),
+                    location: location.trimmingCharacters(in: .whitespacesAndNewlines),
                     locationLatitude: locationLatitude,
                     locationLongitude: locationLongitude,
-                    address: address.trimmingCharacters(in: .whitespaces),
+                    address: address.trimmingCharacters(in: .whitespacesAndNewlines),
                     notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
                     category: category,
                     customCategoryName: resolvedCustomName,
@@ -175,13 +195,13 @@ final class EventFormViewModel {
                 try await eventService.updateEvent(updatedEvent)
             } else {
                 let newEvent = Event(
-                    title: title.trimmingCharacters(in: .whitespaces),
+                    title: title.trimmingCharacters(in: .whitespacesAndNewlines),
                     date: date,
                     endDate: hasEndDate ? endDate : nil,
-                    location: location.trimmingCharacters(in: .whitespaces),
+                    location: location.trimmingCharacters(in: .whitespacesAndNewlines),
                     locationLatitude: locationLatitude,
                     locationLongitude: locationLongitude,
-                    address: address.trimmingCharacters(in: .whitespaces),
+                    address: address.trimmingCharacters(in: .whitespacesAndNewlines),
                     notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
                     category: category,
                     customCategoryName: resolvedCustomName,
@@ -221,10 +241,12 @@ final class EventFormViewModel {
 
     // MARK: - Attachment Helpers
 
-    func addLinkAttachment(name: String, urlString: String) {
-        guard let url = URL(string: urlString) else { return }
-        let attachment = Attachment(name: name, type: .link, url: url)
+    func addLinkAttachment(name: String, urlString: String) -> Bool {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty, let url = normalizeURL(urlString) else { return false }
+        let attachment = Attachment(name: trimmedName, type: .link, url: url)
         attachments.append(attachment)
+        return true
     }
 
     func removeAttachment(_ attachment: Attachment) {
@@ -240,5 +262,20 @@ final class EventFormViewModel {
             let nonPhotos = attachments.filter { $0.type != .image }
             attachments = nonPhotos + newValue
         }
+    }
+
+    private func normalizeURL(_ raw: String) -> URL? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if let direct = URL(string: trimmed), direct.scheme != nil {
+            return direct
+        }
+        return URL(string: "https://\(trimmed)")
+    }
+
+    private func parseCost(_ raw: String) -> Decimal? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        return Decimal(string: trimmed.replacingOccurrences(of: ",", with: "."))
     }
 }

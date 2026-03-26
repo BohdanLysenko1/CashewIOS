@@ -8,10 +8,12 @@ struct EventCreationWizardView: View {
 
     @State private var showError = false
     @State private var goingForward = true
+    @State private var newLinkName = ""
+    @State private var newLinkURL = ""
     @FocusState private var focusedField: Field?
 
     enum Field: Hashable {
-        case title, cost, notes
+        case title, cost, notes, linkName, linkURL
     }
 
     init(eventService: EventServiceProtocol, onCreated: @escaping (UUID) -> Void, onDismiss: @escaping () -> Void) {
@@ -21,16 +23,17 @@ struct EventCreationWizardView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            progressBar
-            stepContent
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        NavigationStack {
+            VStack(spacing: 0) {
+                header
+                stepContent
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         }
         .safeAreaInset(edge: .bottom) {
             bottomBar
         }
-        .background(AppTheme.background)
+        .background(CreationScreenBackground(gradient: AppTheme.eventGradient))
         .onChange(of: viewModel.error) { _, newError in showError = newError != nil }
         .alert("Error", isPresented: $showError) {
             Button("OK") { viewModel.clearError() }
@@ -45,62 +48,15 @@ struct EventCreationWizardView: View {
         }
     }
 
-    // MARK: - Header
-
     private var header: some View {
-        ZStack {
-            HStack {
-                Button(action: onDismiss) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(AppTheme.onSurfaceVariant)
-                        .padding(10)
-                        .background(AppTheme.surfaceContainerLow)
-                        .clipShape(Circle())
-                }
-                Spacer()
-            }
-
-            VStack(spacing: 2) {
-                Text(viewModel.stepTitle)
-                    .font(AppTheme.TextStyle.bodyBold)
-                    .foregroundStyle(AppTheme.onSurface)
-                Text("Step \(viewModel.currentStep + 1) of \(EventCreationWizardViewModel.totalSteps)")
-                    .font(AppTheme.TextStyle.caption)
-                    .foregroundStyle(AppTheme.onSurfaceVariant)
-            }
-            .id(viewModel.currentStep)
-            .transition(.opacity.combined(with: .scale(scale: 0.96)))
-            .animation(.easeInOut(duration: 0.2), value: viewModel.currentStep)
-        }
-        .padding(.horizontal, AppTheme.Space.lg)
-        .padding(.top, AppTheme.Space.md)
-        .padding(.bottom, AppTheme.Space.sm)
+        CreationWizardHeader(
+            title: viewModel.stepTitle,
+            currentStep: viewModel.currentStep,
+            totalSteps: EventCreationWizardViewModel.totalSteps,
+            gradient: AppTheme.eventGradient,
+            onClose: onDismiss
+        )
     }
-
-    // MARK: - Progress Bar
-
-    private var progressBar: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(AppTheme.surfaceContainerLow)
-                    .frame(height: 4)
-                Capsule()
-                    .fill(AppTheme.eventGradient)
-                    .frame(
-                        width: geo.size.width * CGFloat(viewModel.currentStep + 1) / CGFloat(EventCreationWizardViewModel.totalSteps),
-                        height: 4
-                    )
-                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: viewModel.currentStep)
-            }
-        }
-        .frame(height: 4)
-        .padding(.horizontal, AppTheme.Space.lg)
-        .padding(.bottom, AppTheme.Space.lg)
-    }
-
-    // MARK: - Step Content
 
     @ViewBuilder
     private var stepContent: some View {
@@ -109,12 +65,15 @@ struct EventCreationWizardView: View {
                 Text(viewModel.stepSubtitle)
                     .font(AppTheme.TextStyle.secondary)
                     .foregroundStyle(AppTheme.onSurfaceVariant)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.9)
 
                 switch viewModel.currentStep {
                 case 0: basicsStep
                 case 1: dateTimeStep
-                case 2: detailsStep
-                case 3: notesStep
+                case 2: planningStep
+                case 3: linksAndCostStep
+                case 4: notesStep
                 default: EmptyView()
                 }
             }
@@ -126,8 +85,6 @@ struct EventCreationWizardView: View {
         .scrollDismissesKeyboard(.interactively)
     }
 
-    // MARK: - Step 0: Basics
-
     private var basicsStep: some View {
         VStack(spacing: AppTheme.Space.md) {
             fieldCard(label: "Event Title") {
@@ -137,7 +94,6 @@ struct EventCreationWizardView: View {
                     .submitLabel(.next)
             }
 
-            // Location NOT wrapped in fieldCard so autocomplete dropdown is not clipped
             VStack(alignment: .leading, spacing: 6) {
                 Text("Location (optional)")
                     .font(AppTheme.TextStyle.captionBold)
@@ -155,6 +111,12 @@ struct EventCreationWizardView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .shadow(color: AppTheme.cardShadow, radius: AppTheme.cardShadowRadius, x: 0, y: AppTheme.cardShadowY)
             }
+
+            fieldCard(label: "Address (optional)") {
+                TextField("Street address", text: $viewModel.address)
+                    .font(AppTheme.TextStyle.body)
+                    .textContentType(.fullStreetAddress)
+            }
         }
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
@@ -162,8 +124,6 @@ struct EventCreationWizardView: View {
             }
         }
     }
-
-    // MARK: - Step 1: Date & Time
 
     private var dateTimeStep: some View {
         VStack(spacing: AppTheme.Space.md) {
@@ -173,23 +133,11 @@ struct EventCreationWizardView: View {
 
                     Divider().padding(.leading, AppTheme.Space.lg)
 
-                    HStack {
-                        Toggle("All Day", isOn: $viewModel.isAllDay)
-                            .font(AppTheme.TextStyle.body)
-                            .tint(AppTheme.tertiary)
-                    }
-                    .padding(.horizontal, AppTheme.Space.lg)
-                    .padding(.vertical, AppTheme.Space.md)
+                    toggleRow("All Day", isOn: $viewModel.isAllDay)
 
                     Divider().padding(.leading, AppTheme.Space.lg)
 
-                    HStack {
-                        Toggle("Set End Time", isOn: $viewModel.hasEndDate)
-                            .font(AppTheme.TextStyle.body)
-                            .tint(AppTheme.tertiary)
-                    }
-                    .padding(.horizontal, AppTheme.Space.lg)
-                    .padding(.vertical, AppTheme.Space.md)
+                    toggleRow("Set End Time", isOn: $viewModel.hasEndDate)
 
                     if viewModel.hasEndDate {
                         Divider().padding(.leading, AppTheme.Space.lg)
@@ -199,109 +147,254 @@ struct EventCreationWizardView: View {
             }
 
             if viewModel.hasEndDate && viewModel.endDate < viewModel.date {
-                HStack(spacing: 6) {
-                    Image(systemName: "exclamationmark.circle.fill")
-                        .font(.system(size: 13))
-                    Text("End must be after start")
-                        .font(AppTheme.TextStyle.caption)
-                }
-                .foregroundStyle(.red)
-                .padding(.horizontal, AppTheme.Space.xs)
+                CreationInlineError(text: "End must be after start")
+                    .padding(.horizontal, AppTheme.Space.xs)
             }
         }
     }
 
-    private func dateRow(label: String, date: Binding<Date>, isAllDay: Bool, minDate: Date? = nil) -> some View {
-        HStack {
-            Text(label)
-                .font(AppTheme.TextStyle.body)
-                .foregroundStyle(AppTheme.onSurface)
-                .frame(width: 48, alignment: .leading)
-            Spacer()
-            let components: DatePickerComponents = isAllDay ? .date : [.date, .hourAndMinute]
-            if let minDate {
-                DatePicker("", selection: date, in: minDate..., displayedComponents: components)
-                    .labelsHidden()
-                    .tint(AppTheme.tertiary)
-            } else {
-                DatePicker("", selection: date, displayedComponents: components)
-                    .labelsHidden()
-                    .tint(AppTheme.tertiary)
-            }
-        }
-        .padding(.horizontal, AppTheme.Space.lg)
-        .padding(.vertical, AppTheme.Space.md)
-    }
-
-    // MARK: - Step 2: Details
-
-    private var detailsStep: some View {
+    private var planningStep: some View {
         VStack(spacing: AppTheme.Space.md) {
-            // Category grid
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Category")
-                    .font(AppTheme.TextStyle.captionBold)
-                    .foregroundStyle(AppTheme.onSurfaceVariant)
+            categorySection
+            prioritySection
+            recurrenceSection
+            remindersSection
+        }
+    }
 
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: AppTheme.Space.sm) {
-                    ForEach(EventCategory.allCases.filter { $0 != .custom }, id: \.self) { cat in
-                        let isSelected = viewModel.category == cat
-                        Button {
-                            haptic()
-                            viewModel.category = cat
-                        } label: {
-                            VStack(spacing: 4) {
-                                Image(systemName: cat.icon)
-                                    .font(.system(size: 18))
-                                Text(cat.displayName)
-                                    .font(AppTheme.TextStyle.caption)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
-                            .foregroundStyle(isSelected ? .white : AppTheme.onSurface)
-                            .background(isSelected ? AppTheme.eventGradient : LinearGradient(colors: [AppTheme.surfaceContainerLow], startPoint: .leading, endPoint: .trailing))
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .animation(.easeInOut(duration: 0.15), value: isSelected)
+    private var categorySection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Category")
+                .font(AppTheme.TextStyle.captionBold)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: AppTheme.Space.sm) {
+                ForEach(EventCategory.allCases, id: \.self) { cat in
+                    let isSelected = viewModel.category == cat
+                    Button {
+                        haptic()
+                        viewModel.category = cat
+                    } label: {
+                        VStack(spacing: 4) {
+                            Image(systemName: cat.icon)
+                                .font(.system(size: 16, weight: .semibold))
+                            Text(cat.displayName)
+                                .font(AppTheme.TextStyle.caption)
                         }
-                        .buttonStyle(.plain)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .foregroundStyle(isSelected ? .white : AppTheme.onSurface)
+                        .background(
+                            isSelected
+                                ? AnyShapeStyle(AppTheme.eventGradient)
+                                : AnyShapeStyle(AppTheme.surfaceContainerLow)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .animation(.easeInOut(duration: 0.15), value: isSelected)
                     }
+                    .buttonStyle(.plain)
                 }
             }
 
-            // Priority
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Priority")
-                    .font(AppTheme.TextStyle.captionBold)
-                    .foregroundStyle(AppTheme.onSurfaceVariant)
+            if viewModel.category == .custom {
+                infoCard {
+                    VStack(alignment: .leading, spacing: AppTheme.Space.sm) {
+                        Text("Custom Category Name")
+                            .font(AppTheme.TextStyle.captionBold)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
+                        CustomCategoryPickerRows(
+                            selectedName: $viewModel.customCategoryName,
+                            savedCategories: CustomCategoryStore.shared.eventCategories,
+                            onDelete: { CustomCategoryStore.shared.removeEventCategory($0) }
+                        )
+                    }
+                    .padding(AppTheme.Space.lg)
+                }
+            }
+        }
+    }
 
-                HStack(spacing: AppTheme.Space.sm) {
-                    ForEach([EventPriority.low, .medium, .high], id: \.self) { p in
-                        let isSelected = viewModel.priority == p
-                        Button {
-                            haptic()
-                            viewModel.priority = p
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: p.icon)
-                                    .font(.system(size: 13))
-                                Text(p.displayName)
-                                    .font(AppTheme.TextStyle.captionBold)
+    private var prioritySection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Priority")
+                .font(AppTheme.TextStyle.captionBold)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
+
+            HStack(spacing: AppTheme.Space.sm) {
+                ForEach([EventPriority.low, .medium, .high], id: \.self) { p in
+                    let isSelected = viewModel.priority == p
+                    Button {
+                        haptic()
+                        viewModel.priority = p
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: p.icon)
+                                .font(.system(size: 13))
+                            Text(p.displayName)
+                                .font(AppTheme.TextStyle.captionBold)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .foregroundStyle(isSelected ? .white : AppTheme.onSurface)
+                        .background(isSelected ? priorityGradient(p) : LinearGradient(colors: [AppTheme.surfaceContainerLow], startPoint: .leading, endPoint: .trailing))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .animation(.easeInOut(duration: 0.15), value: isSelected)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private var recurrenceSection: some View {
+        infoCard {
+            VStack(spacing: 0) {
+                toggleRow("Repeat", isOn: $viewModel.isRecurring)
+
+                if viewModel.isRecurring {
+                    Divider().padding(.leading, AppTheme.Space.lg)
+                    HStack {
+                        Text("Frequency")
+                            .font(AppTheme.TextStyle.body)
+                            .foregroundStyle(AppTheme.onSurface)
+                        Spacer()
+                        Picker("Frequency", selection: $viewModel.recurrenceFrequency) {
+                            ForEach(RecurrenceFrequency.allCases, id: \.self) { freq in
+                                Text(freq.displayName).tag(freq)
                             }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
-                            .foregroundStyle(isSelected ? .white : AppTheme.onSurface)
-                            .background(isSelected ? priorityGradient(p) : LinearGradient(colors: [AppTheme.surfaceContainerLow], startPoint: .leading, endPoint: .trailing))
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                            .animation(.easeInOut(duration: 0.15), value: isSelected)
+                        }
+                        .pickerStyle(.menu)
+                        .tint(AppTheme.tertiary)
+                    }
+                    .padding(.horizontal, AppTheme.Space.lg)
+                    .padding(.vertical, AppTheme.Space.md)
+
+                    Divider().padding(.leading, AppTheme.Space.lg)
+                    Stepper(
+                        "Every \(viewModel.recurrenceInterval) \(viewModel.recurrenceFrequency.pluralName)",
+                        value: $viewModel.recurrenceInterval,
+                        in: 1...30
+                    )
+                    .padding(.horizontal, AppTheme.Space.lg)
+                    .padding(.vertical, AppTheme.Space.md)
+
+                    if viewModel.recurrenceFrequency == .weekly {
+                        Divider().padding(.leading, AppTheme.Space.lg)
+                        NavigationLink {
+                            DayOfWeekPicker(selectedDays: $viewModel.selectedDaysOfWeek)
+                        } label: {
+                            HStack {
+                                Text("Days")
+                                    .font(AppTheme.TextStyle.body)
+                                Spacer()
+                                Text(selectedDaysText)
+                                    .font(AppTheme.TextStyle.secondary)
+                                    .foregroundStyle(AppTheme.onSurfaceVariant)
+                            }
+                            .padding(.horizontal, AppTheme.Space.lg)
+                            .padding(.vertical, AppTheme.Space.md)
                         }
                         .buttonStyle(.plain)
                     }
+
+                    Divider().padding(.leading, AppTheme.Space.lg)
+                    toggleRow("End Date", isOn: $viewModel.hasRecurrenceEndDate)
+
+                    if viewModel.hasRecurrenceEndDate {
+                        Divider().padding(.leading, AppTheme.Space.lg)
+                        HStack {
+                            Text("Ends On")
+                                .font(AppTheme.TextStyle.body)
+                                .foregroundStyle(AppTheme.onSurface)
+                            Spacer()
+                            DatePicker(
+                                "",
+                                selection: Binding(
+                                    get: { viewModel.recurrenceEndDate ?? viewModel.date.addingTimeInterval(86400 * 30) },
+                                    set: { viewModel.recurrenceEndDate = $0 }
+                                ),
+                                in: viewModel.date...,
+                                displayedComponents: .date
+                            )
+                            .labelsHidden()
+                            .tint(AppTheme.tertiary)
+                        }
+                        .padding(.horizontal, AppTheme.Space.lg)
+                        .padding(.vertical, AppTheme.Space.md)
+                    }
                 }
             }
+        }
+    }
 
-            // Cost (currency + amount in a single card)
+    private var remindersSection: some View {
+        infoCard {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("Reminders")
+                        .font(AppTheme.TextStyle.bodyBold)
+                        .foregroundStyle(AppTheme.onSurface)
+                    Spacer()
+                    Menu {
+                        ForEach(ReminderInterval.allCases, id: \.self) { interval in
+                            Button(interval.displayName) {
+                                viewModel.addReminder(interval)
+                            }
+                            .disabled(viewModel.reminders.contains { $0.interval == interval })
+                        }
+                    } label: {
+                        Label("Add", systemImage: "plus.circle")
+                            .font(AppTheme.TextStyle.secondary)
+                            .foregroundStyle(AppTheme.tertiary)
+                    }
+                }
+
+                if viewModel.reminders.isEmpty {
+                    Text("No reminders added")
+                        .font(AppTheme.TextStyle.caption)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
+                } else {
+                    ForEach(viewModel.reminders) { reminder in
+                        HStack {
+                            Image(systemName: "bell.fill")
+                                .foregroundStyle(.orange)
+                            Text(reminder.interval.displayName)
+                                .font(AppTheme.TextStyle.secondary)
+                            Spacer()
+                            Button {
+                                viewModel.removeReminder(reminder)
+                            } label: {
+                                Image(systemName: "trash")
+                                    .foregroundStyle(.red.opacity(0.7))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+            .padding(AppTheme.Space.lg)
+        }
+    }
+
+    private var linksAndCostStep: some View {
+        VStack(spacing: AppTheme.Space.md) {
             infoCard {
                 VStack(spacing: 0) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Event URL")
+                            .font(AppTheme.TextStyle.body)
+                            .foregroundStyle(AppTheme.onSurface)
+                        TextField("https://", text: $viewModel.urlString)
+                            .keyboardType(.URL)
+                            .textInputAutocapitalization(.never)
+                            .font(AppTheme.TextStyle.body)
+                            .textFieldStyle(.plain)
+                    }
+                    .padding(.horizontal, AppTheme.Space.lg)
+                    .padding(.vertical, AppTheme.Space.md)
+
+                    Divider().padding(.leading, AppTheme.Space.lg)
+
                     HStack {
                         Text("Currency")
                             .font(AppTheme.TextStyle.body)
@@ -330,16 +423,79 @@ struct EventCreationWizardView: View {
                             .focused($focusedField, equals: .cost)
                             .multilineTextAlignment(.trailing)
                             .font(AppTheme.TextStyle.body)
-                            .frame(width: 120)
+                            .frame(minWidth: 70, maxWidth: 140)
                     }
                     .padding(.horizontal, AppTheme.Space.lg)
                     .padding(.vertical, AppTheme.Space.md)
                 }
             }
+
+            infoCard {
+                VStack(alignment: .leading, spacing: AppTheme.Space.sm) {
+                    Text("Link Attachments")
+                        .font(AppTheme.TextStyle.bodyBold)
+                        .foregroundStyle(AppTheme.onSurface)
+
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: AppTheme.Space.sm) {
+                            TextField("Link name", text: $newLinkName)
+                                .focused($focusedField, equals: .linkName)
+                                .font(AppTheme.TextStyle.secondary)
+                            TextField("https://...", text: $newLinkURL)
+                                .focused($focusedField, equals: .linkURL)
+                                .textInputAutocapitalization(.never)
+                                .font(AppTheme.TextStyle.secondary)
+                        }
+
+                        VStack(spacing: AppTheme.Space.sm) {
+                            TextField("Link name", text: $newLinkName)
+                                .focused($focusedField, equals: .linkName)
+                                .font(AppTheme.TextStyle.secondary)
+                            TextField("https://...", text: $newLinkURL)
+                                .focused($focusedField, equals: .linkURL)
+                                .textInputAutocapitalization(.never)
+                                .font(AppTheme.TextStyle.secondary)
+                        }
+                    }
+
+                    Button {
+                        let initialCount = viewModel.attachments.count
+                        viewModel.addLinkAttachment(name: newLinkName, urlString: newLinkURL)
+                        if viewModel.attachments.count > initialCount {
+                            newLinkName = ""
+                            newLinkURL = ""
+                        }
+                    } label: {
+                        Label("Add Link Attachment", systemImage: "link.badge.plus")
+                            .font(AppTheme.TextStyle.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(newLinkName.trimmingCharacters(in: .whitespaces).isEmpty || newLinkURL.trimmingCharacters(in: .whitespaces).isEmpty)
+
+                    let linkAttachments = viewModel.attachments.filter { $0.type == .link }
+                    if !linkAttachments.isEmpty {
+                        ForEach(linkAttachments) { attachment in
+                            HStack {
+                                Image(systemName: "link")
+                                    .foregroundStyle(AppTheme.tertiary)
+                                Text(attachment.name)
+                                    .font(AppTheme.TextStyle.secondary)
+                                Spacer()
+                                Button {
+                                    viewModel.removeAttachment(attachment)
+                                } label: {
+                                    Image(systemName: "trash")
+                                        .foregroundStyle(.red.opacity(0.7))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+                .padding(AppTheme.Space.lg)
+            }
         }
     }
-
-    // MARK: - Step 3: Notes & Photos
 
     private var notesStep: some View {
         VStack(spacing: AppTheme.Space.md) {
@@ -365,30 +521,21 @@ struct EventCreationWizardView: View {
         }
     }
 
-    // MARK: - Bottom Bar
-
     private var bottomBar: some View {
-        HStack(spacing: AppTheme.Space.md) {
-            // Always laid out — invisible on step 0 so Next button width stays stable
-            Button {
+        let isLastStep = viewModel.currentStep == EventCreationWizardViewModel.totalSteps - 1
+        return CreationWizardNavigationBar(
+            isFirstStep: viewModel.currentStep == 0,
+            isLastStep: isLastStep,
+            canContinue: viewModel.isCurrentStepValid,
+            isLoading: viewModel.isSaving,
+            gradient: AppTheme.eventGradient,
+            finalStepTitle: "Create Event",
+            onBack: {
                 haptic(.medium)
                 goingForward = false
                 withAnimation(.easeInOut(duration: 0.3)) { viewModel.goBack() }
-            } label: {
-                Text("Back")
-                    .font(AppTheme.TextStyle.bodyBold)
-                    .foregroundStyle(AppTheme.onSurface)
-                    .frame(width: 88)
-                    .padding(.vertical, 16)
-                    .background(AppTheme.surfaceContainerLow)
-                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
-            }
-            .buttonStyle(.plain)
-            .opacity(viewModel.currentStep > 0 ? 1 : 0)
-            .disabled(viewModel.currentStep == 0)
-
-            let isLastStep = viewModel.currentStep == EventCreationWizardViewModel.totalSteps - 1
-            Button {
+            },
+            onContinue: {
                 haptic(isLastStep ? .heavy : .medium)
                 goingForward = true
                 if isLastStep {
@@ -396,42 +543,9 @@ struct EventCreationWizardView: View {
                 } else {
                     withAnimation(.easeInOut(duration: 0.3)) { viewModel.goNext() }
                 }
-            } label: {
-                Group {
-                    if viewModel.isSaving {
-                        ProgressView().tint(.white)
-                    } else {
-                        Text(isLastStep ? "Create Event" : "Next")
-                            .font(AppTheme.TextStyle.bodyBold)
-                            .foregroundStyle(.white)
-                            .contentTransition(.opacity)
-                            .animation(.easeInOut(duration: 0.18), value: isLastStep)
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
             }
-            .background(
-                viewModel.isCurrentStepValid
-                    ? AnyShapeStyle(AppTheme.eventGradient)
-                    : AnyShapeStyle(AppTheme.onSurfaceVariant.opacity(0.25))
-            )
-            .clipShape(RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
-            .disabled(!viewModel.isCurrentStepValid || viewModel.isSaving)
-            .buttonStyle(.plain)
-            .animation(.easeInOut(duration: 0.2), value: viewModel.isCurrentStepValid)
-        }
-        .padding(.horizontal, AppTheme.Space.lg)
-        .padding(.top, AppTheme.Space.md)
-        .padding(.bottom, AppTheme.Space.lg)
-        .background {
-            AppTheme.background
-                .shadow(color: AppTheme.cardShadow, radius: 12, x: 0, y: -4)
-                .ignoresSafeArea()
-        }
+        )
     }
-
-    // MARK: - Reusable Containers
 
     private func fieldCard<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -453,7 +567,46 @@ struct EventCreationWizardView: View {
             .shadow(color: AppTheme.cardShadow, radius: AppTheme.cardShadowRadius, x: 0, y: AppTheme.cardShadowY)
     }
 
-    // MARK: - Transition
+    private func toggleRow(_ title: String, isOn: Binding<Bool>) -> some View {
+        HStack {
+            Toggle(title, isOn: isOn)
+                .font(AppTheme.TextStyle.body)
+                .tint(AppTheme.tertiary)
+        }
+        .padding(.horizontal, AppTheme.Space.lg)
+        .padding(.vertical, AppTheme.Space.md)
+    }
+
+    private func dateRow(label: String, date: Binding<Date>, isAllDay: Bool, minDate: Date? = nil) -> some View {
+        HStack {
+            Text(label)
+                .font(AppTheme.TextStyle.body)
+                .foregroundStyle(AppTheme.onSurface)
+                .frame(minWidth: 42, idealWidth: 48, maxWidth: 80, alignment: .leading)
+            Spacer()
+            let components: DatePickerComponents = isAllDay ? .date : [.date, .hourAndMinute]
+            if let minDate {
+                DatePicker("", selection: date, in: minDate..., displayedComponents: components)
+                    .labelsHidden()
+                    .tint(AppTheme.tertiary)
+            } else {
+                DatePicker("", selection: date, displayedComponents: components)
+                    .labelsHidden()
+                    .tint(AppTheme.tertiary)
+            }
+        }
+        .padding(.horizontal, AppTheme.Space.lg)
+        .padding(.vertical, AppTheme.Space.md)
+    }
+
+    private var selectedDaysText: String {
+        if viewModel.selectedDaysOfWeek.isEmpty { return "None" }
+        if viewModel.selectedDaysOfWeek.count == 7 { return "Every day" }
+        return viewModel.selectedDaysOfWeek
+            .sorted { $0.rawValue < $1.rawValue }
+            .map { $0.shortName }
+            .joined(separator: ", ")
+    }
 
     private var stepTransition: AnyTransition {
         .asymmetric(
@@ -461,8 +614,6 @@ struct EventCreationWizardView: View {
             removal: .move(edge: goingForward ? .leading : .trailing).combined(with: .opacity)
         )
     }
-
-    // MARK: - Helpers
 
     private func priorityGradient(_ priority: EventPriority) -> LinearGradient {
         switch priority {

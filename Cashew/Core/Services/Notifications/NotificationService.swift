@@ -9,6 +9,29 @@ final class NotificationService: NotificationServiceProtocol {
     private let notificationCenter = UNUserNotificationCenter.current()
 
     private(set) var isAuthorized = false
+    private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
+    private(set) var alertSetting: UNNotificationSetting = .notSupported
+
+    var canRequestAuthorization: Bool {
+        authorizationStatus == .notDetermined
+    }
+
+    var authorizationStatusDescription: String {
+        switch authorizationStatus {
+        case .authorized:
+            return alertSetting == .enabled ? "Authorized" : "Authorized (Alerts Off)"
+        case .provisional:
+            return "Provisional"
+        case .ephemeral:
+            return "Ephemeral"
+        case .denied:
+            return "Denied"
+        case .notDetermined:
+            return "Not Determined"
+        @unknown default:
+            return "Unknown"
+        }
+    }
 
     // MARK: - Authorization
 
@@ -17,8 +40,8 @@ final class NotificationService: NotificationServiceProtocol {
             let granted = try await notificationCenter.requestAuthorization(
                 options: [.alert, .sound, .badge]
             )
-            isAuthorized = granted
-            return granted
+            await checkAuthorizationStatus()
+            return granted || isAuthorized
         } catch {
             print("NotificationService: Failed to request authorization - \(error.localizedDescription)")
             return false
@@ -27,13 +50,20 @@ final class NotificationService: NotificationServiceProtocol {
 
     func checkAuthorizationStatus() async {
         let settings = await notificationCenter.notificationSettings()
-        isAuthorized = settings.authorizationStatus == .authorized
+        authorizationStatus = settings.authorizationStatus
+        alertSetting = settings.alertSetting
+        isAuthorized = settings.authorizationStatus == .authorized ||
+            settings.authorizationStatus == .provisional ||
+            settings.authorizationStatus == .ephemeral
     }
 
     // MARK: - Schedule Notifications
 
     func scheduleNotifications(for event: Event) async {
-        if !isAuthorized {
+        await checkAuthorizationStatus()
+
+        if authorizationStatus == .notDetermined {
+            _ = await requestAuthorization()
             await checkAuthorizationStatus()
         }
 
@@ -49,10 +79,16 @@ final class NotificationService: NotificationServiceProtocol {
     }
 
     private func scheduleNotification(for event: Event, reminder: Reminder) async {
-        let triggerDate = reminder.triggerDate(for: event.date)
+        var triggerDate = reminder.triggerDate(for: event.date)
+        let now = Date()
 
-        // Don't schedule notifications for past dates
-        guard triggerDate > Date() else { return }
+        // Skip reminders that are substantially in the past, but allow very recent
+        // "at time" reminders to fire immediately.
+        if triggerDate <= now {
+            let secondsLate = now.timeIntervalSince(triggerDate)
+            guard secondsLate <= 30 else { return }
+            triggerDate = now.addingTimeInterval(2)
+        }
 
         let content = UNMutableNotificationContent()
         content.title = event.title
@@ -120,6 +156,45 @@ final class NotificationService: NotificationServiceProtocol {
     func updateNotifications(for event: Event) async {
         // Simply cancel and reschedule
         await scheduleNotifications(for: event)
+    }
+
+    func scheduleTestNotification(after seconds: TimeInterval = 5) async -> Bool {
+        await checkAuthorizationStatus()
+
+        if authorizationStatus == .notDetermined {
+            _ = await requestAuthorization()
+            await checkAuthorizationStatus()
+        }
+
+        guard isAuthorized else { return false }
+
+        let content = UNMutableNotificationContent()
+        content.title = "Cashew Test Reminder"
+        content.body = "Notifications are working."
+        content.sound = .default
+        content.categoryIdentifier = "TEST_REMINDER"
+
+        let trigger = UNTimeIntervalNotificationTrigger(
+            timeInterval: max(1, seconds),
+            repeats: false
+        )
+
+        let identifier = "test_notification"
+        let request = UNNotificationRequest(
+            identifier: identifier,
+            content: content,
+            trigger: trigger
+        )
+
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: [identifier])
+
+        do {
+            try await notificationCenter.add(request)
+            return true
+        } catch {
+            print("NotificationService: Failed to schedule test notification - \(error.localizedDescription)")
+            return false
+        }
     }
 
     // MARK: - Helpers

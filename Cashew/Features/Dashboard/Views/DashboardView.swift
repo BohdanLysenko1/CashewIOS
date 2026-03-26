@@ -10,7 +10,7 @@ struct DashboardView: View {
     @State private var showProgress = false
     @State private var showCreationWizard = false
     @State private var navigationPath = NavigationPath()
-    @State private var pendingNavigationId: UUID?
+    @State private var pendingCreationResult: CreationResult?
     @State private var error: String?
 
     private var tripService: TripServiceProtocol { container.tripService }
@@ -258,13 +258,14 @@ struct DashboardView: View {
             .refreshable {
                 await loadData()
             }
-            .sheet(isPresented: $showAddTask) {
-                DailyTaskFormView(
+            .fullScreenCover(isPresented: $showAddTask) {
+                TaskCreationWizardView(
                     service: dayPlannerService,
                     tripService: tripService,
                     eventService: eventService,
-                    task: nil,
-                    defaultDate: Date()
+                    defaultDate: Date(),
+                    onCreated: { _ in showDayPlanner = true },
+                    onDismiss: { showAddTask = false }
                 )
             }
             .sheet(isPresented: $showProgress) {
@@ -281,15 +282,19 @@ struct DashboardView: View {
                 DayPlannerView()
             }
             .fullScreenCover(isPresented: $showCreationWizard) {
-                TripEventCreationWizardView { createdId in
-                    pendingNavigationId = createdId
+                TripEventCreationWizardView { created in
+                    pendingCreationResult = created
                 }
             }
             .onChange(of: showCreationWizard) { _, isShowing in
-                if !isShowing, let id = pendingNavigationId {
+                guard !isShowing, let created = pendingCreationResult else { return }
+                switch created {
+                case .trip(let id), .event(let id):
                     navigationPath.append(id)
-                    pendingNavigationId = nil
+                case .task:
+                    showDayPlanner = true
                 }
+                pendingCreationResult = nil
             }
             .onChange(of: container.dataSyncService.isEnabled) { _, isEnabled in
                 if isEnabled {
@@ -387,7 +392,7 @@ struct DashboardView: View {
     private var quickActionsSection: some View {
         VStack(spacing: 10) {
             planMyDayCard
-            createTripOrEventRow
+            createCreationRow
         }
     }
 
@@ -477,7 +482,7 @@ struct DashboardView: View {
         .buttonStyle(.plain)
     }
 
-    private var createTripOrEventRow: some View {
+    private var createCreationRow: some View {
         Button {
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             showCreationWizard = true
@@ -501,11 +506,11 @@ struct DashboardView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("New Trip or Event")
+                        Text("Create")
                             .font(.title3)
                             .fontWeight(.bold)
                             .foregroundStyle(.white)
-                        Text("Plan a getaway or schedule an event")
+                        Text("Trip, event, or task")
                             .font(.subheadline)
                             .foregroundStyle(.white.opacity(0.75))
                     }

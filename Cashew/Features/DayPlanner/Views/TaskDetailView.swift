@@ -69,7 +69,7 @@ struct TaskDetailView: View {
             .onChange(of: liveTask.notes) { _, updated in
                 notes = updated
             }
-            .sheet(isPresented: $showEditForm) {
+            .fullScreenCover(isPresented: $showEditForm) {
                 DailyTaskFormView(
                     service: service,
                     tripService: tripService,

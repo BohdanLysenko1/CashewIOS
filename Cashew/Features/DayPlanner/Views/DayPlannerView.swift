@@ -88,13 +88,14 @@ struct DayPlannerView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showAddTask) {
-                DailyTaskFormView(
+            .fullScreenCover(isPresented: $showAddTask) {
+                TaskCreationWizardView(
                     service: service,
                     tripService: container.tripService,
                     eventService: container.eventService,
-                    task: nil,
-                    defaultDate: service.selectedDate
+                    defaultDate: service.selectedDate,
+                    onCreated: { _ in },
+                    onDismiss: { showAddTask = false }
                 )
             }
             .sheet(item: $detailTask) { task in
@@ -105,7 +106,7 @@ struct DayPlannerView: View {
                     eventService: container.eventService
                 )
             }
-            .sheet(item: $editingTask) { task in
+            .fullScreenCover(item: $editingTask) { task in
                 DailyTaskFormView(
                     service: service,
                     tripService: container.tripService,

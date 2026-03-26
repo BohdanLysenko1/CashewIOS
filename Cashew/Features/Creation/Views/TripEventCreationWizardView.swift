@@ -1,7 +1,13 @@
 import SwiftUI
 
 enum CreationType {
-    case trip, event
+    case trip, event, task
+}
+
+enum CreationResult {
+    case trip(UUID)
+    case event(UUID)
+    case task(UUID)
 }
 
 struct TripEventCreationWizardView: View {
@@ -9,7 +15,7 @@ struct TripEventCreationWizardView: View {
     @Environment(AppContainer.self) private var container
     @Environment(\.dismiss) private var dismiss
 
-    let onCreated: (UUID) -> Void
+    let onCreated: (CreationResult) -> Void
 
     @State private var selection: CreationType?
 
@@ -19,7 +25,7 @@ struct TripEventCreationWizardView: View {
             case .trip:
                 TripCreationWizardView(
                     tripService: container.tripService,
-                    onCreated: onCreated,
+                    onCreated: { onCreated(.trip($0)) },
                     onDismiss: { dismiss() }
                 )
                 .transition(.asymmetric(
@@ -29,7 +35,20 @@ struct TripEventCreationWizardView: View {
             case .event:
                 EventCreationWizardView(
                     eventService: container.eventService,
-                    onCreated: onCreated,
+                    onCreated: { onCreated(.event($0)) },
+                    onDismiss: { dismiss() }
+                )
+                .transition(.asymmetric(
+                    insertion: .move(edge: .trailing).combined(with: .opacity),
+                    removal: .move(edge: .leading).combined(with: .opacity)
+                ))
+            case .task:
+                TaskCreationWizardView(
+                    service: container.dayPlannerService,
+                    tripService: container.tripService,
+                    eventService: container.eventService,
+                    defaultDate: Date(),
+                    onCreated: { onCreated(.task($0)) },
                     onDismiss: { dismiss() }
                 )
                 .transition(.asymmetric(
@@ -49,44 +68,53 @@ struct TripEventCreationWizardView: View {
         ZStack(alignment: .topTrailing) {
             AppTheme.background.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                // Header
-                VStack(spacing: AppTheme.Space.sm) {
-                    Text("What are you planning?")
-                        .font(AppTheme.TextStyle.heroTitle)
-                        .foregroundStyle(AppTheme.onSurface)
-                        .multilineTextAlignment(.center)
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: AppTheme.Space.xl) {
+                    // Header
+                    VStack(spacing: AppTheme.Space.sm) {
+                        Text("What are you planning?")
+                            .font(AppTheme.TextStyle.heroTitle)
+                            .foregroundStyle(AppTheme.onSurface)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.85)
 
-                    Text("Choose a type to get started")
-                        .font(AppTheme.TextStyle.secondary)
-                        .foregroundStyle(AppTheme.onSurfaceVariant)
+                        Text("Choose a type to get started")
+                            .font(AppTheme.TextStyle.secondary)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
+                    }
+                    .padding(.top, AppTheme.Space.sectionBreak)
+                    .padding(.horizontal, AppTheme.Space.lg)
+
+                    // Type cards
+                    VStack(spacing: AppTheme.Space.lg) {
+                        typeCard(
+                            title: "Trip",
+                            subtitle: "Plan travel with packing list, itinerary, and budget",
+                            icon: "airplane",
+                            gradient: AppTheme.tripGradient,
+                            type: .trip
+                        )
+
+                        typeCard(
+                            title: "Event",
+                            subtitle: "Schedule a one-time or recurring event",
+                            icon: "star.fill",
+                            gradient: AppTheme.eventGradient,
+                            type: .event
+                        )
+
+                        typeCard(
+                            title: "Task",
+                            subtitle: "Capture tasks with schedule, links, and subtasks",
+                            icon: "checklist",
+                            gradient: AppTheme.dayPlannerGradient,
+                            type: .task
+                        )
+                    }
+                    .padding(.horizontal, AppTheme.Space.lg)
                 }
-                .padding(.top, AppTheme.Space.sectionBreak)
-                .padding(.horizontal, AppTheme.Space.lg)
-
-                Spacer()
-
-                // Type cards
-                VStack(spacing: AppTheme.Space.lg) {
-                    typeCard(
-                        title: "Trip",
-                        subtitle: "Plan travel with packing list, itinerary, and budget",
-                        icon: "airplane",
-                        gradient: AppTheme.tripGradient,
-                        type: .trip
-                    )
-
-                    typeCard(
-                        title: "Event",
-                        subtitle: "Schedule a one-time or recurring event",
-                        icon: "star.fill",
-                        gradient: AppTheme.eventGradient,
-                        type: .event
-                    )
-                }
-                .padding(.horizontal, AppTheme.Space.lg)
-
-                Spacer()
+                .padding(.bottom, AppTheme.Space.xxxl)
             }
 
             // Dismiss button
@@ -127,10 +155,13 @@ struct TripEventCreationWizardView: View {
                     Text(title)
                         .font(AppTheme.TextStyle.title)
                         .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
                     Text(subtitle)
                         .font(AppTheme.TextStyle.secondary)
                         .foregroundStyle(.white.opacity(0.8))
-                        .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.9)
                 }
 
                 Spacer()

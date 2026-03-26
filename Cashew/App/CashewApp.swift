@@ -4,11 +4,12 @@ import UserNotifications
 @main
 struct CashewApp: App {
 
+    @Environment(\.scenePhase) private var scenePhase
     @State private var container = AppContainer()
     @State private var pendingInviteToken: String?
     @State private var pendingNotificationEventId: UUID?
 
-    private let notificationDelegate = NotificationDelegate()
+    private let notificationDelegate = NotificationDelegate.shared
 
     init() {
         UNUserNotificationCenter.current().delegate = notificationDelegate
@@ -20,6 +21,12 @@ struct CashewApp: App {
                 .environment(container)
                 .task {
                     await requestNotificationPermissionIfNeeded()
+                }
+                .onChange(of: scenePhase) { _, newPhase in
+                    guard newPhase == .active else { return }
+                    Task {
+                        await refreshNotificationSchedulesIfAuthorized()
+                    }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .didTapEventNotification)) { note in
                     guard let eventId = note.userInfo?["eventId"] as? UUID else { return }
@@ -86,10 +93,16 @@ struct CashewApp: App {
         let key = UserDefaultsKeys.hasRequestedNotificationPermission
 
         if !UserDefaults.standard.bool(forKey: key) {
-            await container.requestNotificationPermission()
+            _ = await container.requestNotificationPermission()
             UserDefaults.standard.set(true, forKey: key)
-        } else {
-            await container.notificationService.checkAuthorizationStatus()
         }
+
+        await refreshNotificationSchedulesIfAuthorized()
+    }
+
+    private func refreshNotificationSchedulesIfAuthorized() async {
+        await container.notificationService.checkAuthorizationStatus()
+        guard container.notificationService.isAuthorized else { return }
+        await container.eventService.refreshNotificationSchedules()
     }
 }

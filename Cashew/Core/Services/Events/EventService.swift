@@ -23,6 +23,8 @@ final class EventService: EventServiceProtocol {
 
     func loadEvents() async throws {
         events = try await repository.fetchAll()
+        sortEvents()
+        await synchronizeNotificationSchedules()
     }
 
     // MARK: - CRUD
@@ -55,8 +57,34 @@ final class EventService: EventServiceProtocol {
         events.first { $0.id == id }
     }
 
+    func refreshNotificationSchedules() async {
+        if events.isEmpty {
+            do {
+                events = try await repository.fetchAll()
+                sortEvents()
+            } catch {
+                print("[EventService] Failed to refresh events for notifications: \(error)")
+                return
+            }
+        }
+
+        await synchronizeNotificationSchedules()
+    }
+
     private func sortEvents() {
         events.sort { $0.date < $1.date }
+    }
+
+    private func synchronizeNotificationSchedules() async {
+        guard let notificationService else { return }
+
+        for event in events {
+            if event.reminders.isEmpty {
+                await notificationService.cancelNotifications(for: event.id)
+            } else {
+                await notificationService.updateNotifications(for: event)
+            }
+        }
     }
 
     // MARK: - Realtime Sync
@@ -95,6 +123,7 @@ final class EventService: EventServiceProtocol {
             let event = try await repository.fetch(by: id)
             events.append(event)
             sortEvents()
+            await notificationService?.updateNotifications(for: event)
         } catch {
             print("[EventService] Failed to fetch inserted event \(id): \(error)")
         }
@@ -110,6 +139,7 @@ final class EventService: EventServiceProtocol {
                 events.append(event)
             }
             sortEvents()
+            await notificationService?.updateNotifications(for: event)
         } catch {
             print("[EventService] Failed to fetch updated event \(id): \(error)")
         }

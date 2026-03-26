@@ -3,6 +3,11 @@ import UserNotifications
 /// Handles foreground notification presentation and notification tap actions.
 /// Must be set as `UNUserNotificationCenter.current().delegate` at app launch.
 final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
+    static let shared = NotificationDelegate()
+
+    private override init() {
+        super.init()
+    }
 
     /// Called when the app receives a notification while in the foreground.
     /// Without this, iOS suppresses the notification banner entirely.

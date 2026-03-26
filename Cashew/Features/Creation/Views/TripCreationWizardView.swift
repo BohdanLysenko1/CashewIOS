@@ -23,14 +23,13 @@ struct TripCreationWizardView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            progressBar
             stepContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .safeAreaInset(edge: .bottom) {
             bottomBar
         }
-        .background(AppTheme.background)
+        .background(CreationScreenBackground(gradient: AppTheme.tripGradient))
         .onChange(of: viewModel.error) { _, newError in showError = newError != nil }
         .alert("Error", isPresented: $showError) {
             Button("OK") { viewModel.clearError() }
@@ -48,56 +47,13 @@ struct TripCreationWizardView: View {
     // MARK: - Header
 
     private var header: some View {
-        ZStack {
-            HStack {
-                Button(action: onDismiss) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(AppTheme.onSurfaceVariant)
-                        .padding(10)
-                        .background(AppTheme.surfaceContainerLow)
-                        .clipShape(Circle())
-                }
-                Spacer()
-            }
-
-            VStack(spacing: 2) {
-                Text(viewModel.stepTitle)
-                    .font(AppTheme.TextStyle.bodyBold)
-                    .foregroundStyle(AppTheme.onSurface)
-                Text("Step \(viewModel.currentStep + 1) of \(TripCreationWizardViewModel.totalSteps)")
-                    .font(AppTheme.TextStyle.caption)
-                    .foregroundStyle(AppTheme.onSurfaceVariant)
-            }
-            .id(viewModel.currentStep)
-            .transition(.opacity.combined(with: .scale(scale: 0.96)))
-            .animation(.easeInOut(duration: 0.2), value: viewModel.currentStep)
-        }
-        .padding(.horizontal, AppTheme.Space.lg)
-        .padding(.top, AppTheme.Space.md)
-        .padding(.bottom, AppTheme.Space.sm)
-    }
-
-    // MARK: - Progress Bar
-
-    private var progressBar: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(AppTheme.surfaceContainerLow)
-                    .frame(height: 4)
-                Capsule()
-                    .fill(AppTheme.tripGradient)
-                    .frame(
-                        width: geo.size.width * CGFloat(viewModel.currentStep + 1) / CGFloat(TripCreationWizardViewModel.totalSteps),
-                        height: 4
-                    )
-                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: viewModel.currentStep)
-            }
-        }
-        .frame(height: 4)
-        .padding(.horizontal, AppTheme.Space.lg)
-        .padding(.bottom, AppTheme.Space.lg)
+        CreationWizardHeader(
+            title: viewModel.stepTitle,
+            currentStep: viewModel.currentStep,
+            totalSteps: TripCreationWizardViewModel.totalSteps,
+            gradient: AppTheme.tripGradient,
+            onClose: onDismiss
+        )
     }
 
     // MARK: - Step Content
@@ -578,27 +534,20 @@ struct TripCreationWizardView: View {
     // MARK: - Bottom Bar
 
     private var bottomBar: some View {
-        HStack(spacing: AppTheme.Space.md) {
-            // Back button — always laid out, invisible on step 0 to keep Next width stable
-            Button {
+        let isLastStep = viewModel.currentStep == TripCreationWizardViewModel.totalSteps - 1
+        return CreationWizardNavigationBar(
+            isFirstStep: viewModel.currentStep == 0,
+            isLastStep: isLastStep,
+            canContinue: viewModel.isCurrentStepValid,
+            isLoading: viewModel.isSaving,
+            gradient: AppTheme.tripGradient,
+            finalStepTitle: "Create Trip",
+            onBack: {
                 haptic(.medium)
                 goingForward = false
                 withAnimation(.easeInOut(duration: 0.3)) { viewModel.goBack() }
-            } label: {
-                Text("Back")
-                    .font(AppTheme.TextStyle.bodyBold)
-                    .foregroundStyle(AppTheme.onSurface)
-                    .frame(width: 88)
-                    .padding(.vertical, 16)
-                    .background(AppTheme.surfaceContainerLow)
-                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
-            }
-            .buttonStyle(.plain)
-            .opacity(viewModel.currentStep > 0 ? 1 : 0)
-            .disabled(viewModel.currentStep == 0)
-
-            let isLastStep = viewModel.currentStep == TripCreationWizardViewModel.totalSteps - 1
-            Button {
+            },
+            onContinue: {
                 haptic(isLastStep ? .heavy : .medium)
                 goingForward = true
                 if isLastStep {
@@ -606,39 +555,8 @@ struct TripCreationWizardView: View {
                 } else {
                     withAnimation(.easeInOut(duration: 0.3)) { viewModel.goNext() }
                 }
-            } label: {
-                Group {
-                    if viewModel.isSaving {
-                        ProgressView().tint(.white)
-                    } else {
-                        Text(isLastStep ? "Create Trip" : "Next")
-                            .font(AppTheme.TextStyle.bodyBold)
-                            .foregroundStyle(.white)
-                            .contentTransition(.opacity)
-                            .animation(.easeInOut(duration: 0.18), value: isLastStep)
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
             }
-            .background(
-                viewModel.isCurrentStepValid
-                    ? AnyShapeStyle(AppTheme.tripGradient)
-                    : AnyShapeStyle(AppTheme.onSurfaceVariant.opacity(0.25))
-            )
-            .clipShape(RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
-            .disabled(!viewModel.isCurrentStepValid || viewModel.isSaving)
-            .buttonStyle(.plain)
-            .animation(.easeInOut(duration: 0.2), value: viewModel.isCurrentStepValid)
-        }
-        .padding(.horizontal, AppTheme.Space.lg)
-        .padding(.top, AppTheme.Space.md)
-        .padding(.bottom, AppTheme.Space.lg)
-        .background {
-            AppTheme.background
-                .shadow(color: AppTheme.cardShadow, radius: 12, x: 0, y: -4)
-                .ignoresSafeArea()
-        }
+        )
     }
 
     // MARK: - Reusable Containers

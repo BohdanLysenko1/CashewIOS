@@ -114,12 +114,14 @@ struct EventsView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showAddEvent) {
-                EventFormView(
-                    viewModel: EventFormViewModel(eventService: container.eventService)
+            .fullScreenCover(isPresented: $showAddEvent) {
+                EventCreationWizardView(
+                    eventService: container.eventService,
+                    onCreated: { _ in },
+                    onDismiss: { showAddEvent = false }
                 )
             }
-            .sheet(item: $editingEvent) { event in
+            .fullScreenCover(item: $editingEvent) { event in
                 EventFormView(
                     viewModel: EventFormViewModel(eventService: container.eventService, event: event)
                 )

@@ -74,7 +74,7 @@ struct EventDetailView: View {
                 }
             }
         }
-        .sheet(isPresented: $showEditSheet) {
+        .fullScreenCover(isPresented: $showEditSheet) {
             if let event {
                 EventFormView(
                     viewModel: EventFormViewModel(

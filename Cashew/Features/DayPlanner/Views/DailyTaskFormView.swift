@@ -23,16 +23,23 @@ struct DailyTaskFormView: View {
 
     @State private var subtasks: [Subtask]
     @State private var newSubtaskTitle: String = ""
-    @State private var showAddSubtaskField: Bool = false
 
     @State private var isSaving = false
     @State private var error: String?
     @State private var showError = false
+    @FocusState private var focusedField: Field?
+
+    enum Field: Hashable {
+        case title, notes, subtask
+    }
 
     private var isEditing: Bool { task != nil }
 
     private var isValid: Bool {
-        !title.trimmingCharacters(in: .whitespaces).isEmpty
+        let hasValidTitle = !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let hasValidCustomCategory = category != .custom || !customCategoryName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let hasValidSchedule = !hasTime || !hasEndTime || endTime >= startTime
+        return hasValidTitle && hasValidCustomCategory && hasValidSchedule
     }
 
     init(
@@ -65,7 +72,6 @@ struct DailyTaskFormView: View {
             _title = State(initialValue: "")
             _date = State(initialValue: defaultDate)
             _hasTime = State(initialValue: false)
-            // Default start time to next hour
             let calendar = Calendar.current
             let hour = calendar.component(.hour, from: Date())
             let defaultStart = calendar.date(bySettingHour: hour + 1, minute: 0, second: 0, of: Date()) ?? Date()
@@ -81,197 +87,334 @@ struct DailyTaskFormView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                detailsSection
-                scheduleSection
-                categorySection
-                linkSection
-                notesSection
-                subtasksSection
+        VStack(spacing: 0) {
+            CreationTopBar(
+                title: isEditing ? "Edit Task" : "New Task",
+                subtitle: "Update schedule, context, and subtasks",
+                onClose: { dismiss() }
+            )
+
+            ScrollView {
+                VStack(spacing: AppTheme.Space.md) {
+                    detailsCard
+                    scheduleCard
+                    categoryCard
+                    linksCard
+                    notesCard
+                    subtasksCard
+                }
+                .padding(.horizontal, AppTheme.Space.lg)
+                .padding(.bottom, AppTheme.Space.xxxl)
             }
             .scrollDismissesKeyboard(.interactively)
-            .toolbar {
-                ToolbarItemGroup(placement: .keyboard) {
+        }
+        .safeAreaInset(edge: .bottom) {
+            CreationBottomActionBar(
+                cancelTitle: "Cancel",
+                confirmTitle: isEditing ? "Save Task" : "Create Task",
+                gradient: AppTheme.dayPlannerGradient,
+                canConfirm: isValid && !isSaving,
+                isLoading: isSaving,
+                onCancel: { dismiss() },
+                onConfirm: { Task { await save() } }
+            )
+        }
+        .background(CreationScreenBackground(gradient: AppTheme.dayPlannerGradient))
+        .alert("Error", isPresented: $showError) {
+            Button("OK") { error = nil }
+        } message: {
+            if let error {
+                Text(error)
+            }
+        }
+        .task {
+            if tripService.trips.isEmpty {
+                do { try await tripService.loadTrips() }
+                catch { print("[DailyTaskFormView] Failed to load trips: \(error)") }
+            }
+            if eventService.events.isEmpty {
+                do { try await eventService.loadEvents() }
+                catch { print("[DailyTaskFormView] Failed to load events: \(error)") }
+            }
+        }
+    }
+
+    private var detailsCard: some View {
+        CreationSectionCard(title: "Task", icon: "checklist") {
+            VStack(spacing: AppTheme.Space.md) {
+                TextField("Task name", text: $title)
+                    .focused($focusedField, equals: .title)
+                    .designField(isFocused: focusedField == .title)
+
+                HStack {
+                    Text("Date")
+                        .font(AppTheme.TextStyle.body)
+                        .foregroundStyle(AppTheme.onSurface)
                     Spacer()
-                    Button("Done") {
-                        hideKeyboard()
+                    DatePicker("", selection: $date, displayedComponents: .date)
+                        .labelsHidden()
+                        .tint(AppTheme.primary)
+                }
+                .padding(.horizontal, AppTheme.Space.md)
+                .padding(.vertical, AppTheme.Space.sm)
+                .background(AppTheme.surfaceContainer)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+        }
+    }
+
+    private var scheduleCard: some View {
+        CreationSectionCard(title: "Schedule", icon: "clock") {
+            VStack(spacing: AppTheme.Space.sm) {
+                toggleRow("Set Time", isOn: $hasTime)
+
+                if hasTime {
+                    timeRow("Start Time", selection: $startTime)
+                    toggleRow("End Time", isOn: $hasEndTime)
+                    if hasEndTime {
+                        timeRow("End Time", selection: $endTime, minDate: startTime)
                     }
+
+                    CreationInlineError(
+                        text: hasEndTime && endTime < startTime
+                            ? "End time must be after start time"
+                            : nil
+                    )
+                } else {
+                    Text("Tasks without a time will appear in your to-do list.")
+                        .font(AppTheme.TextStyle.caption)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                 }
             }
-            .navigationTitle(isEditing ? "Edit Task" : "New Task")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                        .disabled(isSaving)
-                }
+        }
+    }
 
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(isEditing ? "Save" : "Add") {
-                        Task { await save() }
+    private func toggleRow(_ title: String, isOn: Binding<Bool>) -> some View {
+        Toggle(title, isOn: isOn)
+            .font(AppTheme.TextStyle.body)
+            .tint(AppTheme.primary)
+            .padding(.horizontal, AppTheme.Space.md)
+            .padding(.vertical, AppTheme.Space.sm)
+            .background(AppTheme.surfaceContainer)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private func timeRow(_ title: String, selection: Binding<Date>, minDate: Date? = nil) -> some View {
+        HStack {
+            Text(title)
+                .font(AppTheme.TextStyle.body)
+                .foregroundStyle(AppTheme.onSurface)
+            Spacer()
+            if let minDate {
+                DatePicker("", selection: selection, in: minDate..., displayedComponents: .hourAndMinute)
+                    .labelsHidden()
+                    .tint(AppTheme.primary)
+            } else {
+                DatePicker("", selection: selection, displayedComponents: .hourAndMinute)
+                    .labelsHidden()
+                    .tint(AppTheme.primary)
+            }
+        }
+        .padding(.horizontal, AppTheme.Space.md)
+        .padding(.vertical, AppTheme.Space.sm)
+        .background(AppTheme.surfaceContainer)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private var categoryCard: some View {
+        CreationSectionCard(title: "Category", icon: "tag") {
+            VStack(spacing: AppTheme.Space.sm) {
+                HStack {
+                    Text("Category")
+                        .font(AppTheme.TextStyle.body)
+                        .foregroundStyle(AppTheme.onSurface)
+                    Spacer()
+                    Picker("Category", selection: $category) {
+                        ForEach(TaskCategory.allCases, id: \.self) { cat in
+                            Label(cat.displayName, systemImage: cat.icon)
+                                .tag(cat)
+                        }
                     }
-                    .disabled(!isValid || isSaving)
+                    .pickerStyle(.menu)
+                    .tint(AppTheme.primary)
                 }
-            }
-            .overlay {
-                if isSaving {
-                    savingOverlay
+                .padding(.horizontal, AppTheme.Space.md)
+                .padding(.vertical, AppTheme.Space.sm)
+                .background(AppTheme.surfaceContainer)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                if category == .custom {
+                    VStack(alignment: .leading, spacing: AppTheme.Space.sm) {
+                        Text("Custom Category Name")
+                            .font(AppTheme.TextStyle.captionBold)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
+                        CustomCategoryPickerRows(
+                            selectedName: $customCategoryName,
+                            savedCategories: CustomCategoryStore.shared.taskCategories,
+                            onDelete: { CustomCategoryStore.shared.removeTaskCategory($0) }
+                        )
+                    }
+                    .padding(AppTheme.Space.md)
+                    .background(AppTheme.surfaceContainer)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
-            }
-            .alert("Error", isPresented: $showError) {
-                Button("OK") { error = nil }
-            } message: {
-                if let error {
-                    Text(error)
-                }
-            }
-            .task {
-                if tripService.trips.isEmpty {
-                    do { try await tripService.loadTrips() }
-                    catch { print("[DailyTaskFormView] Failed to load trips: \(error)") }
-                }
-                if eventService.events.isEmpty {
-                    do { try await eventService.loadEvents() }
-                    catch { print("[DailyTaskFormView] Failed to load events: \(error)") }
-                }
-            }
-        }
-    }
 
-    private func hideKeyboard() {
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-    }
-
-    // MARK: - Sections
-
-    private var detailsSection: some View {
-        Section {
-            TextField("Task name", text: $title)
-        } header: {
-            Text("Task")
-        }
-    }
-
-    private var scheduleSection: some View {
-        Section {
-            DatePicker("Date", selection: $date, displayedComponents: .date)
-
-            Toggle("Set Time", isOn: $hasTime)
-
-            if hasTime {
-                DatePicker("Start Time", selection: $startTime, displayedComponents: .hourAndMinute)
-
-                Toggle("End Time", isOn: $hasEndTime)
-
-                if hasEndTime {
-                    DatePicker("End Time", selection: $endTime, in: startTime..., displayedComponents: .hourAndMinute)
-                }
-            }
-        } header: {
-            Text("Schedule")
-        } footer: {
-            if !hasTime {
-                Text("Tasks without a time will appear in your to-do list")
-            }
-        }
-    }
-
-    private var categorySection: some View {
-        Section("Category") {
-            Picker("Category", selection: $category) {
-                ForEach(TaskCategory.allCases, id: \.self) { cat in
-                    Label(cat.displayName, systemImage: cat.icon)
-                        .tag(cat)
-                }
-            }
-            .pickerStyle(.navigationLink)
-
-            if category == .custom {
-                CustomCategoryPickerRows(
-                    selectedName: $customCategoryName,
-                    savedCategories: CustomCategoryStore.shared.taskCategories,
-                    onDelete: { CustomCategoryStore.shared.removeTaskCategory($0) }
+                CreationInlineError(
+                    text: category == .custom && customCategoryName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        ? "Custom category name is required"
+                        : nil
                 )
             }
         }
     }
 
-    private var linkSection: some View {
-        Section("Link To") {
-            Picker("Trip", selection: $selectedTripId) {
-                Text("None")
-                    .tag(UUID?.none)
-
-                ForEach(tripService.trips) { trip in
-                    Label(trip.name, systemImage: "airplane")
-                        .tag(Optional(trip.id))
-                }
-            }
-
-            Picker("Event", selection: $selectedEventId) {
-                Text("None")
-                    .tag(UUID?.none)
-
-                ForEach(eventService.events) { event in
-                    Label(event.title, systemImage: "star")
-                        .tag(Optional(event.id))
-                }
-            }
-        }
-    }
-
-    private var notesSection: some View {
-        Section("Notes") {
-            TextField("Add notes...", text: $notes, axis: .vertical)
-                .lineLimit(3...6)
-        }
-    }
-
-    private var subtasksSection: some View {
-        Section {
-            ForEach($subtasks) { $subtask in
-                HStack(spacing: 12) {
-                    Button {
-                        subtask.isCompleted.toggle()
-                        HapticManager.impact(.light)
-                    } label: {
-                        Image(systemName: subtask.isCompleted ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(subtask.isCompleted ? .green : AppTheme.onSurfaceVariant)
+    private var linksCard: some View {
+        CreationSectionCard(title: "Link To", icon: "link") {
+            VStack(spacing: AppTheme.Space.sm) {
+                menuRow(
+                    title: "Trip",
+                    selectedText: selectedTripTitle,
+                    menu: {
+                        Button("None") { selectedTripId = nil }
+                        ForEach(tripService.trips) { trip in
+                            Button(trip.name) { selectedTripId = trip.id }
+                        }
                     }
-                    .buttonStyle(.plain)
+                )
 
-                    TextField("Subtask", text: $subtask.title)
-                        .strikethrough(subtask.isCompleted)
-                        .foregroundStyle(subtask.isCompleted ? AppTheme.onSurfaceVariant : AppTheme.onSurface)
+                menuRow(
+                    title: "Event",
+                    selectedText: selectedEventTitle,
+                    menu: {
+                        Button("None") { selectedEventId = nil }
+                        ForEach(eventService.events) { event in
+                            Button(event.title) { selectedEventId = event.id }
+                        }
+                    }
+                )
+            }
+        }
+    }
+
+    private func menuRow<MenuContent: View>(title: String, selectedText: String, @ViewBuilder menu: () -> MenuContent) -> some View {
+        HStack {
+            Text(title)
+                .font(AppTheme.TextStyle.body)
+                .foregroundStyle(AppTheme.onSurface)
+            Spacer()
+            Menu {
+                menu()
+            } label: {
+                HStack(spacing: 6) {
+                    Text(selectedText)
+                        .font(AppTheme.TextStyle.secondary)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 10, weight: .semibold))
+                }
+                .foregroundStyle(AppTheme.primary)
+            }
+        }
+        .padding(.horizontal, AppTheme.Space.md)
+        .padding(.vertical, AppTheme.Space.sm)
+        .background(AppTheme.surfaceContainer)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private var selectedTripTitle: String {
+        guard let selectedTripId else { return "None" }
+        return tripService.trips.first(where: { $0.id == selectedTripId })?.name ?? "None"
+    }
+
+    private var selectedEventTitle: String {
+        guard let selectedEventId else { return "None" }
+        return eventService.events.first(where: { $0.id == selectedEventId })?.title ?? "None"
+    }
+
+    private var notesCard: some View {
+        CreationSectionCard(title: "Notes", icon: "note.text") {
+            ZStack(alignment: .topLeading) {
+                TextEditor(text: $notes)
+                    .focused($focusedField, equals: .notes)
+                    .frame(minHeight: 120)
+                    .scrollContentBackground(.hidden)
+                    .padding(8)
+                    .background(AppTheme.surfaceContainer)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                if notes.isEmpty {
+                    Text("Add notes...")
+                        .font(AppTheme.TextStyle.body)
+                        .foregroundStyle(AppTheme.onSurfaceVariant.opacity(0.6))
+                        .padding(.top, 16)
+                        .padding(.leading, 16)
+                        .allowsHitTesting(false)
                 }
             }
-            .onDelete { indexSet in subtasks.remove(atOffsets: indexSet) }
-            .onMove { from, to in subtasks.move(fromOffsets: from, toOffset: to) }
+        }
+    }
 
-            if showAddSubtaskField {
-                HStack {
+    private var subtasksCard: some View {
+        CreationSectionCard(title: "Subtasks", icon: "list.bullet") {
+            VStack(spacing: AppTheme.Space.sm) {
+                HStack(spacing: AppTheme.Space.sm) {
                     TextField("New subtask...", text: $newSubtaskTitle)
+                        .focused($focusedField, equals: .subtask)
                         .submitLabel(.done)
                         .onSubmit { commitNewSubtask() }
+                        .designField(isFocused: focusedField == .subtask)
 
-                    Button("Add") { commitNewSubtask() }
-                        .disabled(newSubtaskTitle.trimmingCharacters(in: .whitespaces).isEmpty)
+                    Button {
+                        commitNewSubtask()
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundStyle(
+                                newSubtaskTitle.trimmingCharacters(in: .whitespaces).isEmpty
+                                    ? AppTheme.onSurfaceVariant.opacity(0.35)
+                                    : AppTheme.primary
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(newSubtaskTitle.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
-            }
 
-            Button {
-                showAddSubtaskField = true
-            } label: {
-                Label("Add Subtask", systemImage: "plus.circle")
-            }
-        } header: {
-            Text("Subtasks")
-        } footer: {
-            if !subtasks.isEmpty {
-                let done = subtasks.filter(\.isCompleted).count
-                Text("\(done) of \(subtasks.count) completed")
-                    .foregroundStyle(AppTheme.onSurfaceVariant)
+                ForEach($subtasks) { $subtask in
+                    HStack(spacing: 12) {
+                        Button {
+                            subtask.isCompleted.toggle()
+                            HapticManager.impact(.light)
+                        } label: {
+                            Image(systemName: subtask.isCompleted ? "checkmark.circle.fill" : "circle")
+                                .foregroundStyle(subtask.isCompleted ? .green : AppTheme.onSurfaceVariant)
+                        }
+                        .buttonStyle(.plain)
+
+                        TextField("Subtask", text: $subtask.title)
+                            .strikethrough(subtask.isCompleted)
+                            .foregroundStyle(subtask.isCompleted ? AppTheme.onSurfaceVariant : AppTheme.onSurface)
+
+                        Spacer()
+
+                        Button {
+                            subtasks.removeAll { $0.id == subtask.id }
+                        } label: {
+                            Image(systemName: "trash")
+                                .foregroundStyle(.red.opacity(0.7))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, AppTheme.Space.md)
+                    .padding(.vertical, AppTheme.Space.sm)
+                    .background(AppTheme.surfaceContainer)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+
+                if !subtasks.isEmpty {
+                    let done = subtasks.filter(\.isCompleted).count
+                    Text("\(done) of \(subtasks.count) completed")
+                        .font(AppTheme.TextStyle.caption)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
+                }
             }
         }
     }
@@ -281,30 +424,15 @@ struct DailyTaskFormView: View {
         guard !trimmed.isEmpty else { return }
         subtasks.append(Subtask(title: trimmed))
         newSubtaskTitle = ""
-        showAddSubtaskField = false
         HapticManager.impact(.light)
     }
-
-    private var savingOverlay: some View {
-        ZStack {
-            Color.black.opacity(0.2)
-                .ignoresSafeArea()
-
-            ProgressView("Saving...")
-                .padding()
-                .background(.regularMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-    }
-
-    // MARK: - Save
 
     private func save() async {
         isSaving = true
 
         do {
-            let resolvedCustomName: String? = category == .custom && !customCategoryName.trimmingCharacters(in: .whitespaces).isEmpty
-                ? customCategoryName.trimmingCharacters(in: .whitespaces)
+            let resolvedCustomName: String? = category == .custom && !customCategoryName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                ? customCategoryName.trimmingCharacters(in: .whitespacesAndNewlines)
                 : nil
 
             if let name = resolvedCustomName {
@@ -313,14 +441,14 @@ struct DailyTaskFormView: View {
 
             let newTask = DailyTask(
                 id: task?.id ?? UUID(),
-                title: title.trimmingCharacters(in: .whitespaces),
+                title: title.trimmingCharacters(in: .whitespacesAndNewlines),
                 date: date,
                 startTime: hasTime ? startTime : nil,
                 endTime: hasTime && hasEndTime ? endTime : nil,
                 isCompleted: task?.isCompleted ?? false,
                 category: category,
                 customCategoryName: resolvedCustomName,
-                notes: notes,
+                notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
                 routineId: task?.routineId,
                 tripId: selectedTripId,
                 eventId: selectedEventId,
@@ -342,17 +470,6 @@ struct DailyTaskFormView: View {
 
         isSaving = false
     }
-}
-
-#Preview("New Task") {
-    let container = AppContainer()
-    DailyTaskFormView(
-        service: container.dayPlannerService,
-        tripService: container.tripService,
-        eventService: container.eventService,
-        task: nil,
-        defaultDate: Date()
-    )
 }
 
 #Preview("Edit Task") {

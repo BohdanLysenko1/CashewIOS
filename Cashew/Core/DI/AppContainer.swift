@@ -108,7 +108,7 @@ final class AppContainer {
 
     // MARK: - App Lifecycle
 
-    func requestNotificationPermission() async {
-        _ = await notificationService.requestAuthorization()
+    func requestNotificationPermission() async -> Bool {
+        await notificationService.requestAuthorization()
     }
 }

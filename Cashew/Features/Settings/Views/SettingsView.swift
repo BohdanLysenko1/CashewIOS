@@ -14,6 +14,9 @@ struct SettingsView: View {
     @State private var showDisableSyncConfirmation = false
     @State private var showSyncDeleteError = false
     @State private var syncDeleteErrorMessage = ""
+    @State private var showNotificationAlert = false
+    @State private var notificationAlertTitle = ""
+    @State private var notificationAlertMessage = ""
 
     var body: some View {
         NavigationStack {
@@ -59,6 +62,44 @@ struct SettingsView: View {
                         requestReview()
                     } label: {
                         settingsRow(icon: "star", color: .yellow, label: "Rate Cashew")
+                    }
+                }
+
+                // Notifications Section
+                Section(
+                    header: Text("Notifications"),
+                    footer: Text("Event reminders are local notifications. If reminders were created before permission was granted, use Resync Event Reminders.")
+                ) {
+                    HStack {
+                        Label("Status", systemImage: "bell")
+                            .foregroundStyle(AppTheme.onSurface)
+                        Spacer()
+                        Text(container.notificationService.authorizationStatusDescription)
+                            .foregroundStyle(container.notificationService.isAuthorized ? .green : .orange)
+                    }
+
+                    if container.notificationService.isAuthorized {
+                        Button {
+                            Task { await scheduleTestNotification() }
+                        } label: {
+                            settingsRow(icon: "checkmark.seal", color: .green, label: "Send Test Notification (5s)")
+                        }
+
+                        Button {
+                            Task { await resyncEventReminders() }
+                        } label: {
+                            settingsRow(icon: "arrow.clockwise", color: .blue, label: "Resync Event Reminders")
+                        }
+                    } else {
+                        Button {
+                            Task { await enableNotifications() }
+                        } label: {
+                            settingsRow(
+                                icon: container.notificationService.canRequestAuthorization ? "bell.badge" : "gearshape",
+                                color: container.notificationService.canRequestAuthorization ? .indigo : .orange,
+                                label: container.notificationService.canRequestAuthorization ? "Enable Notifications" : "Open iOS Notification Settings"
+                            )
+                        }
                     }
                 }
 
@@ -167,6 +208,14 @@ struct SettingsView: View {
             } message: {
                 Text(syncDeleteErrorMessage)
             }
+            .alert(notificationAlertTitle, isPresented: $showNotificationAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(notificationAlertMessage)
+            }
+            .task {
+                await container.notificationService.checkAuthorizationStatus()
+            }
         }
     }
 
@@ -223,6 +272,48 @@ struct SettingsView: View {
                 showSignOutError = true
             }
         }
+    }
+
+    private func enableNotifications() async {
+        if container.notificationService.canRequestAuthorization {
+            _ = await container.requestNotificationPermission()
+            await container.notificationService.checkAuthorizationStatus()
+            let granted = container.notificationService.isAuthorized
+
+            if granted {
+                await container.eventService.refreshNotificationSchedules()
+                notificationAlertTitle = "Notifications Enabled"
+                notificationAlertMessage = "Event reminders are now enabled and existing reminders were resynced."
+            } else {
+                notificationAlertTitle = "Notifications Disabled"
+                notificationAlertMessage = "Permission was not granted. You can enable notifications in iOS Settings."
+            }
+            showNotificationAlert = true
+            return
+        }
+
+        openNotificationSettings()
+    }
+
+    private func scheduleTestNotification() async {
+        let scheduled = await container.notificationService.scheduleTestNotification(after: 5)
+        notificationAlertTitle = scheduled ? "Test Scheduled" : "Unable to Schedule"
+        notificationAlertMessage = scheduled
+            ? "A test notification should appear in about 5 seconds."
+            : "Notifications are not authorized. Enable them in iOS Settings."
+        showNotificationAlert = true
+    }
+
+    private func resyncEventReminders() async {
+        await container.eventService.refreshNotificationSchedules()
+        notificationAlertTitle = "Resync Complete"
+        notificationAlertMessage = "Event reminders were refreshed."
+        showNotificationAlert = true
+    }
+
+    private func openNotificationSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
     }
 }
 

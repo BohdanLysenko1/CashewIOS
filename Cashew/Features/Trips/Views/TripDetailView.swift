@@ -74,7 +74,7 @@ struct TripDetailView: View {
                 }
             }
         }
-        .sheet(isPresented: $showEditSheet) {
+        .fullScreenCover(isPresented: $showEditSheet) {
             if let trip {
                 TripFormView(
                     viewModel: TripFormViewModel(

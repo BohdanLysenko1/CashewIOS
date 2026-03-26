@@ -114,12 +114,14 @@ struct TripsView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showAddTrip) {
-                TripFormView(
-                    viewModel: TripFormViewModel(tripService: container.tripService)
+            .fullScreenCover(isPresented: $showAddTrip) {
+                TripCreationWizardView(
+                    tripService: container.tripService,
+                    onCreated: { _ in },
+                    onDismiss: { showAddTrip = false }
                 )
             }
-            .sheet(item: $editingTrip) { trip in
+            .fullScreenCover(item: $editingTrip) { trip in
                 TripFormView(
                     viewModel: TripFormViewModel(tripService: container.tripService, trip: trip)
                 )

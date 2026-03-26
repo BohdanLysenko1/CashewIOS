@@ -171,4 +171,12 @@ final class SupabaseDailyTaskRepository: DailyTaskRepositoryProtocol, @unchecked
             .lt("date", value: startOfDay.ISO8601Format())
             .execute()
     }
+
+    func deleteAll(userId: UUID) async throws {
+        try await client
+            .from(SupabaseSchema.Table.dailyTasks)
+            .delete()
+            .eq("owner_id", value: userId.uuidString)
+            .execute()
+    }
 }

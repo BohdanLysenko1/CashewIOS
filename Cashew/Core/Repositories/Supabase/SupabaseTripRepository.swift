@@ -241,5 +241,13 @@ final class SupabaseTripRepository: TripRepositoryProtocol {
             .eq("id", value: id.uuidString)
             .execute()
     }
+
+    func deleteAll(userId: UUID) async throws {
+        try await client
+            .from(SupabaseSchema.Table.trips)
+            .delete()
+            .eq("owner_id", value: userId.uuidString)
+            .execute()
+    }
 }
 

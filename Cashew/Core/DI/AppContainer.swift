@@ -13,6 +13,7 @@ final class AppContainer {
     let dayPlannerService: DayPlannerServiceProtocol
     let notificationService: NotificationServiceProtocol
     let syncService: SyncService
+    let dataSyncService: DataSyncService
     let gamificationService: GamificationService
     let shareService: ShareService
 
@@ -31,18 +32,51 @@ final class AppContainer {
         let auth = authService ?? SupabaseAuthService()
         self.authService = auth
 
-        // Repositories — Supabase-backed by default
-        let tripRepo = tripRepository ?? SupabaseTripRepository()
-        let eventRepo = eventRepository ?? SupabaseEventRepository()
-        let taskRepo = dailyTaskRepository ?? SupabaseDailyTaskRepository()
-        let routineRepo = dailyRoutineRepository ?? SupabaseDailyRoutineRepository()
-
         // Notification service
         self.notificationService = notificationService ?? NotificationService()
 
         // Gamification
         let gam = GamificationService()
         self.gamificationService = gam
+
+        // Concrete Supabase repositories (shared across DataSyncService + switchable repos)
+        let supabaseTripRepo = SupabaseTripRepository()
+        let supabaseEventRepo = SupabaseEventRepository()
+        let supabaseTaskRepo = SupabaseDailyTaskRepository()
+        let supabaseRoutineRepo = SupabaseDailyRoutineRepository()
+
+        // Concrete local repositories (shared across DataSyncService + switchable repos)
+        let localTripRepo = LocalTripRepository()
+        let localEventRepo = LocalEventRepository()
+        let localTaskRepo = LocalDailyTaskRepository()
+        let localRoutineRepo = LocalDailyRoutineRepository()
+
+        // Data sync service — manages the cloud-sync toggle and server-deletion flow
+        let dataSync = DataSyncService(
+            supabaseTripRepo: supabaseTripRepo,
+            supabaseEventRepo: supabaseEventRepo,
+            supabaseTaskRepo: supabaseTaskRepo,
+            supabaseRoutineRepo: supabaseRoutineRepo,
+            localTripRepo: localTripRepo,
+            localEventRepo: localEventRepo,
+            localTaskRepo: localTaskRepo,
+            localRoutineRepo: localRoutineRepo
+        )
+        self.dataSyncService = dataSync
+
+        // Switchable repositories — route to Supabase or local based on dataSyncService.isEnabled
+        let tripRepo = tripRepository ?? SwitchableTripRepository(
+            remote: supabaseTripRepo, local: localTripRepo, syncService: dataSync
+        )
+        let eventRepo = eventRepository ?? SwitchableEventRepository(
+            remote: supabaseEventRepo, local: localEventRepo, syncService: dataSync
+        )
+        let taskRepo = dailyTaskRepository ?? SwitchableDailyTaskRepository(
+            remote: supabaseTaskRepo, local: localTaskRepo, syncService: dataSync
+        )
+        let routineRepo = dailyRoutineRepository ?? SwitchableDailyRoutineRepository(
+            remote: supabaseRoutineRepo, local: localRoutineRepo, syncService: dataSync
+        )
 
         // Services
         self.tripService = TripService(repository: tripRepo)
@@ -56,10 +90,10 @@ final class AppContainer {
             gamificationService: gam
         )
 
-        // Sync (still used for CloudKit fallback / local backup)
+        // Sync (CloudKit fallback / local backup) — unchanged
         self.syncService = syncService ?? SyncService(
-            localTripRepository: tripRepo,
-            localEventRepository: eventRepo
+            localTripRepository: localTripRepo,
+            localEventRepository: localEventRepo
         )
 
         // Sharing

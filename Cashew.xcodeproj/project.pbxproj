@@ -18,7 +18,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		06164D612F633F21006B7C4C = {
+		06164D612F633F21006B7C4C /* Exceptions for "Cashew" folder in "Cashew" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -28,7 +28,14 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		06E912102F3262E4005983B4 /* Cashew */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (06164D612F633F21006B7C4C, ); path = Cashew; sourceTree = "<group>"; };
+		06E912102F3262E4005983B4 /* Cashew */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				06164D612F633F21006B7C4C /* Exceptions for "Cashew" folder in "Cashew" target */,
+			);
+			path = Cashew;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */

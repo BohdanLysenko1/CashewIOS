@@ -661,8 +661,10 @@ struct DashboardView: View {
             try await tripService.loadTrips()
             try await eventService.loadEvents()
             try await dayPlannerService.loadData()
-            (tripService as? TripService)?.startRealtimeSync()
-            (eventService as? EventService)?.startRealtimeSync()
+            if container.dataSyncService.isEnabled {
+                (tripService as? TripService)?.startRealtimeSync()
+                (eventService as? EventService)?.startRealtimeSync()
+            }
         } catch {
             self.error = error.localizedDescription
         }

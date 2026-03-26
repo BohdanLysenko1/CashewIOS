@@ -126,4 +126,12 @@ final class SupabaseDailyRoutineRepository: DailyRoutineRepositoryProtocol, @unc
             .eq("id", value: id.uuidString)
             .execute()
     }
+
+    func deleteAll(userId: UUID) async throws {
+        try await client
+            .from(SupabaseSchema.Table.dailyRoutines)
+            .delete()
+            .eq("owner_id", value: userId.uuidString)
+            .execute()
+    }
 }

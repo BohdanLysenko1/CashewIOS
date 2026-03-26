@@ -196,4 +196,12 @@ final class SupabaseEventRepository: EventRepositoryProtocol {
             .eq("id", value: id.uuidString)
             .execute()
     }
+
+    func deleteAll(userId: UUID) async throws {
+        try await client
+            .from(SupabaseSchema.Table.events)
+            .delete()
+            .eq("owner_id", value: userId.uuidString)
+            .execute()
+    }
 }

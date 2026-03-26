@@ -38,7 +38,7 @@ enum OnboardingStep: Int, CaseIterable, Identifiable {
         case .trips:
             return "Budget, packing, itinerary, accommodation — all in one place. Share trips with friends and plan every detail together."
         case .settings:
-            return "Turn on iCloud Sync to keep your data safe across devices. You can always replay this tour from here."
+            return "CashewCloud keeps your trips, events, and tasks synced across all your devices. Toggle it off anytime in Settings to store everything on-device only. You can always replay this tour from here."
         case .complete:
             return "You're ready to plan your days and adventures. Let's get started."
         }
@@ -93,7 +93,7 @@ enum OnboardingStep: Int, CaseIterable, Identifiable {
         case .events:    return "anchor_events_toolbar"
         case .calendar:  return "anchor_calendar_filter"
         case .trips:     return "anchor_trips_toolbar"
-        case .settings:  return "anchor_settings_icloud"
+        case .settings:  return "anchor_settings_cashewcloud"
         default:         return nil
         }
     }

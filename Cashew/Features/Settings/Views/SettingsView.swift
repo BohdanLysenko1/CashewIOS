@@ -7,6 +7,8 @@ struct SettingsView: View {
     @State private var showSignOutError = false
     @State private var signOutErrorMessage = ""
     @State private var showEditProfile = false
+    @State private var showDisableSyncConfirmation = false
+    @State private var showSyncDeleteError = false
 
     var body: some View {
         NavigationStack {
@@ -53,6 +55,42 @@ struct SettingsView: View {
                     }
                 }
 
+                // Data Section
+                Section(header: Text("Data"), footer: Text("CashewCloud keeps your trips, events, and tasks synced across all your devices. Turning it off stores everything on this device only and removes your data from our servers.")) {
+                    HStack {
+                        Label("CashewCloud", systemImage: "arrow.triangle.2.circlepath.icloud")
+                            .foregroundStyle(AppTheme.onSurface)
+                        Spacer()
+                        Toggle("", isOn: Binding(
+                            get: { container.dataSyncService.isEnabled },
+                            set: { newValue in
+                                if !newValue {
+                                    showDisableSyncConfirmation = true
+                                } else {
+                                    container.dataSyncService.isEnabled = true
+                                }
+                            }
+                        ))
+                        .labelsHidden()
+                    }
+
+                    if !container.dataSyncService.isEnabled {
+                        Label("Data is stored on this device only", systemImage: "iphone")
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
+                    }
+
+                    if container.dataSyncService.isDeleting {
+                        HStack {
+                            ProgressView()
+                                .padding(.trailing, 6)
+                            Text("Deleting server data…")
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.onSurfaceVariant)
+                        }
+                    }
+                }
+
                 // About Section
                 Section("About") {
                     HStack {
@@ -86,6 +124,30 @@ struct SettingsView: View {
             .sheet(isPresented: $showEditProfile) {
                 EditProfileView()
                     .environment(container)
+            }
+            .confirmationDialog(
+                "Disable Cloud Sync?",
+                isPresented: $showDisableSyncConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Delete from Server & Disable Sync", role: .destructive) {
+                    guard let userId = container.authService.currentUser?.id else { return }
+                    Task {
+                        await container.dataSyncService.disableAndDeleteServerData(userId: userId)
+                        if let err = container.dataSyncService.deleteError {
+                            signOutErrorMessage = err
+                            showSyncDeleteError = true
+                        }
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Your data will be removed from our servers and stored only on this device. This cannot be undone.")
+            }
+            .alert("Sync Deletion Failed", isPresented: $showSyncDeleteError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(signOutErrorMessage)
             }
         }
     }

@@ -15,24 +15,20 @@ final class SwitchableEventRepository: EventRepositoryProtocol {
         self.syncService = syncService
     }
 
-    private var active: any EventRepositoryProtocol {
-        syncService.isEnabled ? remote : local
-    }
-
     func fetchAll() async throws -> [Event] {
-        try await active.fetchAll()
+        syncService.isEnabled ? try await remote.fetchAll() : try await local.fetchAll()
     }
 
     func fetch(by id: UUID) async throws -> Event {
-        try await active.fetch(by: id)
+        syncService.isEnabled ? try await remote.fetch(by: id) : try await local.fetch(by: id)
     }
 
     @discardableResult
     func save(_ event: Event) async throws -> Event {
-        try await active.save(event)
+        syncService.isEnabled ? try await remote.save(event) : try await local.save(event)
     }
 
     func delete(by id: UUID) async throws {
-        try await active.delete(by: id)
+        syncService.isEnabled ? try await remote.delete(by: id) : try await local.delete(by: id)
     }
 }

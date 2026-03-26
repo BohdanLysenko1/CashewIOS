@@ -15,24 +15,20 @@ final class SwitchableTripRepository: TripRepositoryProtocol {
         self.syncService = syncService
     }
 
-    private var active: any TripRepositoryProtocol {
-        syncService.isEnabled ? remote : local
-    }
-
     func fetchAll() async throws -> [Trip] {
-        try await active.fetchAll()
+        syncService.isEnabled ? try await remote.fetchAll() : try await local.fetchAll()
     }
 
     func fetch(by id: UUID) async throws -> Trip {
-        try await active.fetch(by: id)
+        syncService.isEnabled ? try await remote.fetch(by: id) : try await local.fetch(by: id)
     }
 
     @discardableResult
     func save(_ trip: Trip) async throws -> Trip {
-        try await active.save(trip)
+        syncService.isEnabled ? try await remote.save(trip) : try await local.save(trip)
     }
 
     func delete(by id: UUID) async throws {
-        try await active.delete(by: id)
+        syncService.isEnabled ? try await remote.delete(by: id) : try await local.delete(by: id)
     }
 }

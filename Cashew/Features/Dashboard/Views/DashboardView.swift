@@ -291,6 +291,15 @@ struct DashboardView: View {
                     pendingNavigationId = nil
                 }
             }
+            .onChange(of: container.dataSyncService.isEnabled) { _, isEnabled in
+                if isEnabled {
+                    (tripService as? TripService)?.startRealtimeSync()
+                    (eventService as? EventService)?.startRealtimeSync()
+                } else {
+                    (tripService as? TripService)?.stopRealtimeSync()
+                    (eventService as? EventService)?.stopRealtimeSync()
+                }
+            }
         }
     }
 

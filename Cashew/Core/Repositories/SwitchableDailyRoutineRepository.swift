@@ -15,20 +15,16 @@ final class SwitchableDailyRoutineRepository: DailyRoutineRepositoryProtocol {
         self.syncService = syncService
     }
 
-    private var active: any DailyRoutineRepositoryProtocol {
-        syncService.isEnabled ? remote : local
-    }
-
     func fetchAll() async throws -> [DailyRoutine] {
-        try await active.fetchAll()
+        syncService.isEnabled ? try await remote.fetchAll() : try await local.fetchAll()
     }
 
     @discardableResult
     func save(_ routine: DailyRoutine) async throws -> DailyRoutine {
-        try await active.save(routine)
+        syncService.isEnabled ? try await remote.save(routine) : try await local.save(routine)
     }
 
     func delete(by id: UUID) async throws {
-        try await active.delete(by: id)
+        syncService.isEnabled ? try await remote.delete(by: id) : try await local.delete(by: id)
     }
 }

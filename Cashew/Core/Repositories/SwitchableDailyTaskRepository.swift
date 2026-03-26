@@ -15,28 +15,24 @@ final class SwitchableDailyTaskRepository: DailyTaskRepositoryProtocol {
         self.syncService = syncService
     }
 
-    private var active: any DailyTaskRepositoryProtocol {
-        syncService.isEnabled ? remote : local
-    }
-
     func fetchAll() async throws -> [DailyTask] {
-        try await active.fetchAll()
+        syncService.isEnabled ? try await remote.fetchAll() : try await local.fetchAll()
     }
 
     func fetchTasks(for date: Date) async throws -> [DailyTask] {
-        try await active.fetchTasks(for: date)
+        syncService.isEnabled ? try await remote.fetchTasks(for: date) : try await local.fetchTasks(for: date)
     }
 
     @discardableResult
     func save(_ task: DailyTask) async throws -> DailyTask {
-        try await active.save(task)
+        syncService.isEnabled ? try await remote.save(task) : try await local.save(task)
     }
 
     func delete(by id: UUID) async throws {
-        try await active.delete(by: id)
+        syncService.isEnabled ? try await remote.delete(by: id) : try await local.delete(by: id)
     }
 
     func deleteOlderThan(_ date: Date) async throws {
-        try await active.deleteOlderThan(date)
+        syncService.isEnabled ? try await remote.deleteOlderThan(date) : try await local.deleteOlderThan(date)
     }
 }

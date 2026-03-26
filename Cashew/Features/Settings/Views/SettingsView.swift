@@ -1,14 +1,19 @@
 import SwiftUI
+import StoreKit
 
 struct SettingsView: View {
 
     @Environment(AppContainer.self) private var container
     @Environment(OnboardingCoordinator.self) private var onboardingCoordinator
+    @Environment(\.requestReview) private var requestReview
+
     @State private var showSignOutError = false
     @State private var signOutErrorMessage = ""
     @State private var showEditProfile = false
+    @State private var showWhatsNew = false
     @State private var showDisableSyncConfirmation = false
     @State private var showSyncDeleteError = false
+    @State private var syncDeleteErrorMessage = ""
 
     var body: some View {
         NavigationStack {
@@ -41,17 +46,19 @@ struct SettingsView: View {
                     Button {
                         onboardingCoordinator.restart()
                     } label: {
-                        HStack(spacing: 14) {
-                            Image(systemName: "questionmark.circle")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .frame(width: 32, height: 32)
-                                .background(Color.purple.gradient)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        settingsRow(icon: "questionmark.circle", color: .purple, label: "Replay Tutorial")
+                    }
 
-                            Text("Replay Tutorial")
-                                .foregroundStyle(AppTheme.onSurface)
-                        }
+                    Button {
+                        sendFeedback()
+                    } label: {
+                        settingsRow(icon: "envelope", color: .blue, label: "Send Feedback")
+                    }
+
+                    Button {
+                        requestReview()
+                    } label: {
+                        settingsRow(icon: "star", color: .yellow, label: "Rate Cashew")
                     }
                 }
 
@@ -93,11 +100,19 @@ struct SettingsView: View {
 
                 // About Section
                 Section("About") {
-                    HStack {
-                        Label("Version", systemImage: "info.circle")
-                        Spacer()
-                        Text("1.0.0")
-                            .foregroundStyle(AppTheme.onSurfaceVariant)
+                    Button {
+                        showWhatsNew = true
+                    } label: {
+                        HStack {
+                            Label("Version", systemImage: "info.circle")
+                                .foregroundStyle(AppTheme.onSurface)
+                            Spacer()
+                            Text("1.0.0")
+                                .foregroundStyle(AppTheme.onSurfaceVariant)
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.onSurfaceVariant)
+                        }
                     }
                 }
 
@@ -125,6 +140,9 @@ struct SettingsView: View {
                 EditProfileView()
                     .environment(container)
             }
+            .sheet(isPresented: $showWhatsNew) {
+                WhatsNewView()
+            }
             .confirmationDialog(
                 "Disable Cloud Sync?",
                 isPresented: $showDisableSyncConfirmation,
@@ -135,7 +153,7 @@ struct SettingsView: View {
                     Task {
                         await container.dataSyncService.disableAndDeleteServerData(userId: userId)
                         if let err = container.dataSyncService.deleteError {
-                            signOutErrorMessage = err
+                            syncDeleteErrorMessage = err
                             showSyncDeleteError = true
                         }
                     }
@@ -147,7 +165,7 @@ struct SettingsView: View {
             .alert("Sync Deletion Failed", isPresented: $showSyncDeleteError) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text(signOutErrorMessage)
+                Text(syncDeleteErrorMessage)
             }
         }
     }
@@ -170,6 +188,30 @@ struct SettingsView: View {
             return "\(parts[0].prefix(1))\(parts[1].prefix(1))".uppercased()
         }
         return String(name.prefix(2)).uppercased()
+    }
+
+    // MARK: - Helpers
+
+    private func settingsRow(icon: String, color: Color, label: String) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 32, height: 32)
+                .background(color.gradient)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+            Text(label)
+                .foregroundStyle(AppTheme.onSurface)
+        }
+    }
+
+    private func sendFeedback() {
+        let subject = "Cashew Feedback".addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let body = ("App Version: 1.0.0\n\n").addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        if let url = URL(string: "mailto:cashew@cashewplanner.com?subject=\(subject)&body=\(body)") {
+            UIApplication.shared.open(url)
+        }
     }
 
     private func signOut() {

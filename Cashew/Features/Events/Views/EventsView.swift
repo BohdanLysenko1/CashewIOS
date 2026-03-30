@@ -9,11 +9,13 @@ struct EventsView: View {
     @State private var showAddEvent = false
     @State private var editingEvent: Event?
     @State private var searchText = ""
-    @State private var selectedCategoryFilter: EventCategory?
+    @State private var selectedCategoryFilters: Set<EventCategory> = []
     @State private var isSelectMode = false
     @State private var selectedEvents: Set<UUID> = []
     @State private var showDeleteConfirmation = false
     @State private var showPast = false
+    @State private var highlightedEventIds: Set<UUID> = []
+    @State private var highlightDismissTasks: [UUID: Task<Void, Never>] = [:]
 
     private var eventService: EventServiceProtocol {
         container.eventService
@@ -22,8 +24,8 @@ struct EventsView: View {
     private var filteredEvents: [Event] {
         var events = eventService.events
 
-        if let category = selectedCategoryFilter {
-            events = events.filter { $0.category == category }
+        if !selectedCategoryFilters.isEmpty {
+            events = events.filter { selectedCategoryFilters.contains($0.category) }
         }
 
         if !searchText.isEmpty {
@@ -108,10 +110,6 @@ struct EventsView: View {
                     ToolbarItem(placement: .secondaryAction) {
                         selectButton
                     }
-
-                    ToolbarItem(placement: .secondaryAction) {
-                        filterMenu
-                    }
                 }
             }
             .fullScreenCover(isPresented: $showAddEvent) {
@@ -141,6 +139,19 @@ struct EventsView: View {
         .task {
             await loadEvents()
         }
+        .onChange(of: (container.eventService as? EventService)?.realtimeEventCounter ?? 0) { _, newValue in
+            guard
+                newValue > 0,
+                let changedId = (container.eventService as? EventService)?.realtimeChangedEventId
+            else { return }
+            pulseEventRow(changedId)
+        }
+        .onDisappear {
+            for task in highlightDismissTasks.values {
+                task.cancel()
+            }
+            highlightDismissTasks.removeAll()
+        }
     }
 
     // MARK: - Select Button
@@ -155,37 +166,51 @@ struct EventsView: View {
         }
     }
 
-    // MARK: - Filter Menu
+    // MARK: - Filters
 
-    private var filterMenu: some View {
-        Menu {
-            Button {
-                selectedCategoryFilter = nil
-            } label: {
-                HStack {
-                    Text("All Categories")
-                    if selectedCategoryFilter == nil {
-                        Image(systemName: "checkmark")
+    private var activeFilterCount: Int {
+        selectedCategoryFilters.count
+    }
+
+    private var categoryFilterSection: some View {
+        AppFilterSection(
+            title: "Filter Events",
+            activeCount: activeFilterCount,
+            onClear: { selectedCategoryFilters.removeAll() }
+        ) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: AppTheme.Space.sm) {
+                    AppFilterChip(
+                        label: "All",
+                        isSelected: selectedCategoryFilters.isEmpty,
+                        tint: AppTheme.tertiary,
+                        selectedGradient: AppTheme.eventGradient
+                    ) {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selectedCategoryFilters.removeAll()
+                        }
                     }
-                }
-            }
 
-            Divider()
-
-            ForEach(EventCategory.allCases, id: \.self) { category in
-                Button {
-                    selectedCategoryFilter = category
-                } label: {
-                    HStack {
-                        Label(category.displayName, systemImage: category.icon)
-                        if selectedCategoryFilter == category {
-                            Image(systemName: "checkmark")
+                    ForEach(EventCategory.allCases, id: \.self) { category in
+                        AppFilterChip(
+                            label: category.displayName,
+                            icon: category.icon,
+                            isSelected: selectedCategoryFilters.contains(category),
+                            tint: category.color,
+                            selectedGradient: AppTheme.eventGradient
+                        ) {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                if selectedCategoryFilters.contains(category) {
+                                    selectedCategoryFilters.remove(category)
+                                } else {
+                                    selectedCategoryFilters.insert(category)
+                                }
+                            }
                         }
                     }
                 }
+                .padding(.horizontal, 2)
             }
-        } label: {
-            Label("Filter", systemImage: selectedCategoryFilter == nil ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
         }
     }
 
@@ -216,6 +241,11 @@ struct EventsView: View {
     private var eventsList: some View {
         ScrollView {
             LazyVStack(spacing: AppTheme.listSpacing) {
+                if !isSelectMode {
+                    categoryFilterSection
+                        .padding(.bottom, AppTheme.Space.xs)
+                }
+
                 // Upcoming events
                 ForEach(upcomingEvents) { event in
                     eventRow(event)
@@ -244,21 +274,23 @@ struct EventsView: View {
         if isSelectMode {
             selectableEventRow(event)
         } else {
-            NavigationLink(value: event.id) {
-                EventCard(event: event)
-            }
-            .buttonStyle(.plain)
-            .contextMenu {
-                Button {
-                    editingEvent = event
-                } label: {
-                    Label("Edit", systemImage: "pencil")
+            liveHighlightedEventRow(event.id) {
+                NavigationLink(value: event.id) {
+                    EventCard(event: event)
                 }
+                .buttonStyle(.plain)
+                .contextMenu {
+                    Button {
+                        editingEvent = event
+                    } label: {
+                        Label("Edit", systemImage: "pencil")
+                    }
 
-                Button(role: .destructive) {
-                    deleteEvent(event)
-                } label: {
-                    Label("Delete", systemImage: "trash")
+                    Button(role: .destructive) {
+                        deleteEvent(event)
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
                 }
             }
         }
@@ -311,7 +343,9 @@ struct EventsView: View {
                 .font(.system(size: 24))
                 .foregroundStyle(selectedEvents.contains(event.id) ? AppTheme.primary : AppTheme.onSurfaceVariant)
 
-            EventCard(event: event)
+            liveHighlightedEventRow(event.id) {
+                EventCard(event: event)
+            }
         }
         .contentShape(Rectangle())
         .onTapGesture {
@@ -355,15 +389,32 @@ struct EventsView: View {
         .padding()
     }
 
-    @ViewBuilder
     private var noResultsView: some View {
+        VStack(spacing: AppTheme.Space.lg) {
+            if !isSelectMode {
+                categoryFilterSection
+            }
+            noResultsContent
+        }
+        .padding(.horizontal)
+        .padding(.top, 8)
+    }
+
+    @ViewBuilder
+    private var noResultsContent: some View {
         if !searchText.isEmpty {
             ContentUnavailableView.search(text: searchText)
-        } else if let category = selectedCategoryFilter {
+        } else if selectedCategoryFilters.count == 1, let category = selectedCategoryFilters.first {
             ContentUnavailableView(
                 "No \(category.displayName) Events",
                 systemImage: category.icon,
                 description: Text("No events in this category")
+            )
+        } else if !selectedCategoryFilters.isEmpty {
+            ContentUnavailableView(
+                "No Matching Events",
+                systemImage: "calendar.badge.exclamationmark",
+                description: Text("No events match your selected filters")
             )
         } else {
             ContentUnavailableView.search
@@ -419,6 +470,47 @@ struct EventsView: View {
             withAnimation {
                 selectedEvents.removeAll()
                 isSelectMode = false
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func liveHighlightedEventRow<Content: View>(_ id: UUID, @ViewBuilder content: () -> Content) -> some View {
+        let isHighlighted = highlightedEventIds.contains(id)
+        content()
+            .scaleEffect(isHighlighted ? 1.015 : 1)
+            .overlay(
+                RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [
+                                AppTheme.tertiary.opacity(isHighlighted ? 0.92 : 0),
+                                AppTheme.tertiary.opacity(isHighlighted ? 0.35 : 0)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: isHighlighted ? 2 : 0
+                    )
+            )
+            .shadow(color: AppTheme.tertiary.opacity(isHighlighted ? 0.30 : 0), radius: isHighlighted ? 16 : 0, x: 0, y: isHighlighted ? 8 : 0)
+            .animation(.spring(response: 0.44, dampingFraction: 0.82), value: isHighlighted)
+    }
+
+    private func pulseEventRow(_ id: UUID) {
+        withAnimation(.spring(response: 0.36, dampingFraction: 0.80)) {
+            _ = highlightedEventIds.insert(id)
+        }
+
+        highlightDismissTasks[id]?.cancel()
+        highlightDismissTasks[id] = Task {
+            try? await Task.sleep(nanoseconds: 2_200_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                withAnimation(.easeOut(duration: 0.28)) {
+                    _ = highlightedEventIds.remove(id)
+                }
+                highlightDismissTasks.removeValue(forKey: id)
             }
         }
     }

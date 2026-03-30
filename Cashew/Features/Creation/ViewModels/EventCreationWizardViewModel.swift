@@ -132,6 +132,7 @@ final class EventCreationWizardViewModel {
 
     // MARK: - Attachments
 
+    @discardableResult
     func addLinkAttachment(name: String, urlString: String) -> Bool {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty, let url = normalizeURL(urlString) else { return false }

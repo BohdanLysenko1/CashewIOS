@@ -30,117 +30,119 @@ struct TripReadinessCard: View {
         return "\(days) days away"
     }
 
-    var body: some View {
-        HStack(alignment: .top, spacing: 14) {
+    private var readinessLabel: String {
+        if overallReadiness >= 0.75 { return "Strong" }
+        if overallReadiness >= 0.4 { return "On Track" }
+        return "Needs Focus"
+    }
 
-            // Left: name + location + bars
-            VStack(alignment: .leading, spacing: 8) {
-                VStack(alignment: .leading, spacing: 2) {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(trip.name)
                         .font(AppTheme.TextStyle.bodyBold)
                         .foregroundStyle(AppTheme.onSurface)
                         .lineLimit(1)
 
-                    HStack(spacing: 3) {
+                    HStack(spacing: 5) {
                         Image(systemName: "mappin.circle.fill")
-                            .font(.system(size: 10))
+                            .font(.system(size: 11))
                             .foregroundStyle(.orange)
                         Text(trip.destination)
                             .font(AppTheme.TextStyle.caption)
                             .foregroundStyle(AppTheme.onSurfaceVariant)
-                        if !daysLabel.isEmpty {
-                            Text("· \(daysLabel)")
-                                .font(AppTheme.TextStyle.caption)
-                                .foregroundStyle(AppTheme.onSurfaceVariant)
-                        }
+                            .lineLimit(1)
                     }
                 }
 
-                if !trip.packingItems.isEmpty || !trip.checklistItems.isEmpty {
-                    VStack(alignment: .leading, spacing: 5) {
-                        if !trip.packingItems.isEmpty {
-                            progressRow(
-                                label: "Packing",
-                                progress: trip.packingProgress,
-                                done: packingPacked,
-                                total: trip.packingItems.count
-                            )
-                        }
-                        if !trip.checklistItems.isEmpty {
-                            progressRow(
-                                label: "Checklist",
-                                progress: trip.checklistProgress,
-                                done: checklistDone,
-                                total: trip.checklistItems.count
-                            )
-                        }
-                    }
-                } else {
-                    Text("No items added yet")
+                Spacer(minLength: 8)
+
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("\(Int(overallReadiness * 100))%")
+                        .font(.system(size: 22, weight: .black, design: .rounded))
+                        .foregroundStyle(readinessColor)
+                        .monospacedDigit()
+                    Text(readinessLabel)
                         .font(AppTheme.TextStyle.caption)
                         .foregroundStyle(AppTheme.onSurfaceVariant)
                 }
             }
 
-            Spacer(minLength: 0)
+            HStack(spacing: 8) {
+                if !daysLabel.isEmpty {
+                    metaChip(icon: "calendar", label: daysLabel)
+                }
+                if trip.tripDuration > 0 {
+                    metaChip(
+                        icon: "clock",
+                        label: "\(trip.tripDuration) day\(trip.tripDuration == 1 ? "" : "s")"
+                    )
+                }
+            }
 
-            // Right: readiness %
-            VStack(alignment: .trailing, spacing: 1) {
-                Text("\(Int(overallReadiness * 100))%")
-                    .font(.title2)
-                    .fontWeight(.black)
-                    .foregroundStyle(readinessColor)
-                    .monospacedDigit()
-                Text("ready")
+            if !trip.packingItems.isEmpty || !trip.checklistItems.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    if !trip.packingItems.isEmpty {
+                        progressRow(
+                            label: "Packing",
+                            progress: trip.packingProgress,
+                            done: packingPacked,
+                            total: trip.packingItems.count
+                        )
+                    }
+                    if !trip.checklistItems.isEmpty {
+                        progressRow(
+                            label: "Checklist",
+                            progress: trip.checklistProgress,
+                            done: checklistDone,
+                            total: trip.checklistItems.count
+                        )
+                    }
+                }
+            } else {
+                Text("No packing or checklist items yet.")
                     .font(AppTheme.TextStyle.caption)
                     .foregroundStyle(AppTheme.onSurfaceVariant)
             }
         }
-        .padding(AppTheme.cardPadding)
+        .padding(14)
+        .background(AppTheme.surfaceContainerLow)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(AppTheme.outlineVariant, lineWidth: 1)
+        )
     }
 
     private func progressRow(label: String, progress: Double, done: Int, total: Int) -> some View {
-        HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack {
+                Text(label)
+                    .font(AppTheme.TextStyle.caption)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
+                Spacer()
+                Text("\(done)/\(total)")
+                    .font(AppTheme.TextStyle.captionBold)
+                    .foregroundStyle(AppTheme.onSurface)
+            }
+            AppProgressBar(progress: progress, color: barColor(progress))
+                .frame(height: AppTheme.progressBarHeight)
+        }
+    }
+
+    private func metaChip(icon: String, label: String) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 9, weight: .semibold))
             Text(label)
                 .font(AppTheme.TextStyle.caption)
-                .foregroundStyle(AppTheme.onSurfaceVariant)
-                .frame(width: 56, alignment: .leading)
-
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    // Track
-                    Capsule()
-                        .fill(barColor(progress).opacity(0.15))
-                        .frame(height: 6)
-
-                    // Fill
-                    Capsule()
-                        .fill(barColor(progress))
-                        .frame(width: geo.size.width * progress, height: 6)
-                        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: progress)
-
-                    // Count badge — floats at the right edge of the fill, clamped so it's always visible
-                    let badgeX = min(
-                        max(geo.size.width * progress - 14, 0),
-                        geo.size.width - 28
-                    )
-                    Text("\(done)/\(total)")
-                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(progress > 0.55 ? .white : barColor(progress))
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 2)
-                        .background(
-                            Capsule().fill(progress > 0.55
-                                ? barColor(progress)
-                                : barColor(progress).opacity(0.15))
-                        )
-                        .offset(x: badgeX, y: -10)
-                }
-                .frame(height: 6)
-                .padding(.top, 10)
-            }
-            .frame(height: 26)
         }
+        .foregroundStyle(AppTheme.onSurfaceVariant)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(AppTheme.surfaceContainer)
+        .clipShape(Capsule())
     }
 
     private func barColor(_ progress: Double) -> Color {
@@ -157,7 +159,7 @@ struct TripReadinessSection: View {
     let trips: [Trip]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
                 SectionHeader(
                     icon: "airplane.circle.fill",
@@ -165,16 +167,26 @@ struct TripReadinessSection: View {
                     gradient: AppTheme.tripGradient
                 )
                 Spacer()
+                Text("\(trips.count)")
+                    .font(AppTheme.TextStyle.captionBold)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(AppTheme.surfaceContainerLow)
+                    .clipShape(Capsule())
             }
-            .padding(AppTheme.cardPadding)
+            .padding(.horizontal, AppTheme.cardPadding)
+            .padding(.top, AppTheme.cardPadding)
 
             ForEach(trips) { trip in
                 NavigationLink(value: trip.id) {
                     TripReadinessCard(trip: trip)
                 }
                 .buttonStyle(.plain)
+                .padding(.horizontal, AppTheme.cardPadding)
             }
         }
+        .padding(.bottom, AppTheme.cardPadding)
         .background(AppTheme.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
         .shadow(

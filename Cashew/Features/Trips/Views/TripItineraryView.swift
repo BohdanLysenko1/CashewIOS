@@ -2,12 +2,16 @@ import SwiftUI
 
 struct TripItineraryView: View {
     @Binding var trip: Trip
+    let initialIntent: TripSectionIntent
     @State private var selectedDate: Date
     @State private var showAddActivity = false
     @State private var editingActivity: Activity?
+    @State private var showBookedOnly = false
+    @State private var didApplyInitialIntent = false
 
-    init(trip: Binding<Trip>) {
+    init(trip: Binding<Trip>, initialIntent: TripSectionIntent = .overview) {
         self._trip = trip
+        self.initialIntent = initialIntent
         self._selectedDate = State(initialValue: trip.wrappedValue.startDate)
     }
 
@@ -25,21 +29,21 @@ struct TripItineraryView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Date selector
             dateSelector
 
-            // Activities for selected day
             ScrollView {
-                VStack(spacing: 16) {
-                    let activities = trip.activitiesForDate(selectedDate)
+                VStack(spacing: AppTheme.Space.md) {
+                    summaryCard
 
+                    let activities = displayedActivities
                     if activities.isEmpty {
                         emptyDayView
                     } else {
                         dayScheduleView(activities: activities)
                     }
                 }
-                .padding()
+                .padding(.horizontal, AppTheme.Space.lg)
+                .padding(.vertical, AppTheme.Space.md)
             }
             .background(AppTheme.background)
         }
@@ -59,6 +63,9 @@ struct TripItineraryView: View {
         .sheet(item: $editingActivity) { activity in
             ActivityFormView(trip: $trip, activity: activity, defaultDate: selectedDate)
         }
+        .onAppear {
+            applyInitialIntentIfNeeded()
+        }
     }
 
     // MARK: - Date Selector
@@ -66,7 +73,7 @@ struct TripItineraryView: View {
     private var dateSelector: some View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     ForEach(tripDates, id: \.self) { date in
                         DateTab(
                             date: date,
@@ -75,19 +82,46 @@ struct TripItineraryView: View {
                         )
                         .id(date)
                         .onTapGesture {
-                            withAnimation {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
                                 selectedDate = date
                             }
                         }
                     }
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 12)
+                .padding(.horizontal, AppTheme.Space.lg)
+                .padding(.vertical, AppTheme.Space.md)
             }
-            .background(AppTheme.surfaceContainerLowest)
+            .background(AppTheme.background)
             .onAppear {
                 proxy.scrollTo(selectedDate, anchor: .center)
             }
+        }
+    }
+
+    private var displayedActivities: [Activity] {
+        let base = trip.activitiesForDate(selectedDate)
+        if !showBookedOnly { return base }
+        return base.filter(\.isBooked)
+    }
+
+    private var summaryCard: some View {
+        TripHeroCard(
+            icon: "calendar.day.timeline.left",
+            title: selectedDate.formatted(date: .abbreviated, time: .omitted),
+            subtitle: "\(displayedActivities.count) \(displayedActivities.count == 1 ? "activity" : "activities") planned"
+        ) {
+            HStack(spacing: AppTheme.Space.sm) {
+                TripMetricPill(label: "Booked", value: "\(displayedActivities.filter(\.isBooked).count)")
+                TripMetricPill(label: "Flexible", value: "\(displayedActivities.filter { !$0.isBooked }.count)")
+                Spacer(minLength: 0)
+            }
+
+            Toggle(isOn: $showBookedOnly) {
+                Text("Booked activities only")
+                    .font(AppTheme.TextStyle.captionBold)
+                    .foregroundStyle(.white.opacity(0.9))
+            }
+            .tint(.white.opacity(0.92))
         }
     }
 
@@ -118,17 +152,21 @@ struct TripItineraryView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 60)
+        .padding(AppTheme.Space.lg)
+        .tripModuleCard()
     }
 
     // MARK: - Day Schedule
 
     private func dayScheduleView(activities: [Activity]) -> some View {
-        VStack(spacing: 12) {
-            ForEach(activities) { activity in
-                ActivityCard(activity: activity) {
-                    editingActivity = activity
-                } onDelete: {
-                    deleteActivity(activity)
+        TripSectionCard("Timeline", icon: "clock.badge.checkmark") {
+            VStack(spacing: AppTheme.Space.sm) {
+                ForEach(activities) { activity in
+                    ActivityCard(activity: activity) {
+                        editingActivity = activity
+                    } onDelete: {
+                        deleteActivity(activity)
+                    }
                 }
             }
         }
@@ -136,6 +174,15 @@ struct TripItineraryView: View {
 
     private func deleteActivity(_ activity: Activity) {
         trip.activities.removeAll { $0.id == activity.id }
+    }
+
+    private func applyInitialIntentIfNeeded() {
+        guard !didApplyInitialIntent else { return }
+        didApplyInitialIntent = true
+
+        if initialIntent == .addActivity {
+            showAddActivity = true
+        }
     }
 }
 
@@ -159,27 +206,32 @@ private struct DateTab: View {
     }()
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 5) {
             Text(Self.dayFormatter.string(from: date))
-                .font(.caption)
+                .font(AppTheme.TextStyle.captionBold)
                 .fontWeight(.medium)
-                .foregroundStyle(isSelected ? .white : .secondary)
+                .foregroundStyle(isSelected ? .white : AppTheme.onSurfaceVariant)
 
             Text(Self.dateFormatter.string(from: date))
-                .font(.title3)
+                .font(.system(size: 18, weight: .bold, design: .rounded))
                 .fontWeight(.bold)
-                .foregroundStyle(isSelected ? .white : .primary)
+                .foregroundStyle(isSelected ? .white : AppTheme.onSurface)
 
             if activityCount > 0 {
                 Text("\(activityCount)")
-                    .font(.caption2)
+                    .font(AppTheme.TextStyle.caption)
                     .fontWeight(.semibold)
-                    .foregroundStyle(isSelected ? .white.opacity(0.8) : .blue)
+                    .foregroundStyle(isSelected ? .white.opacity(0.82) : AppTheme.secondary)
             }
         }
-        .frame(width: 50, height: 70)
-        .background(isSelected ? AppTheme.primary : AppTheme.surfaceContainerLow)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .frame(width: 58, height: 78)
+        .background(isSelected ? AnyShapeStyle(AppTheme.tripGradient) : AnyShapeStyle(AppTheme.surfaceContainerLow))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(isSelected ? .white.opacity(0.36) : AppTheme.outlineVariant, lineWidth: 1)
+        )
+        .shadow(color: isSelected ? AppTheme.secondary.opacity(0.22) : .clear, radius: 12, x: 0, y: 4)
     }
 }
 
@@ -198,23 +250,33 @@ private struct ActivityCard: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            // Time indicator
-            VStack(spacing: 2) {
+            VStack(alignment: .trailing, spacing: 2) {
                 if let startTime = activity.startTime {
                     Text(Self.timeFormatter.string(from: startTime))
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                }
-
-                if let endTime = activity.endTime {
-                    Text(Self.timeFormatter.string(from: endTime))
-                        .font(.caption2)
+                        .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                        .foregroundStyle(AppTheme.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                    if let endTime = activity.endTime {
+                        Text(Self.timeFormatter.string(from: endTime))
+                            .font(.system(size: 10, weight: .medium).monospacedDigit())
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                    }
+                } else {
+                    Text("Any time")
+                        .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(AppTheme.onSurfaceVariant)
+                        .lineLimit(1)
                 }
+                Image(systemName: "circle.fill")
+                    .font(.system(size: 6))
+                    .foregroundStyle(AppTheme.secondary.opacity(0.55))
+                    .padding(.top, 2)
             }
-            .frame(width: 50)
+            .frame(width: 58, alignment: .trailing)
 
-            // Content
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Image(systemName: activity.category.icon)
@@ -262,10 +324,9 @@ private struct ActivityCard: View {
                         .lineLimit(2)
                 }
             }
-            .padding()
+            .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(AppTheme.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .tripSoftSurface()
         }
         .contextMenu {
             Button { onEdit() } label: {

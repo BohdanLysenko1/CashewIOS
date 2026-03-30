@@ -8,14 +8,19 @@ struct RoutinesListView: View {
 
     @State private var showAddRoutine = false
     @State private var editingRoutine: DailyRoutine?
+    @State private var routinePendingDeletion: DailyRoutine?
 
     var body: some View {
         NavigationStack {
-            Group {
-                if service.routines.isEmpty {
-                    emptyView
-                } else {
-                    routinesList
+            ZStack {
+                AppTheme.background.ignoresSafeArea()
+
+                Group {
+                    if service.routines.isEmpty {
+                        emptyView
+                    } else {
+                        routinesList
+                    }
                 }
             }
             .navigationTitle("Routines")
@@ -33,6 +38,26 @@ struct RoutinesListView: View {
                     }
                 }
             }
+            .confirmationDialog(
+                "Delete Routine?",
+                isPresented: Binding(
+                    get: { routinePendingDeletion != nil },
+                    set: { isPresented in
+                        if !isPresented { routinePendingDeletion = nil }
+                    }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    guard let routinePendingDeletion else { return }
+                    deleteRoutine(routinePendingDeletion)
+                    self.routinePendingDeletion = nil
+                }
+            } message: {
+                if let routinePendingDeletion {
+                    Text("\"\(routinePendingDeletion.title)\" will be removed.")
+                }
+            }
             .sheet(isPresented: $showAddRoutine) {
                 RoutineFormView(service: service, routine: nil)
             }
@@ -45,22 +70,69 @@ struct RoutinesListView: View {
     // MARK: - Routines List
 
     private var routinesList: some View {
-        List {
-            ForEach(service.routines) { routine in
-                RoutineRow(
-                    routine: routine,
-                    onToggle: { toggleRoutine(routine) },
-                    onEdit: { editingRoutine = routine }
-                )
-                .swipeActions(edge: .trailing) {
-                    Button(role: .destructive) {
-                        deleteRoutine(routine)
-                    } label: {
-                        Label("Delete", systemImage: "trash")
-                    }
+        ScrollView {
+            LazyVStack(spacing: AppTheme.Space.md) {
+                routinesSummaryCard
+
+                ForEach(service.routines) { routine in
+                    RoutineCard(
+                        routine: routine,
+                        onToggle: { toggleRoutine(routine) },
+                        onEdit: { editingRoutine = routine },
+                        onDelete: { routinePendingDeletion = routine }
+                    )
                 }
             }
+            .padding(.horizontal, AppTheme.Space.lg)
+            .padding(.vertical, AppTheme.Space.md)
+            .padding(.bottom, AppTheme.Space.lg)
         }
+    }
+
+    private var routinesSummaryCard: some View {
+        HStack(spacing: AppTheme.Space.sm) {
+            summaryPill(
+                icon: "repeat.circle.fill",
+                title: "Total",
+                value: "\(service.routines.count)",
+                tint: AppTheme.primary
+            )
+
+            summaryPill(
+                icon: "checkmark.circle.fill",
+                title: "Enabled",
+                value: "\(service.routines.filter(\.isEnabled).count)",
+                tint: .green
+            )
+        }
+        .padding(AppTheme.Space.sm)
+        .background(AppTheme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous)
+                .strokeBorder(AppTheme.outlineVariant, lineWidth: 1)
+        )
+    }
+
+    private func summaryPill(icon: String, title: String, value: String, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .semibold))
+                Text(title)
+                    .font(AppTheme.TextStyle.caption)
+            }
+            .foregroundStyle(tint)
+
+            Text(value)
+                .font(AppTheme.TextStyle.bodyBold)
+                .foregroundStyle(AppTheme.onSurface)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(tint.opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     // MARK: - Empty View
@@ -69,7 +141,7 @@ struct RoutinesListView: View {
         VStack(spacing: 16) {
             Image(systemName: "repeat")
                 .font(.system(size: 50))
-                .foregroundStyle(AppTheme.onSurfaceVariant)
+                .foregroundStyle(AppTheme.dayPlannerGradient)
 
             VStack(spacing: 6) {
                 Text("No Routines Yet")
@@ -89,7 +161,15 @@ struct RoutinesListView: View {
             }
             .buttonStyle(.borderedProminent)
         }
-        .padding()
+        .padding(AppTheme.cardPadding)
+        .frame(maxWidth: .infinity)
+        .background(AppTheme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous)
+                .strokeBorder(AppTheme.outlineVariant, lineWidth: 1)
+        )
+        .padding(.horizontal, AppTheme.Space.lg)
     }
 
     // MARK: - Actions
@@ -111,10 +191,11 @@ struct RoutinesListView: View {
 
 // MARK: - Routine Row
 
-private struct RoutineRow: View {
+private struct RoutineCard: View {
     let routine: DailyRoutine
     let onToggle: () -> Void
     let onEdit: () -> Void
+    let onDelete: () -> Void
 
     private static let timeFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -122,51 +203,112 @@ private struct RoutineRow: View {
         return f
     }()
 
+    private var timeDescription: String? {
+        guard let startTime = routine.startTime else { return nil }
+        if let endTime = routine.endTime {
+            return "\(Self.timeFormatter.string(from: startTime)) - \(Self.timeFormatter.string(from: endTime))"
+        }
+        return Self.timeFormatter.string(from: startTime)
+    }
+
     var body: some View {
-        HStack(spacing: 12) {
-            // Category icon
-            Image(systemName: routine.category.icon)
-                .font(.system(size: 14))
-                .foregroundStyle(.white)
-                .frame(width: 32, height: 32)
-                .background(routine.isEnabled ? routine.category.color.gradient : Color.gray.gradient)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+        VStack(alignment: .leading, spacing: AppTheme.Space.sm) {
+            HStack(alignment: .top, spacing: AppTheme.Space.md) {
+                Image(systemName: routine.category.icon)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 34, height: 34)
+                    .background(routine.isEnabled ? routine.category.color.gradient : AppTheme.onSurfaceVariant.gradient)
+                    .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
 
-            // Content
-            VStack(alignment: .leading, spacing: 4) {
-                Text(routine.title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundStyle(routine.isEnabled ? AppTheme.onSurface : AppTheme.onSurfaceVariant)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(routine.title)
+                        .font(AppTheme.TextStyle.bodyBold)
+                        .foregroundStyle(routine.isEnabled ? AppTheme.onSurface : AppTheme.onSurfaceVariant)
+                        .lineLimit(2)
 
-                HStack(spacing: 8) {
-                    // Repeat pattern
-                    Text(routine.repeatDescription)
-                        .font(.caption)
-                        .foregroundStyle(AppTheme.onSurfaceVariant)
+                    HStack(spacing: 6) {
+                        metadataChip(icon: "repeat", label: routine.repeatDescription, tint: AppTheme.primary)
 
-                    // Time if set
-                    if let startTime = routine.startTime {
-                        Text("at \(Self.timeFormatter.string(from: startTime))")
-                            .font(.caption)
-                            .foregroundStyle(AppTheme.onSurfaceVariant)
+                        if let timeDescription {
+                            metadataChip(icon: "clock.fill", label: timeDescription, tint: AppTheme.onSurfaceVariant)
+                        }
+
+                        if !routine.isEnabled {
+                            metadataChip(icon: "pause.fill", label: "Paused", tint: AppTheme.onSurfaceVariant)
+                        }
                     }
+                }
+
+                Spacer(minLength: AppTheme.Space.sm)
+
+                VStack(spacing: AppTheme.Space.sm) {
+                    Toggle("", isOn: Binding(
+                        get: { routine.isEnabled },
+                        set: { _ in onToggle() }
+                    ))
+                    .labelsHidden()
+
+                    Button(role: .destructive) {
+                        onDelete()
+                    } label: {
+                        Image(systemName: "trash")
+                            .font(.system(size: 12, weight: .semibold))
+                            .padding(8)
+                            .background(Color.red.opacity(0.14))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
                 }
             }
 
-            Spacer()
-
-            // Toggle
-            Toggle("", isOn: Binding(
-                get: { routine.isEnabled },
-                set: { _ in onToggle() }
-            ))
-            .labelsHidden()
+            if !routine.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text(routine.notes)
+                    .font(AppTheme.TextStyle.caption)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
+                    .lineLimit(2)
+            }
         }
-        .contentShape(Rectangle())
+        .padding(AppTheme.Space.md)
+        .background(routine.isEnabled ? AppTheme.cardBackground : AppTheme.surfaceContainerLow.opacity(0.85))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(routine.isEnabled ? AppTheme.outlineVariant : AppTheme.surfaceContainerHigh, lineWidth: 1)
+        )
+        .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .onTapGesture {
             onEdit()
         }
+        .contextMenu {
+            Button {
+                onEdit()
+            } label: {
+                Label("Edit", systemImage: "pencil")
+            }
+
+            Button(role: .destructive) {
+                onDelete()
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+    }
+
+    private func metadataChip(icon: String, label: String, tint: Color) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 10, weight: .semibold))
+            Text(label)
+                .font(AppTheme.TextStyle.caption)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(tint.opacity(0.10))
+        .clipShape(Capsule())
     }
 }
 

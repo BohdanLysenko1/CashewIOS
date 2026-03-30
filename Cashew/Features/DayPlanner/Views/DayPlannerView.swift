@@ -59,31 +59,31 @@ struct DayPlannerView: View {
                         }
                     }
                 } else {
-                    ToolbarItem(placement: .primaryAction) {
+                    ToolbarItem(placement: .topBarTrailing) {
                         Menu {
-                            Button {
-                                showAddTask = true
-                            } label: {
-                                Label("Add Task", systemImage: "plus")
-                            }
-
                             Button {
                                 showRoutines = true
                             } label: {
                                 Label("Manage Routines", systemImage: "repeat")
                             }
+
+                            Button {
+                                withAnimation {
+                                    isSelectMode = true
+                                }
+                            } label: {
+                                Label("Select", systemImage: "checkmark.circle")
+                            }
                         } label: {
-                            Image(systemName: "plus")
+                            Image(systemName: "ellipsis.circle")
                         }
                     }
 
-                    ToolbarItem(placement: .secondaryAction) {
+                    ToolbarItem(placement: .topBarTrailing) {
                         Button {
-                            withAnimation {
-                                isSelectMode = true
-                            }
+                            showAddTask = true
                         } label: {
-                            Label("Select", systemImage: "checkmark.circle")
+                            Image(systemName: "plus")
                         }
                     }
                 }
@@ -155,7 +155,7 @@ struct DayPlannerView: View {
                         }
                     }
                 }
-                .padding(.horizontal)
+                .padding(.horizontal, AppTheme.Space.lg)
                 .padding(.vertical, 12)
             }
             .background(AppTheme.surfaceContainerLowest)
@@ -200,7 +200,7 @@ struct DayPlannerView: View {
 
     private var contentView: some View {
         ScrollView {
-            VStack(spacing: 16) {
+            LazyVStack(spacing: AppTheme.Space.lg) {
                 // Today's summary
                 summaryCard
 
@@ -218,33 +218,33 @@ struct DayPlannerView: View {
                 if service.tasksForSelectedDate.isEmpty {
                     emptyStateView
                 }
-
             }
-            .padding()
-            .padding(.bottom, isSelectMode && !selectedTasks.isEmpty ? 60 : 0)
+            .padding(.horizontal, AppTheme.Space.lg)
+            .padding(.top, AppTheme.Space.md)
+            .padding(.bottom, isSelectMode && !selectedTasks.isEmpty ? 84 : AppTheme.Space.lg)
         }
     }
 
     // MARK: - Summary Card
 
     private var summaryCard: some View {
-        VStack(spacing: 12) {
-            HStack {
+        let completed = service.tasksForSelectedDate.filter { $0.isCompleted }.count
+        let total = service.tasksForSelectedDate.count
+
+        return VStack(alignment: .leading, spacing: AppTheme.Space.md) {
+            HStack(alignment: .top, spacing: AppTheme.Space.md) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(dateTitle)
-                        .font(.title2)
-                        .fontWeight(.bold)
-
-                    let completed = service.tasksForSelectedDate.filter { $0.isCompleted }.count
-                    let total = service.tasksForSelectedDate.count
+                        .font(AppTheme.TextStyle.title)
+                        .foregroundStyle(AppTheme.onSurface)
 
                     if total > 0 {
                         Text("\(completed) of \(total) tasks completed")
-                            .font(.subheadline)
+                            .font(AppTheme.TextStyle.secondary)
                             .foregroundStyle(AppTheme.onSurfaceVariant)
                     } else {
                         Text("No tasks planned")
-                            .font(.subheadline)
+                            .font(AppTheme.TextStyle.secondary)
                             .foregroundStyle(AppTheme.onSurfaceVariant)
                     }
                 }
@@ -255,10 +255,60 @@ struct DayPlannerView: View {
                     progressRing
                 }
             }
+
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 94), spacing: AppTheme.Space.sm)],
+                spacing: AppTheme.Space.sm
+            ) {
+                summaryMetricChip(
+                    icon: "clock.fill",
+                    title: "Scheduled",
+                    value: "\(service.scheduledTasks.count)",
+                    tint: AppTheme.primary
+                )
+                summaryMetricChip(
+                    icon: "checklist",
+                    title: "To-Do",
+                    value: "\(service.unscheduledTasks.count)",
+                    tint: AppTheme.secondary
+                )
+                summaryMetricChip(
+                    icon: "checkmark.circle.fill",
+                    title: "Done",
+                    value: "\(completed)",
+                    tint: .green
+                )
+            }
         }
-        .padding()
+        .padding(AppTheme.cardPadding)
         .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous)
+                .strokeBorder(AppTheme.outlineVariant, lineWidth: 1)
+        )
+        .shadow(color: AppTheme.cardShadow, radius: 16, x: 0, y: 6)
+    }
+
+    private func summaryMetricChip(icon: String, title: String, value: String, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 5) {
+                Image(systemName: icon)
+                    .font(.system(size: 10, weight: .semibold))
+                Text(title)
+                    .font(AppTheme.TextStyle.caption)
+            }
+            .foregroundStyle(tint)
+
+            Text(value)
+                .font(AppTheme.TextStyle.bodyBold)
+                .foregroundStyle(AppTheme.onSurface)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(tint.opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private var dateTitle: String {
@@ -307,17 +357,15 @@ struct DayPlannerView: View {
     // MARK: - Scheduled Section
 
     private var scheduledSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            sectionHeader("Schedule", icon: "clock.fill")
+        VStack(alignment: .leading, spacing: AppTheme.Space.md) {
+            sectionHeader("Schedule", icon: "clock.fill", count: service.scheduledTasks.count)
 
             if isSelectMode {
-                VStack(spacing: 0) {
+                VStack(spacing: AppTheme.Space.sm) {
                     ForEach(service.scheduledTasks) { task in
                         selectableTaskRow(task)
                     }
                 }
-                .background(AppTheme.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
             } else {
                 ScheduleTimelineView(
                     tasks: service.scheduledTasks,
@@ -337,11 +385,10 @@ struct DayPlannerView: View {
     // MARK: - To-Do Section
 
     private var todoSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            sectionHeader("To-Do", icon: "checklist")
-                .padding(.bottom, 8)
+        VStack(alignment: .leading, spacing: AppTheme.Space.md) {
+            sectionHeader("To-Do", icon: "checklist", count: service.unscheduledTasks.count)
 
-            VStack(spacing: 0) {
+            VStack(spacing: AppTheme.Space.sm) {
                 ForEach(service.unscheduledTasks) { task in
                     if isSelectMode {
                         selectableTaskRow(task)
@@ -359,20 +406,20 @@ struct DayPlannerView: View {
                     }
                 }
             }
-            .background(AppTheme.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
         }
     }
 
-    private func sectionHeader(_ title: String, icon: String) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.blue)
-            Text(title)
-                .font(.subheadline)
-                .fontWeight(.semibold)
+    private func sectionHeader(_ title: String, icon: String, count: Int) -> some View {
+        HStack(spacing: AppTheme.Space.sm) {
+            SectionHeader(icon: icon, title: title, gradient: AppTheme.dayPlannerGradient)
+            Text("\(count)")
+                .font(AppTheme.TextStyle.captionBold)
                 .foregroundStyle(AppTheme.onSurfaceVariant)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(AppTheme.surfaceContainerHigh)
+                .clipShape(Capsule())
+            Spacer()
         }
     }
 
@@ -382,7 +429,7 @@ struct DayPlannerView: View {
         VStack(spacing: 16) {
             Image(systemName: "sun.max")
                 .font(.system(size: 50))
-                .foregroundStyle(AppTheme.onSurfaceVariant)
+                .foregroundStyle(AppTheme.dayPlannerGradient)
 
             VStack(spacing: 6) {
                 Text("No Tasks Planned")
@@ -404,7 +451,11 @@ struct DayPlannerView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
         .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous)
+                .strokeBorder(AppTheme.outlineVariant, lineWidth: 1)
+        )
     }
 
     // MARK: - Loading View
@@ -420,47 +471,82 @@ struct DayPlannerView: View {
     // MARK: - Selectable Row
 
     private func selectableTaskRow(_ task: DailyTask) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: selectedTasks.contains(task.id) ? "checkmark.circle.fill" : "circle")
+        let isSelected = selectedTasks.contains(task.id)
+
+        return HStack(spacing: 12) {
+            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                 .font(.system(size: 24))
-                .foregroundStyle(selectedTasks.contains(task.id) ? .blue : .secondary)
+                .foregroundStyle(isSelected ? AppTheme.primary : AppTheme.onSurfaceVariant)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(task.title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                    .font(AppTheme.TextStyle.bodyBold)
+                    .foregroundStyle(AppTheme.onSurface)
+                    .lineLimit(2)
 
-                HStack(spacing: 4) {
-                    Image(systemName: task.category.icon)
-                        .font(.caption2)
-                    Text(task.categoryDisplayName)
-                        .font(.caption)
-                }
-                .foregroundStyle(task.category.color)
-
-                if let icon = linkIcon(for: task), let label = linkLabel(for: task) {
-                    HStack(spacing: 4) {
-                        Image(systemName: icon)
-                            .font(.caption2)
-                        Text(label)
-                            .font(.caption)
-                    }
-                    .foregroundStyle(AppTheme.onSurfaceVariant)
-                }
+                selectionMetadata(for: task)
             }
 
             Spacer()
         }
-        .padding(.vertical, 10)
-        .padding(.horizontal)
-        .contentShape(Rectangle())
+        .padding(.horizontal, AppTheme.Space.md)
+        .padding(.vertical, AppTheme.Space.md)
+        .background(isSelected ? AppTheme.primary.opacity(0.10) : AppTheme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(isSelected ? AppTheme.primary.opacity(0.35) : AppTheme.outlineVariant, lineWidth: 1)
+        )
+        .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .onTapGesture {
             withAnimation(.spring(response: 0.2)) {
-                if selectedTasks.contains(task.id) {
+                if isSelected {
                     selectedTasks.remove(task.id)
                 } else {
                     selectedTasks.insert(task.id)
                 }
+            }
+        }
+    }
+
+    private func selectionChip(icon: String, label: String, tint: Color) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: icon)
+                .font(.system(size: 10, weight: .semibold))
+            Text(label)
+                .font(AppTheme.TextStyle.caption)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 4)
+        .background(tint.opacity(0.10))
+        .clipShape(Capsule())
+    }
+
+    private func selectionMetadata(for task: DailyTask) -> some View {
+        ViewThatFits(in: .horizontal) {
+            selectionMetadataRow(for: task, includeLink: true)
+            selectionMetadataRow(for: task, includeLink: false)
+        }
+    }
+
+    @ViewBuilder
+    private func selectionMetadataRow(for task: DailyTask, includeLink: Bool) -> some View {
+        HStack(spacing: AppTheme.Space.xs) {
+            selectionChip(icon: task.category.icon, label: task.categoryDisplayName, tint: task.category.color)
+
+            if task.routineId != nil {
+                RoutineBadge()
+            }
+
+            if let timeRange = task.formattedTimeRange {
+                selectionChip(icon: "clock.fill", label: timeRange, tint: AppTheme.onSurfaceVariant)
+            }
+
+            if includeLink, let icon = linkIcon(for: task), let label = linkLabel(for: task) {
+                selectionChip(icon: icon, label: label, tint: AppTheme.onSurfaceVariant)
             }
         }
     }
@@ -577,27 +663,44 @@ private struct DateTab: View {
     }
 
     var body: some View {
-        VStack(spacing: 4) {
-            Text(Self.dayFormatter.string(from: date))
-                .font(.caption)
-                .fontWeight(.medium)
-                .foregroundStyle(isSelected ? .white : .secondary)
+        ZStack(alignment: .topTrailing) {
+            VStack(spacing: 5) {
+                Text(Self.dayFormatter.string(from: date))
+                    .font(AppTheme.TextStyle.captionBold)
+                    .foregroundStyle(isSelected ? .white.opacity(0.9) : AppTheme.onSurfaceVariant)
 
-            Text(Self.dateFormatter.string(from: date))
-                .font(.title3)
-                .fontWeight(.bold)
-                .foregroundStyle(isSelected ? .white : (isToday ? .blue : .primary))
+                Text(Self.dateFormatter.string(from: date))
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(isSelected ? .white : (isToday ? AppTheme.primary : AppTheme.onSurface))
+
+                Circle()
+                    .fill(isSelected ? .white.opacity(0.85) : (taskCount > 0 ? AppTheme.primary : .clear))
+                    .frame(width: 6, height: 6)
+            }
+            .frame(width: 64, height: 78)
+            .background(
+                isSelected
+                    ? AnyShapeStyle(AppTheme.dayPlannerGradient)
+                    : AnyShapeStyle(isToday ? AppTheme.primary.opacity(0.12) : AppTheme.surfaceContainerLow)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(isToday && !isSelected ? AppTheme.primary.opacity(0.25) : Color.clear, lineWidth: 1)
+            )
 
             if taskCount > 0 {
                 Text("\(taskCount)")
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(isSelected ? .white.opacity(0.8) : .blue)
+                    .font(AppTheme.TextStyle.micro)
+                    .foregroundStyle(isSelected ? AppTheme.primary : .white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(isSelected ? AppTheme.onPrimary : AppTheme.primary)
+                    .clipShape(Capsule())
+                    .offset(x: 4, y: -4)
             }
         }
-        .frame(width: 50, height: 70)
-        .background(isSelected ? AppTheme.primary : (isToday ? AppTheme.primary.opacity(0.1) : AppTheme.surfaceContainerLow))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .shadow(color: isSelected ? AppTheme.primary.opacity(0.18) : .clear, radius: 10, x: 0, y: 5)
     }
 }
 

@@ -10,9 +10,14 @@ final class EventService: EventServiceProtocol {
     private let notificationService: NotificationServiceProtocol?
 
     private(set) var events: [Event] = []
+    private(set) var realtimeEventCounter = 0
+    private(set) var realtimeIndicatorMessage: String?
+    private(set) var realtimeChangedEventId: UUID?
 
     // Realtime
     private var syncTask: Task<Void, Never>?
+    private var recentLocalMutations: [UUID: Date] = [:]
+    private let localMutationSuppressionWindow: TimeInterval = 4
 
     init(repository: EventRepositoryProtocol, notificationService: NotificationServiceProtocol? = nil) {
         self.repository = repository
@@ -31,6 +36,7 @@ final class EventService: EventServiceProtocol {
 
     func createEvent(_ event: Event) async throws {
         let saved = try await repository.save(event)
+        registerLocalMutation(saved.id)
         events.append(saved)
         sortEvents()
         if !saved.reminders.isEmpty {
@@ -40,6 +46,7 @@ final class EventService: EventServiceProtocol {
 
     func updateEvent(_ event: Event) async throws {
         let saved = try await repository.save(event)
+        registerLocalMutation(saved.id)
         if let index = events.firstIndex(where: { $0.id == event.id }) {
             events[index] = saved
             sortEvents()
@@ -49,6 +56,7 @@ final class EventService: EventServiceProtocol {
 
     func deleteEvent(by id: UUID) async throws {
         try await repository.delete(by: id)
+        registerLocalMutation(id)
         events.removeAll { $0.id == id }
         await notificationService?.cancelNotifications(for: id)
     }
@@ -124,6 +132,9 @@ final class EventService: EventServiceProtocol {
             events.append(event)
             sortEvents()
             await notificationService?.updateNotifications(for: event)
+            if shouldAnnounceRemoteMutation(for: id) {
+                announceRealtimeChange("New shared event added", changedId: id)
+            }
         } catch {
             print("[EventService] Failed to fetch inserted event \(id): \(error)")
         }
@@ -140,6 +151,9 @@ final class EventService: EventServiceProtocol {
             }
             sortEvents()
             await notificationService?.updateNotifications(for: event)
+            if shouldAnnounceRemoteMutation(for: id) {
+                announceRealtimeChange("Event updated by collaborator", changedId: id)
+            }
         } catch {
             print("[EventService] Failed to fetch updated event \(id): \(error)")
         }
@@ -149,10 +163,39 @@ final class EventService: EventServiceProtocol {
         guard let id = extractUUID(from: action.oldRecord) else { return }
         events.removeAll { $0.id == id }
         await notificationService?.cancelNotifications(for: id)
+        if shouldAnnounceRemoteMutation(for: id) {
+            announceRealtimeChange("Shared event removed", changedId: nil)
+        }
     }
 
     private func extractUUID(from record: [String: AnyJSON]) -> UUID? {
         guard case .string(let str) = record["id"] else { return nil }
         return UUID(uuidString: str)
+    }
+
+    private func registerLocalMutation(_ id: UUID) {
+        pruneLocalMutations()
+        recentLocalMutations[id] = Date()
+    }
+
+    private func shouldAnnounceRemoteMutation(for id: UUID) -> Bool {
+        pruneLocalMutations()
+        guard let timestamp = recentLocalMutations[id] else { return true }
+        if Date().timeIntervalSince(timestamp) < localMutationSuppressionWindow {
+            recentLocalMutations.removeValue(forKey: id)
+            return false
+        }
+        return true
+    }
+
+    private func pruneLocalMutations() {
+        let cutoff = Date().addingTimeInterval(-localMutationSuppressionWindow)
+        recentLocalMutations = recentLocalMutations.filter { $0.value > cutoff }
+    }
+
+    private func announceRealtimeChange(_ message: String, changedId: UUID?) {
+        realtimeChangedEventId = changedId
+        realtimeIndicatorMessage = message
+        realtimeEventCounter += 1
     }
 }

@@ -9,9 +9,14 @@ final class TripService: TripServiceProtocol {
     private let repository: TripRepositoryProtocol
 
     private(set) var trips: [Trip] = []
+    private(set) var realtimeEventCounter = 0
+    private(set) var realtimeIndicatorMessage: String?
+    private(set) var realtimeChangedTripId: UUID?
 
     // Realtime
     private var syncTask: Task<Void, Never>?
+    private var recentLocalMutations: [UUID: Date] = [:]
+    private let localMutationSuppressionWindow: TimeInterval = 4
 
     init(repository: TripRepositoryProtocol) {
         self.repository = repository
@@ -42,12 +47,14 @@ final class TripService: TripServiceProtocol {
 
     func createTrip(_ trip: Trip) async throws {
         let saved = try await repository.save(trip)
+        registerLocalMutation(saved.id)
         trips.append(saved)
         sortTrips()
     }
 
     func updateTrip(_ trip: Trip) async throws {
         let saved = try await repository.save(trip)
+        registerLocalMutation(saved.id)
         if let index = trips.firstIndex(where: { $0.id == trip.id }) {
             trips[index] = saved
             sortTrips()
@@ -56,6 +63,7 @@ final class TripService: TripServiceProtocol {
 
     func deleteTrip(by id: UUID) async throws {
         try await repository.delete(by: id)
+        registerLocalMutation(id)
         trips.removeAll { $0.id == id }
     }
 
@@ -104,6 +112,9 @@ final class TripService: TripServiceProtocol {
             let trip = try await repository.fetch(by: id)
             trips.append(trip)
             sortTrips()
+            if shouldAnnounceRemoteMutation(for: id) {
+                announceRealtimeChange("New shared trip added", changedId: id)
+            }
         } catch {
             print("[TripService] Failed to fetch inserted trip \(id): \(error)")
         }
@@ -120,6 +131,9 @@ final class TripService: TripServiceProtocol {
                 trips.append(trip)
             }
             sortTrips()
+            if shouldAnnounceRemoteMutation(for: id) {
+                announceRealtimeChange("Trip updated by collaborator", changedId: id)
+            }
         } catch {
             print("[TripService] Failed to fetch updated trip \(id): \(error)")
         }
@@ -128,10 +142,39 @@ final class TripService: TripServiceProtocol {
     private func handleDelete(_ action: DeleteAction) async {
         guard let id = extractUUID(from: action.oldRecord) else { return }
         trips.removeAll { $0.id == id }
+        if shouldAnnounceRemoteMutation(for: id) {
+            announceRealtimeChange("Shared trip removed", changedId: nil)
+        }
     }
 
     private func extractUUID(from record: [String: AnyJSON]) -> UUID? {
         guard case .string(let str) = record["id"] else { return nil }
         return UUID(uuidString: str)
+    }
+
+    private func registerLocalMutation(_ id: UUID) {
+        pruneLocalMutations()
+        recentLocalMutations[id] = Date()
+    }
+
+    private func shouldAnnounceRemoteMutation(for id: UUID) -> Bool {
+        pruneLocalMutations()
+        guard let timestamp = recentLocalMutations[id] else { return true }
+        if Date().timeIntervalSince(timestamp) < localMutationSuppressionWindow {
+            recentLocalMutations.removeValue(forKey: id)
+            return false
+        }
+        return true
+    }
+
+    private func pruneLocalMutations() {
+        let cutoff = Date().addingTimeInterval(-localMutationSuppressionWindow)
+        recentLocalMutations = recentLocalMutations.filter { $0.value > cutoff }
+    }
+
+    private func announceRealtimeChange(_ message: String, changedId: UUID?) {
+        realtimeChangedTripId = changedId
+        realtimeIndicatorMessage = message
+        realtimeEventCounter += 1
     }
 }

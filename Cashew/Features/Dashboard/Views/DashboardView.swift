@@ -86,6 +86,23 @@ struct DashboardView: View {
         Self.dateFormatter.string(from: Date())
     }
 
+    private var dashboardDisplayName: String {
+        let name = container.authService.currentUser?.displayName.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return name.isEmpty ? "Bodo" : name
+    }
+
+    private var dashboardFirstName: String {
+        dashboardDisplayName.split(separator: " ").first.map(String.init) ?? dashboardDisplayName
+    }
+
+    private var dashboardInitials: String {
+        let parts = dashboardDisplayName.split(separator: " ")
+        if parts.count >= 2 {
+            return "\(parts[0].prefix(1))\(parts[1].prefix(1))".uppercased()
+        }
+        return String(dashboardDisplayName.prefix(2)).uppercased()
+    }
+
     private var motivationalSubtitle: String {
         // Check if all tasks done
         if !todaysTasks.isEmpty && completedTasksCount == todaysTasks.count {
@@ -243,8 +260,6 @@ struct DashboardView: View {
                 }
             }
             .animation(.easeInOut(duration: 0.25), value: gamification.pendingLevelUp)
-            .navigationTitle("My Day")
-            .navigationBarTitleDisplayMode(.large)
             .navigationDestination(for: UUID.self) { id in
                 if tripService.trip(by: id) != nil {
                     TripDetailView(tripId: id)
@@ -353,38 +368,35 @@ struct DashboardView: View {
     // MARK: - Greeting Header
 
     private var greetingHeader: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(greeting)
+        HStack(alignment: .center, spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(Color.blue.gradient)
+                    .frame(width: 52, height: 52)
+                Text(dashboardInitials)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("\(greeting), \(dashboardFirstName)")
                     .font(AppTheme.TextStyle.title)
                     .foregroundStyle(AppTheme.onSurface)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .minimumScaleFactor(0.8)
+                    .fixedSize(horizontal: false, vertical: true)
+
                 Text(formattedDate)
                     .font(AppTheme.TextStyle.secondary)
                     .foregroundStyle(AppTheme.onSurfaceVariant)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
+            .layoutPriority(1)
 
-            Spacer()
-
-            Button { showProgress = true } label: {
-                HStack(spacing: 6) {
-                    Text("⭐️ Lv \(gamification.currentLevel)")
-                        .font(AppTheme.TextStyle.captionBold)
-                        .foregroundStyle(.white)
-                    Text(gamification.levelTitle)
-                        .font(AppTheme.TextStyle.caption)
-                        .foregroundStyle(.white.opacity(0.85))
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.7))
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(AppTheme.gamificationGradient)
-                .clipShape(Capsule())
-                .shadow(color: AppTheme.tertiary.opacity(0.3), radius: 4, x: 0, y: 2)
-            }
-            .buttonStyle(.plain)
         }
+        .padding(.vertical, 2)
     }
 
     // MARK: - Quick Actions

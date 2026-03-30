@@ -6,67 +6,111 @@ struct CalendarFilterSheet: View {
     @Binding var showTrips: Bool
     @Binding var showEvents: Bool
     @Binding var showTasks: Bool
-    @Binding var selectedTripStatus: TripStatus?
-    @Binding var selectedEventCategory: EventCategory?
+    @Binding var selectedTripStatuses: Set<TripStatus>
+    @Binding var selectedEventCategories: Set<EventCategory>
     let onReset: () -> Void
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 24) {
-                    filterSection("Show") {
+                VStack(spacing: AppTheme.Space.lg) {
+                    AppFilterSection(
+                        title: "Show",
+                        activeCount: hiddenContentCount,
+                        onClear: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                showTrips = true
+                                showEvents = true
+                                showTasks = true
+                                selectedTripStatuses.removeAll()
+                                selectedEventCategories.removeAll()
+                            }
+                        }
+                    ) {
                         HStack(spacing: 12) {
-                            contentTypeTile(
+                            AppFilterToggleTile(
                                 label: "Trips",
                                 icon: "airplane",
                                 isOn: showTrips,
-                                color: .blue,
-                                onEnable: { showTrips = true },
-                                onDisable: { showTrips = false; selectedTripStatus = nil }
+                                tint: .blue,
+                                onTap: {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        if showTrips {
+                                            showTrips = false
+                                            selectedTripStatuses.removeAll()
+                                        } else {
+                                            showTrips = true
+                                        }
+                                    }
+                                }
                             )
-                            contentTypeTile(
+                            AppFilterToggleTile(
                                 label: "Events",
                                 icon: "calendar",
                                 isOn: showEvents,
-                                color: .purple,
-                                onEnable: { showEvents = true },
-                                onDisable: { showEvents = false; selectedEventCategory = nil }
+                                tint: .purple,
+                                onTap: {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        if showEvents {
+                                            showEvents = false
+                                            selectedEventCategories.removeAll()
+                                        } else {
+                                            showEvents = true
+                                        }
+                                    }
+                                }
                             )
-                            contentTypeTile(
+                            AppFilterToggleTile(
                                 label: "Tasks",
                                 icon: "checkmark.circle",
                                 isOn: showTasks,
-                                color: .green,
-                                onEnable: { showTasks = true },
-                                onDisable: { showTasks = false }
+                                tint: .green,
+                                onTap: {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        showTasks.toggle()
+                                    }
+                                }
                             )
                         }
                     }
 
                     if showTrips {
-                        filterSection("Trip Status") {
+                        AppFilterSection(
+                            title: "Trip Status",
+                            activeCount: selectedTripStatuses.count,
+                            onClear: {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    selectedTripStatuses.removeAll()
+                                }
+                            }
+                        ) {
                             ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 8) {
-                                    FilterChip(
+                                HStack(spacing: AppTheme.Space.sm) {
+                                    AppFilterChip(
                                         label: "All",
-                                        icon: nil,
-                                        isSelected: selectedTripStatus == nil,
-                                        color: .blue
+                                        isSelected: selectedTripStatuses.isEmpty,
+                                        tint: .blue,
+                                        selectedGradient: AppTheme.tripGradient
                                     ) {
-                                        selectedTripStatus = nil
+                                        withAnimation(.easeInOut(duration: 0.2)) {
+                                            selectedTripStatuses.removeAll()
+                                        }
                                     }
 
                                     ForEach(TripStatus.allCases, id: \.self) { status in
-                                        FilterChip(
+                                        AppFilterChip(
                                             label: status.displayName,
                                             icon: status.icon,
-                                            isSelected: selectedTripStatus == status,
-                                            color: status.color
+                                            isSelected: selectedTripStatuses.contains(status),
+                                            tint: status.color,
+                                            selectedGradient: AppTheme.tripGradient
                                         ) {
-                                            if selectedTripStatus == status {
-                                                selectedTripStatus = nil
-                                            } else {
-                                                selectedTripStatus = status
+                                            withAnimation(.easeInOut(duration: 0.2)) {
+                                                if selectedTripStatuses.contains(status) {
+                                                    selectedTripStatuses.remove(status)
+                                                } else {
+                                                    selectedTripStatuses.insert(status)
+                                                }
                                             }
                                         }
                                     }
@@ -78,29 +122,42 @@ struct CalendarFilterSheet: View {
                     }
 
                     if showEvents {
-                        filterSection("Event Category") {
+                        AppFilterSection(
+                            title: "Event Category",
+                            activeCount: selectedEventCategories.count,
+                            onClear: {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    selectedEventCategories.removeAll()
+                                }
+                            }
+                        ) {
                             ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 8) {
-                                    FilterChip(
+                                HStack(spacing: AppTheme.Space.sm) {
+                                    AppFilterChip(
                                         label: "All",
-                                        icon: nil,
-                                        isSelected: selectedEventCategory == nil,
-                                        color: .purple
+                                        isSelected: selectedEventCategories.isEmpty,
+                                        tint: .purple,
+                                        selectedGradient: AppTheme.eventGradient
                                     ) {
-                                        selectedEventCategory = nil
+                                        withAnimation(.easeInOut(duration: 0.2)) {
+                                            selectedEventCategories.removeAll()
+                                        }
                                     }
 
                                     ForEach(EventCategory.allCases, id: \.self) { category in
-                                        FilterChip(
+                                        AppFilterChip(
                                             label: category.displayName,
                                             icon: category.icon,
-                                            isSelected: selectedEventCategory == category,
-                                            color: category.color
+                                            isSelected: selectedEventCategories.contains(category),
+                                            tint: category.color,
+                                            selectedGradient: AppTheme.eventGradient
                                         ) {
-                                            if selectedEventCategory == category {
-                                                selectedEventCategory = nil
-                                            } else {
-                                                selectedEventCategory = category
+                                            withAnimation(.easeInOut(duration: 0.2)) {
+                                                if selectedEventCategories.contains(category) {
+                                                    selectedEventCategories.remove(category)
+                                                } else {
+                                                    selectedEventCategories.insert(category)
+                                                }
                                             }
                                         }
                                     }
@@ -111,10 +168,11 @@ struct CalendarFilterSheet: View {
                         .transition(.opacity.combined(with: .move(edge: .top)))
                     }
                 }
-                .padding(20)
+                .padding(AppTheme.Space.lg)
                 .animation(.spring(response: 0.3), value: showTrips)
                 .animation(.spring(response: 0.3), value: showEvents)
             }
+            .background(AppTheme.background)
             .navigationTitle("Filters")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -140,86 +198,15 @@ struct CalendarFilterSheet: View {
     // MARK: - Helpers
 
     private var activeCount: Int {
-        [!showTrips, !showEvents, !showTasks,
-         selectedTripStatus != nil, selectedEventCategory != nil]
-            .filter { $0 }.count
+        [!showTrips, !showEvents, !showTasks].filter { $0 }.count
+            + selectedTripStatuses.count
+            + selectedEventCategories.count
     }
 
-    private func filterSection<C: View>(_ title: String, @ViewBuilder content: () -> C) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(title)
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundStyle(AppTheme.onSurfaceVariant)
-                .textCase(.uppercase)
-                .tracking(0.5)
-
-            content()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func contentTypeTile(
-        label: String,
-        icon: String,
-        isOn: Bool,
-        color: Color,
-        onEnable: @escaping () -> Void,
-        onDisable: @escaping () -> Void
-    ) -> some View {
-        Button {
-            if isOn { onDisable() } else { onEnable() }
-        } label: {
-            VStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.system(size: 22, weight: .medium))
-                    .foregroundStyle(isOn ? color : AppTheme.onSurfaceVariant)
-
-                Text(label)
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(isOn ? color : AppTheme.onSurfaceVariant)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .background(isOn ? color.opacity(0.1) : AppTheme.surfaceContainerLow)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .strokeBorder(isOn ? color.opacity(0.4) : Color.clear, lineWidth: 1.5)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-// MARK: - FilterChip
-
-private struct FilterChip: View {
-    let label: String
-    let icon: String?
-    let isSelected: Bool
-    let color: Color
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 4) {
-                if isSelected, let icon {
-                    Image(systemName: icon)
-                        .font(.system(size: 11, weight: .semibold))
-                }
-                Text(label)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(isSelected ? color : AppTheme.surfaceContainerLow)
-            .foregroundStyle(isSelected ? .white : AppTheme.onSurface)
-            .clipShape(Capsule())
-        }
-        .buttonStyle(.plain)
+    private var hiddenContentCount: Int {
+        [!showTrips, !showEvents, !showTasks]
+            .filter { $0 }
+            .count
     }
 }
 
@@ -228,8 +215,8 @@ private struct FilterChip: View {
         showTrips: .constant(true),
         showEvents: .constant(true),
         showTasks: .constant(false),
-        selectedTripStatus: .constant(.upcoming),
-        selectedEventCategory: .constant(nil),
+        selectedTripStatuses: .constant([.upcoming]),
+        selectedEventCategories: .constant(Set<EventCategory>()),
         onReset: {}
     )
 }

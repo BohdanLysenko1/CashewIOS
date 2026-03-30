@@ -13,6 +13,9 @@ struct TaskDetailView: View {
     @State private var newSubtaskTitle: String = ""
     @State private var showAddSubtask = false
     @State private var showEditForm = false
+    @State private var confettiSubtaskID: UUID?
+    @FocusState private var isNotesFocused: Bool
+    @FocusState private var isSubtaskFocused: Bool
 
     // MARK: - Live task (re-renders when service updates)
 
@@ -34,21 +37,32 @@ struct TaskDetailView: View {
         return eventService.event(by: eventId)?.title
     }
 
+    private var subtaskProgress: Double {
+        guard !liveTask.subtasks.isEmpty else { return 0 }
+        return Double(liveTask.completedSubtaskCount) / Double(liveTask.subtasks.count)
+    }
+
     // MARK: - Body
 
     var body: some View {
         NavigationStack {
-            List {
-                headerSection
-                scheduleSection
-                notesSection
-                subtasksSection
-                if linkedTripName != nil || linkedEventTitle != nil { linksSection }
-                metaSection
+            ScrollView {
+                VStack(spacing: AppTheme.Space.md) {
+                    heroCard
+                    scheduleCard
+                    notesCard
+                    subtasksCard
+                    if linkedTripName != nil || linkedEventTitle != nil {
+                        linksCard
+                    }
+                    metaCard
+                }
+                .padding(.horizontal, AppTheme.Space.lg)
+                .padding(.vertical, AppTheme.Space.md)
             }
-            .listStyle(.insetGrouped)
-            .navigationTitle(liveTask.title)
-            .navigationBarTitleDisplayMode(.large)
+            .background(AppTheme.background)
+            .navigationTitle("Task")
+            .navigationBarTitleDisplayMode(.inline)
             .scrollDismissesKeyboard(.interactively)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
@@ -65,7 +79,7 @@ struct TaskDetailView: View {
             .onAppear {
                 notes = liveTask.notes
             }
-            // Keep local notes in sync if the edit form changes them
+            // Keep local notes in sync if the edit form changes them.
             .onChange(of: liveTask.notes) { _, updated in
                 notes = updated
             }
@@ -81,172 +95,352 @@ struct TaskDetailView: View {
         }
     }
 
-    // MARK: - Header Section
+    // MARK: - Hero
 
-    private var headerSection: some View {
-        Section {
-            HStack(spacing: 14) {
-                ZStack {
-                    Circle()
-                        .fill(liveTask.category.color.opacity(0.15))
-                        .frame(width: 46, height: 46)
-                    Image(systemName: liveTask.category.icon)
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(liveTask.category.color)
-                }
+    private var heroCard: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Space.md) {
+            HStack(alignment: .top, spacing: AppTheme.Space.md) {
+                Image(systemName: liveTask.category.icon)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 46, height: 46)
+                    .background(.white.opacity(0.20))
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(liveTask.categoryDisplayName)
-                        .font(.caption)
-                        .foregroundStyle(liveTask.category.color)
-                        .fontWeight(.semibold)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(liveTask.title)
+                        .font(AppTheme.TextStyle.title)
+                        .foregroundStyle(.white)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
 
-                    if liveTask.routineId != nil {
-                        RoutineBadge()
+                    HStack(spacing: 6) {
+                        heroChip(icon: liveTask.category.icon, label: liveTask.categoryDisplayName)
+                        if liveTask.routineId != nil {
+                            heroChip(icon: "repeat", label: "Routine")
+                        }
                     }
                 }
 
-                Spacer()
+                Spacer(minLength: 0)
+                statusChip
+            }
 
-                HStack(spacing: 6) {
-                    Image(systemName: liveTask.isCompleted ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(liveTask.isCompleted ? .green : AppTheme.onSurfaceVariant)
-                    Text(liveTask.isCompleted ? "Completed" : "Pending")
-                        .font(.caption)
-                        .foregroundStyle(liveTask.isCompleted ? .green : AppTheme.onSurfaceVariant)
+            HStack(spacing: 8) {
+                heroChip(icon: "calendar", label: liveTask.date.formatted(date: .abbreviated, time: .omitted))
+                if let timeRange = liveTask.formattedTimeRange {
+                    heroChip(icon: "clock.fill", label: timeRange)
                 }
-                .fontWeight(.medium)
-            }
-            .padding(.vertical, 4)
-        }
-    }
-
-    // MARK: - Schedule Section
-
-    @ViewBuilder
-    private var scheduleSection: some View {
-        Section("Schedule") {
-            LabeledContent {
-                Text(liveTask.date, style: .date)
-                    .foregroundStyle(AppTheme.onSurface)
-            } label: {
-                Label("Date", systemImage: "calendar")
-            }
-
-            if let timeRange = liveTask.formattedTimeRange {
-                LabeledContent {
-                    Text(timeRange)
-                        .foregroundStyle(AppTheme.onSurface)
-                } label: {
-                    Label("Time", systemImage: "clock")
+                if let duration = liveTask.duration {
+                    heroChip(icon: "hourglass", label: formattedDuration(duration))
                 }
             }
 
-            if let duration = liveTask.duration {
-                LabeledContent {
-                    Text(formattedDuration(duration))
-                        .foregroundStyle(AppTheme.onSurface)
-                } label: {
-                    Label("Duration", systemImage: "hourglass")
+            if liveTask.hasSubtasks {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("Subtasks")
+                            .font(AppTheme.TextStyle.captionBold)
+                            .foregroundStyle(.white.opacity(0.92))
+                        Spacer()
+                        Text("\(liveTask.completedSubtaskCount)/\(liveTask.subtasks.count)")
+                            .font(AppTheme.TextStyle.captionBold)
+                            .foregroundStyle(.white.opacity(0.92))
+                    }
+
+                    AppProgressBar(progress: subtaskProgress, color: .white, animated: true)
+                        .frame(height: AppTheme.progressBarHeight)
                 }
             }
         }
+        .padding(AppTheme.Space.lg)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(AppTheme.dayPlannerGradient)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous)
+                .strokeBorder(.white.opacity(0.10), lineWidth: 1)
+        )
+        .shadow(color: AppTheme.primary.opacity(0.18), radius: 16, x: 0, y: 8)
     }
 
-    // MARK: - Notes Section
+    private func heroChip(icon: String, label: String) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 10, weight: .semibold))
+            Text(label)
+                .font(AppTheme.TextStyle.caption)
+                .lineLimit(1)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(.white.opacity(0.16))
+        .clipShape(Capsule())
+    }
 
-    private var notesSection: some View {
-        Section("Notes") {
+    private var statusChip: some View {
+        HStack(spacing: 5) {
+            Image(systemName: liveTask.isCompleted ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: 13, weight: .semibold))
+            Text(liveTask.isCompleted ? "Completed" : "Pending")
+                .font(AppTheme.TextStyle.captionBold)
+        }
+        .foregroundStyle(liveTask.isCompleted ? .green : .white.opacity(0.96))
+        .padding(.horizontal, 9)
+        .padding(.vertical, 6)
+        .background(liveTask.isCompleted ? Color.white.opacity(0.95) : Color.white.opacity(0.18))
+        .clipShape(Capsule())
+    }
+
+    // MARK: - Cards
+
+    private var scheduleCard: some View {
+        sectionCard("Schedule", icon: "clock.fill") {
+            VStack(spacing: 12) {
+                detailLine(
+                    icon: "calendar",
+                    tint: .blue,
+                    title: "Date",
+                    value: liveTask.date.formatted(date: .long, time: .omitted)
+                )
+
+                if let timeRange = liveTask.formattedTimeRange {
+                    detailLine(icon: "clock.fill", tint: .purple, title: "Time", value: timeRange)
+                } else {
+                    detailLine(icon: "clock.fill", tint: .gray, title: "Time", value: "No specific time")
+                }
+
+                if let duration = liveTask.duration {
+                    detailLine(
+                        icon: "hourglass",
+                        tint: .orange,
+                        title: "Duration",
+                        value: formattedDuration(duration)
+                    )
+                }
+            }
+        }
+    }
+
+    private var notesCard: some View {
+        sectionCard("Notes", icon: "note.text") {
             TextField("Add notes...", text: $notes, axis: .vertical)
-                .lineLimit(3...10)
+                .focused($isNotesFocused)
+                .lineLimit(4...10)
+                .designField(isFocused: isNotesFocused)
                 .onChange(of: notes) { _, newValue in
                     saveNotes(newValue)
                 }
         }
     }
 
-    // MARK: - Subtasks Section
-
-    private var subtasksSection: some View {
-        Section {
-            ForEach(liveTask.subtasks) { subtask in
-                HStack(spacing: 12) {
-                    Button {
-                        toggleSubtask(subtask.id)
-                    } label: {
-                        Image(systemName: subtask.isCompleted ? "checkmark.circle.fill" : "circle")
-                            .font(.system(size: 20))
-                            .foregroundStyle(subtask.isCompleted ? .green : AppTheme.onSurfaceVariant)
-                            .symbolEffect(.bounce, value: subtask.isCompleted)
+    private var subtasksCard: some View {
+        sectionCard("Subtasks", icon: "checklist") {
+            VStack(spacing: AppTheme.Space.sm) {
+                if liveTask.subtasks.isEmpty {
+                    Text("No subtasks yet")
+                        .font(AppTheme.TextStyle.body)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    ForEach(liveTask.subtasks) { subtask in
+                        subtaskRow(subtask)
                     }
-                    .buttonStyle(.plain)
 
-                    Text(subtask.title)
-                        .font(.body)
-                        .strikethrough(subtask.isCompleted)
-                        .foregroundStyle(subtask.isCompleted ? AppTheme.onSurfaceVariant : AppTheme.onSurface)
-                        .animation(.easeInOut(duration: 0.2), value: subtask.isCompleted)
-
-                    Spacer()
+                    HStack {
+                        Text("\(liveTask.completedSubtaskCount) of \(liveTask.subtasks.count) completed")
+                            .font(AppTheme.TextStyle.caption)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
+                        Spacer()
+                    }
+                    .padding(.top, 4)
                 }
-                .padding(.vertical, 2)
-            }
 
-            if showAddSubtask {
-                HStack {
-                    TextField("New subtask...", text: $newSubtaskTitle)
-                        .submitLabel(.done)
-                        .onSubmit { commitSubtask() }
+                if showAddSubtask {
+                    HStack(spacing: AppTheme.Space.sm) {
+                        TextField("New subtask...", text: $newSubtaskTitle)
+                            .focused($isSubtaskFocused)
+                            .submitLabel(.done)
+                            .onSubmit { commitSubtask() }
+                            .designField(isFocused: isSubtaskFocused)
 
-                    Button("Add") { commitSubtask() }
-                        .disabled(newSubtaskTitle.trimmingCharacters(in: .whitespaces).isEmpty)
+                        Button("Add") {
+                            commitSubtask()
+                        }
+                        .font(AppTheme.TextStyle.bodyBold)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(
+                            newSubtaskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                ? AnyShapeStyle(AppTheme.onSurfaceVariant.opacity(0.20))
+                                : AnyShapeStyle(AppTheme.dayPlannerGradient)
+                        )
+                        .foregroundStyle(.white)
+                        .clipShape(Capsule())
+                        .disabled(newSubtaskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
                 }
+
+                Button {
+                    withAnimation(.spring(response: AppTheme.springResponse, dampingFraction: 0.7)) {
+                        showAddSubtask = true
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        isSubtaskFocused = true
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "plus.circle.fill")
+                        Text("Add Subtask")
+                            .font(AppTheme.TextStyle.bodyBold)
+                    }
+                    .foregroundStyle(AppTheme.primary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(AppTheme.primary.opacity(0.10))
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .buttonStyle(.plain)
             }
+        }
+    }
+
+    private func subtaskRow(_ subtask: Subtask) -> some View {
+        HStack(spacing: 10) {
+            Button {
+                triggerSubtaskToggle(subtask)
+            } label: {
+                Image(systemName: subtask.isCompleted ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 20))
+                    .foregroundStyle(subtask.isCompleted ? .green : AppTheme.onSurfaceVariant)
+                    .symbolEffect(.bounce, value: subtask.isCompleted)
+            }
+            .buttonStyle(.plain)
+
+            Text(subtask.title)
+                .font(AppTheme.TextStyle.body)
+                .strikethrough(subtask.isCompleted)
+                .foregroundStyle(subtask.isCompleted ? AppTheme.onSurfaceVariant : AppTheme.onSurface)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             Button {
-                showAddSubtask = true
+                deleteSubtask(subtask.id)
             } label: {
-                Label("Add Subtask", systemImage: "plus.circle")
-            }
-        } header: {
-            Text("Subtasks")
-        } footer: {
-            if !liveTask.subtasks.isEmpty {
-                let done = liveTask.completedSubtaskCount
-                let total = liveTask.subtasks.count
-                Text("\(done) of \(total) completed")
-            }
-        }
-    }
-
-    // MARK: - Links Section
-
-    private var linksSection: some View {
-        Section("Linked To") {
-            if let tripName = linkedTripName {
-                Label(tripName, systemImage: "airplane")
-            }
-            if let eventTitle = linkedEventTitle {
-                Label(eventTitle, systemImage: "star")
-            }
-        }
-    }
-
-    // MARK: - Meta Section
-
-    private var metaSection: some View {
-        Section {
-            LabeledContent {
-                Text(liveTask.createdAt, style: .date)
+                Image(systemName: "trash")
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(AppTheme.onSurfaceVariant)
-            } label: {
-                Label("Created", systemImage: "clock.badge.checkmark")
+                    .frame(width: 26, height: 26)
+                    .background(AppTheme.surfaceContainerLow)
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(AppTheme.surfaceContainerLow)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(alignment: .leading) {
+            if confettiSubtaskID == subtask.id {
+                ConfettiView()
+                    .offset(x: 26)
             }
         }
-        .foregroundStyle(AppTheme.onSurfaceVariant)
+    }
+
+    private var linksCard: some View {
+        sectionCard("Linked To", icon: "link") {
+            VStack(spacing: 12) {
+                if let tripName = linkedTripName {
+                    detailLine(icon: "airplane", tint: AppTheme.secondary, title: "Trip", value: tripName)
+                }
+                if let eventTitle = linkedEventTitle {
+                    detailLine(icon: "star.fill", tint: AppTheme.tertiary, title: "Event", value: eventTitle)
+                }
+            }
+        }
+    }
+
+    private var metaCard: some View {
+        sectionCard("Info", icon: "clock.arrow.circlepath") {
+            VStack(spacing: 12) {
+                detailLine(
+                    icon: "clock.badge.checkmark",
+                    tint: AppTheme.onSurfaceVariant,
+                    title: "Created",
+                    value: liveTask.createdAt.formatted(date: .abbreviated, time: .shortened)
+                )
+                detailLine(
+                    icon: "pencil.circle.fill",
+                    tint: AppTheme.onSurfaceVariant,
+                    title: "Updated",
+                    value: liveTask.updatedAt.formatted(date: .abbreviated, time: .shortened)
+                )
+            }
+        }
+    }
+
+    // MARK: - Card helpers
+
+    private func sectionCard<Content: View>(
+        _ title: String,
+        icon: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: AppTheme.Space.md) {
+            SectionHeader(icon: icon, title: title, gradient: AppTheme.dayPlannerGradient)
+            content()
+        }
+        .padding(AppTheme.Space.lg)
+        .background(AppTheme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous)
+                .strokeBorder(AppTheme.outlineVariant, lineWidth: 1)
+        )
+        .shadow(color: AppTheme.cardShadow, radius: 16, x: 0, y: 6)
+    }
+
+    private func detailLine(icon: String, tint: Color, title: String, value: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: 24)
+
+            Text(title)
+                .font(AppTheme.TextStyle.body)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
+
+            Spacer(minLength: 10)
+
+            Text(value)
+                .font(AppTheme.TextStyle.bodyBold)
+                .foregroundStyle(AppTheme.onSurface)
+                .multilineTextAlignment(.trailing)
+        }
     }
 
     // MARK: - Actions
+
+    private func triggerSubtaskToggle(_ subtask: Subtask) {
+        let completing = !subtask.isCompleted
+
+        if completing {
+            HapticManager.notification(.success)
+            confettiSubtaskID = subtask.id
+            Task {
+                try? await Task.sleep(for: .seconds(AppTheme.confettiLifetime))
+                if confettiSubtaskID == subtask.id {
+                    confettiSubtaskID = nil
+                }
+            }
+        } else {
+            HapticManager.impact(.light)
+        }
+
+        toggleSubtask(subtask.id)
+    }
 
     private func toggleSubtask(_ subtaskId: UUID) {
         Task {
@@ -255,8 +449,15 @@ struct TaskDetailView: View {
         }
     }
 
+    private func deleteSubtask(_ subtaskId: UUID) {
+        Task {
+            do { try await service.deleteSubtask(subtaskId, from: liveTask) }
+            catch { print("[TaskDetailView] Failed to delete subtask: \(error)") }
+        }
+    }
+
     private func commitSubtask() {
-        let trimmed = newSubtaskTitle.trimmingCharacters(in: .whitespaces)
+        let trimmed = newSubtaskTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         Task {
             do {
@@ -271,6 +472,7 @@ struct TaskDetailView: View {
     }
 
     private func saveNotes(_ newNotes: String) {
+        guard newNotes != liveTask.notes else { return }
         var updated = liveTask
         updated.notes = newNotes
         Task {

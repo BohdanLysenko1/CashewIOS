@@ -2,11 +2,21 @@ import SwiftUI
 
 struct TripChecklistView: View {
     @Binding var trip: Trip
+    let initialIntent: TripSectionIntent
     @State private var showAddItem = false
     @State private var editingItem: ChecklistItem?
+    @State private var showUrgentOnly = false
+    @State private var didApplyInitialIntent = false
+
+    init(trip: Binding<Trip>, initialIntent: TripSectionIntent = .overview) {
+        self._trip = trip
+        self.initialIntent = initialIntent
+    }
 
     private var pendingItems: [ChecklistItem] {
-        trip.checklistItems.filter { !$0.isCompleted }
+        trip.checklistItems
+            .filter { !$0.isCompleted }
+            .filter { !showUrgentOnly || $0.priority == .urgent || $0.priority == .high }
             .sorted { ($0.dueDate ?? .distantFuture) < ($1.dueDate ?? .distantFuture) }
     }
 
@@ -16,31 +26,40 @@ struct TripChecklistView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
-                // Progress Card
+            VStack(spacing: AppTheme.Space.md) {
                 progressCard
 
-                // Pending Items
+                TripSectionCard("View Options", icon: "line.3.horizontal.decrease.circle.fill") {
+                    Toggle(isOn: $showUrgentOnly) {
+                        Text("Focus on high priority")
+                            .font(AppTheme.TextStyle.body)
+                            .foregroundStyle(AppTheme.onSurface)
+                    }
+                    .tint(AppTheme.secondary)
+                }
+
                 if !pendingItems.isEmpty {
                     itemsSection(title: "To Do", items: pendingItems, showPriority: true)
                 }
 
-                // Completed Items
                 if !completedItems.isEmpty {
                     itemsSection(title: "Completed", items: completedItems, showPriority: false)
                 }
 
-                // Empty State
+                if showUrgentOnly && pendingItems.isEmpty && !trip.checklistItems.isEmpty {
+                    focusedFilterEmptyView
+                }
+
                 if trip.checklistItems.isEmpty {
                     emptyView
                 }
 
-                // Suggestions
                 if !remainingSuggestions.isEmpty {
                     suggestionsSection
                 }
             }
-            .padding()
+            .padding(.horizontal, AppTheme.Space.lg)
+            .padding(.vertical, AppTheme.Space.md)
         }
         .background(AppTheme.background)
         .navigationTitle("Checklist")
@@ -59,73 +78,38 @@ struct TripChecklistView: View {
         .sheet(item: $editingItem) { item in
             ChecklistItemFormView(trip: $trip, item: item)
         }
+        .onAppear {
+            applyInitialIntentIfNeeded()
+        }
     }
 
     // MARK: - Progress Card
 
     private var progressCard: some View {
-        VStack(spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Checklist Progress")
-                        .font(.subheadline)
-                        .foregroundStyle(AppTheme.onSurfaceVariant)
+        let completed = completedItems.count
+        let total = trip.checklistItems.count
+        let urgentCount = pendingItems.filter { $0.priority == .urgent }.count
 
-                    let completed = completedItems.count
-                    let total = trip.checklistItems.count
-
-                    Text("\(completed) of \(total) tasks")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                }
-
-                Spacer()
-
-                ZStack {
-                    Circle()
-                        .stroke(AppTheme.surfaceContainerHigh, lineWidth: 8)
-                        .frame(width: 60, height: 60)
-
-                    Circle()
-                        .trim(from: 0, to: trip.checklistProgress)
-                        .stroke(progressColor.gradient, style: StrokeStyle(lineWidth: 8, lineCap: .round))
-                        .frame(width: 60, height: 60)
-                        .rotationEffect(.degrees(-90))
-
-                    Text("\(Int(trip.checklistProgress * 100))%")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                }
+        return TripHeroCard(
+            icon: "checklist",
+            title: "Checklist",
+            subtitle: total == 0 ? "Build your departure task list" : "\(completed) of \(total) tasks done"
+        ) {
+            HStack(spacing: AppTheme.Space.sm) {
+                TripMetricPill(label: "Done", value: "\(completed)")
+                TripMetricPill(label: "Left", value: "\(max(0, total - completed))")
+                TripMetricPill(label: "Urgent", value: "\(urgentCount)")
             }
 
-            // Urgent items warning
-            let urgentCount = pendingItems.filter { $0.priority == .urgent }.count
-            if urgentCount > 0 {
-                HStack {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.red)
-                    Text("\(urgentCount) urgent task\(urgentCount == 1 ? "" : "s") remaining")
-                        .font(.subheadline)
-                        .foregroundStyle(.red)
-                }
-                .padding(.top, 4)
-            }
+            AppProgressBar(progress: trip.checklistProgress, color: progressColor)
+                .frame(height: AppTheme.progressBarHeight)
 
-            // All done
             if trip.checklistProgress == 1.0 && !trip.checklistItems.isEmpty {
-                HStack {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                    Text("All tasks completed!")
-                        .font(.subheadline)
-                        .foregroundStyle(.green)
-                }
-                .padding(.top, 4)
+                Label("All tasks completed!", systemImage: "checkmark.circle.fill")
+                    .font(AppTheme.TextStyle.captionBold)
+                    .foregroundStyle(.white.opacity(0.92))
             }
         }
-        .padding()
-        .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
     }
 
     private var progressColor: Color {
@@ -137,27 +121,22 @@ struct TripChecklistView: View {
     // MARK: - Items Section
 
     private func itemsSection(title: String, items: [ChecklistItem], showPriority: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        TripSectionCard(title, icon: title == "Completed" ? "checkmark.circle.fill" : "list.bullet.rectangle") {
             HStack {
-                Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+                Text("\(items.count) item\(items.count == 1 ? "" : "s")")
+                    .font(AppTheme.TextStyle.secondary)
                     .foregroundStyle(AppTheme.onSurfaceVariant)
-
                 Spacer()
-
-                Text("\(items.count)")
-                    .font(.caption)
-                    .foregroundStyle(AppTheme.onSurfaceVariant)
+                Text(title)
+                    .font(AppTheme.TextStyle.captionBold)
+                    .foregroundStyle(AppTheme.secondary)
                     .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .background(AppTheme.surfaceContainerHigh)
+                    .padding(.vertical, 4)
+                    .background(AppTheme.secondary.opacity(0.12))
                     .clipShape(Capsule())
             }
-            .padding()
-            .background(AppTheme.surfaceContainerLow)
 
-            VStack(spacing: 0) {
+            VStack(spacing: AppTheme.Space.xs) {
                 ForEach(items) { item in
                     ChecklistItemRow(item: item, showPriority: showPriority) {
                         toggleItem(item)
@@ -168,10 +147,7 @@ struct TripChecklistView: View {
                     }
                 }
             }
-            .padding(.vertical, 4)
         }
-        .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
     }
 
     // MARK: - Empty View
@@ -201,21 +177,34 @@ struct TripChecklistView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
-        .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
+        .padding(AppTheme.Space.lg)
+        .tripModuleCard()
+    }
+
+    private var focusedFilterEmptyView: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "checkmark.seal")
+                .font(.system(size: 40))
+                .foregroundStyle(.green)
+            Text("No high-priority tasks left")
+                .font(.headline)
+                .foregroundStyle(AppTheme.onSurface)
+            Text("Switch off the filter to see medium and low priority items.")
+                .font(.subheadline)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 34)
+        .padding(AppTheme.Space.lg)
+        .tripModuleCard()
     }
 
     // MARK: - Suggestions
 
     private var suggestionsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Common Tasks")
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundStyle(AppTheme.onSurfaceVariant)
-                .padding(.horizontal)
-
-            VStack(spacing: 8) {
+        TripSectionCard("Common Tasks", icon: "lightbulb.fill") {
+            VStack(spacing: AppTheme.Space.sm) {
                 ForEach(remainingSuggestions, id: \.self) { task in
                     Button {
                         addTask(task)
@@ -230,16 +219,14 @@ struct TripChecklistView: View {
 
                             Spacer()
                         }
-                        .padding(.horizontal)
+                        .padding(.horizontal, 12)
                         .padding(.vertical, 10)
+                        .tripSoftSurface()
                     }
                     .buttonStyle(.plain)
                 }
             }
         }
-        .padding(.vertical, 12)
-        .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
     }
 
     private var commonTasks: [String] {
@@ -280,6 +267,20 @@ struct TripChecklistView: View {
         withAnimation {
             let item = ChecklistItem(title: title)
             trip.checklistItems.append(item)
+        }
+    }
+
+    private func applyInitialIntentIfNeeded() {
+        guard !didApplyInitialIntent else { return }
+        didApplyInitialIntent = true
+
+        switch initialIntent {
+        case .addChecklistItem:
+            showAddItem = true
+        case .reviewChecklist:
+            showUrgentOnly = true
+        default:
+            break
         }
     }
 }
@@ -347,8 +348,9 @@ private struct ChecklistItemRow: View {
 
             Spacer()
         }
-        .padding(.horizontal)
+        .padding(.horizontal, 12)
         .padding(.vertical, 10)
+        .tripSoftSurface()
         .contentShape(Rectangle())
         .contextMenu {
             Button { onEdit() } label: {

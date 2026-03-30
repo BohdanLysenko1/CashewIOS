@@ -2,25 +2,30 @@ import SwiftUI
 
 struct TripBudgetView: View {
     @Binding var trip: Trip
+    let initialIntent: TripSectionIntent
     @State private var showAddExpense = false
     @State private var editingExpense: Expense?
     @State private var showBudgetEditor = false
+    @State private var didApplyInitialIntent = false
+
+    init(trip: Binding<Trip>, initialIntent: TripSectionIntent = .overview) {
+        self._trip = trip
+        self.initialIntent = initialIntent
+    }
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
-                // Budget Overview Card
+            VStack(spacing: AppTheme.Space.md) {
                 budgetOverviewCard
 
-                // Expenses by Category
                 if !trip.expenses.isEmpty {
                     expensesByCategoryCard
                 }
 
-                // Recent Expenses
                 recentExpensesCard
             }
-            .padding()
+            .padding(.horizontal, AppTheme.Space.lg)
+            .padding(.vertical, AppTheme.Space.md)
         }
         .background(AppTheme.background)
         .navigationTitle("Budget")
@@ -45,84 +50,73 @@ struct TripBudgetView: View {
                 set: { trip.budget = $0 }
             ), currency: $trip.currency)
         }
+        .onAppear {
+            applyInitialIntentIfNeeded()
+        }
     }
 
     // MARK: - Budget Overview
 
     private var budgetOverviewCard: some View {
-        VStack(spacing: 16) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Total Budget")
-                        .font(.subheadline)
-                        .foregroundStyle(AppTheme.onSurfaceVariant)
+        TripHeroCard(
+            icon: "creditcard.fill",
+            title: "Budget",
+            subtitle: trip.budget == nil ? "Set your target and track spend" : "Monitor spending in real time"
+        ) {
+            HStack(spacing: AppTheme.Space.sm) {
+                TripMetricPill(
+                    label: "Budget",
+                    value: trip.budget.map(formatCurrency(_:)) ?? "Not set"
+                )
+                TripMetricPill(
+                    label: "Spent",
+                    value: formatCurrency(trip.totalExpenses)
+                )
+                TripMetricPill(
+                    label: "Remaining",
+                    value: formatCurrency(trip.remainingBudget ?? 0)
+                )
+            }
 
-                    if let budget = trip.budget {
-                        Text(formatCurrency(budget))
-                            .font(.title)
-                            .fontWeight(.bold)
-                    } else {
-                        Text("Not set")
-                            .font(.title2)
-                            .foregroundStyle(AppTheme.onSurfaceVariant)
+            if trip.budget != nil {
+                VStack(spacing: AppTheme.Space.sm) {
+                    AppProgressBar(progress: trip.budgetProgress ?? 0, color: progressColor)
+                        .frame(height: AppTheme.progressBarHeight)
+
+                    HStack {
+                        Text("Used \(Int((trip.budgetProgress ?? 0) * 100))%")
+                            .font(AppTheme.TextStyle.captionBold)
+                            .foregroundStyle(.white.opacity(0.86))
+                        Spacer()
+                        Button {
+                            showBudgetEditor = true
+                        } label: {
+                            Label("Edit", systemImage: "pencil")
+                                .font(AppTheme.TextStyle.captionBold)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(.white.opacity(0.16))
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.white)
                     }
                 }
-
-                Spacer()
-
+            } else {
                 Button {
                     showBudgetEditor = true
                 } label: {
-                    Image(systemName: "pencil.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(.blue)
+                    Label("Set Budget", systemImage: "plus")
+                        .font(AppTheme.TextStyle.bodyBold)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(.white.opacity(0.16))
+                        .clipShape(Capsule())
                 }
-            }
-
-            if let budget = trip.budget, budget > 0 {
-                // Progress bar
-                VStack(spacing: 8) {
-                    GeometryReader { geometry in
-                        ZStack(alignment: .leading) {
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(AppTheme.surfaceContainerHigh)
-                                .frame(height: 12)
-
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(progressColor.gradient)
-                                .frame(width: min(geometry.size.width * (trip.budgetProgress ?? 0), geometry.size.width), height: 12)
-                        }
-                    }
-                    .frame(height: 12)
-
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text("Spent")
-                                .font(.caption)
-                                .foregroundStyle(AppTheme.onSurfaceVariant)
-                            Text(formatCurrency(trip.totalExpenses))
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                        }
-
-                        Spacer()
-
-                        VStack(alignment: .trailing) {
-                            Text("Remaining")
-                                .font(.caption)
-                                .foregroundStyle(AppTheme.onSurfaceVariant)
-                            Text(formatCurrency(trip.remainingBudget ?? 0))
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                                .foregroundStyle(trip.remainingBudget ?? 0 >= 0 ? .green : .red)
-                        }
-                    }
-                }
+                .buttonStyle(.plain)
             }
         }
-        .padding()
-        .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
     }
 
     private var progressColor: Color {
@@ -135,37 +129,32 @@ struct TripBudgetView: View {
     // MARK: - Expenses by Category
 
     private var expensesByCategoryCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("By Category")
-                .font(.headline)
-                .padding(.horizontal)
-
-            VStack(spacing: 8) {
+        TripSectionCard("Category Breakdown", icon: "chart.pie.fill") {
+            let maxCategoryTotal = expensesByCategory.first?.total ?? 1
+            VStack(spacing: AppTheme.Space.sm) {
                 ForEach(expensesByCategory, id: \.category) { item in
-                    HStack {
-                        Image(systemName: item.category.icon)
-                            .font(.system(size: 14))
-                            .foregroundStyle(.white)
-                            .frame(width: 28, height: 28)
-                            .background(item.category.color.gradient)
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
-
-                        Text(item.category.displayName)
-                            .font(.subheadline)
-
-                        Spacer()
-
-                        Text(formatCurrency(item.total))
-                            .font(.subheadline)
-                            .fontWeight(.medium)
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Label(item.category.displayName, systemImage: item.category.icon)
+                                .font(AppTheme.TextStyle.bodyBold)
+                                .foregroundStyle(AppTheme.onSurface)
+                            Spacer()
+                            Text(formatCurrency(item.total))
+                                .font(AppTheme.TextStyle.bodyBold)
+                                .foregroundStyle(AppTheme.onSurface)
+                        }
+                        AppProgressBar(
+                            progress: progress(from: item.total, comparedTo: maxCategoryTotal),
+                            color: item.category.color
+                        )
+                        .frame(height: AppTheme.progressBarHeight)
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .tripSoftSurface()
                 }
             }
-            .padding(.vertical, 12)
         }
-        .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
     }
 
     private var expensesByCategory: [(category: ExpenseCategory, total: Decimal)] {
@@ -180,19 +169,7 @@ struct TripBudgetView: View {
     // MARK: - Recent Expenses
 
     private var recentExpensesCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Expenses")
-                    .font(.headline)
-
-                Spacer()
-
-                Text("\(trip.expenses.count) items")
-                    .font(.caption)
-                    .foregroundStyle(AppTheme.onSurfaceVariant)
-            }
-            .padding(.horizontal)
-
+        TripSectionCard("Expenses", icon: "list.bullet.rectangle") {
             if trip.expenses.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "creditcard")
@@ -211,7 +188,7 @@ struct TripBudgetView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 24)
             } else {
-                VStack(spacing: 0) {
+                VStack(spacing: AppTheme.Space.sm) {
                     ForEach(trip.expenses.sorted(by: { $0.date > $1.date })) { expense in
                         ExpenseRow(expense: expense) {
                             editingExpense = expense
@@ -220,11 +197,8 @@ struct TripBudgetView: View {
                         }
                     }
                 }
-                .padding(.vertical, 8)
             }
         }
-        .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
     }
 
     // MARK: - Helpers
@@ -236,9 +210,22 @@ struct TripBudgetView: View {
         return formatter.string(from: amount as NSNumber) ?? "\(trip.currency) \(amount)"
     }
 
+    private func progress(from total: Decimal, comparedTo max: Decimal) -> Double {
+        guard max > 0 else { return 0 }
+        return Double(truncating: (total / max) as NSNumber)
+    }
 
     private func deleteExpense(_ expense: Expense) {
         trip.expenses.removeAll { $0.id == expense.id }
+    }
+
+    private func applyInitialIntentIfNeeded() {
+        guard !didApplyInitialIntent else { return }
+        didApplyInitialIntent = true
+
+        if initialIntent == .addExpense {
+            showAddExpense = true
+        }
     }
 }
 
@@ -280,8 +267,9 @@ private struct ExpenseRow: View {
                 .font(.subheadline)
                 .fontWeight(.semibold)
         }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .tripSoftSurface()
         .contentShape(Rectangle())
         .contextMenu {
             Button {

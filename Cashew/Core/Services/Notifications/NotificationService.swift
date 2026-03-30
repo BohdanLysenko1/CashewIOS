@@ -126,9 +126,7 @@ final class NotificationService: NotificationServiceProtocol {
     }
 
     private func notificationBody(for event: Event, reminder: Reminder) -> String {
-        var body = reminder.interval == .atTime
-            ? "Starting now"
-            : "Starting \(reminder.interval.displayName.lowercased())"
+        var body = "Starting \(reminder.interval.notificationStartText)"
 
         if !event.location.isEmpty {
             body += " at \(event.location)"

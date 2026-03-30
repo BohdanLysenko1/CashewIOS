@@ -9,11 +9,13 @@ struct TripsView: View {
     @State private var showAddTrip = false
     @State private var editingTrip: Trip?
     @State private var searchText = ""
-    @State private var selectedStatusFilter: TripStatus?
+    @State private var selectedStatusFilters: Set<TripStatus> = []
     @State private var isSelectMode = false
     @State private var selectedTrips: Set<UUID> = []
     @State private var showDeleteConfirmation = false
     @State private var showCompleted = false
+    @State private var highlightedTripIds: Set<UUID> = []
+    @State private var highlightDismissTasks: [UUID: Task<Void, Never>] = [:]
 
     private var tripService: TripServiceProtocol {
         container.tripService
@@ -22,8 +24,8 @@ struct TripsView: View {
     private var filteredTrips: [Trip] {
         var trips = tripService.trips
 
-        if let status = selectedStatusFilter {
-            trips = trips.filter { $0.computedStatus == status }
+        if !selectedStatusFilters.isEmpty {
+            trips = trips.filter { selectedStatusFilters.contains($0.computedStatus) }
         }
 
         if !searchText.isEmpty {
@@ -108,10 +110,6 @@ struct TripsView: View {
                     ToolbarItem(placement: .secondaryAction) {
                         selectButton
                     }
-
-                    ToolbarItem(placement: .secondaryAction) {
-                        filterMenu
-                    }
                 }
             }
             .fullScreenCover(isPresented: $showAddTrip) {
@@ -141,6 +139,19 @@ struct TripsView: View {
         .task {
             await loadTrips()
         }
+        .onChange(of: (container.tripService as? TripService)?.realtimeEventCounter ?? 0) { _, newValue in
+            guard
+                newValue > 0,
+                let changedId = (container.tripService as? TripService)?.realtimeChangedTripId
+            else { return }
+            pulseTripRow(changedId)
+        }
+        .onDisappear {
+            for task in highlightDismissTasks.values {
+                task.cancel()
+            }
+            highlightDismissTasks.removeAll()
+        }
     }
 
     // MARK: - Select Button
@@ -155,37 +166,51 @@ struct TripsView: View {
         }
     }
 
-    // MARK: - Filter Menu
+    // MARK: - Filters
 
-    private var filterMenu: some View {
-        Menu {
-            Button {
-                selectedStatusFilter = nil
-            } label: {
-                HStack {
-                    Text("All Statuses")
-                    if selectedStatusFilter == nil {
-                        Image(systemName: "checkmark")
+    private var activeFilterCount: Int {
+        selectedStatusFilters.count
+    }
+
+    private var statusFilterSection: some View {
+        AppFilterSection(
+            title: "Filter Trips",
+            activeCount: activeFilterCount,
+            onClear: { selectedStatusFilters.removeAll() }
+        ) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: AppTheme.Space.sm) {
+                    AppFilterChip(
+                        label: "All",
+                        isSelected: selectedStatusFilters.isEmpty,
+                        tint: AppTheme.secondary,
+                        selectedGradient: AppTheme.tripGradient
+                    ) {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selectedStatusFilters.removeAll()
+                        }
                     }
-                }
-            }
 
-            Divider()
-
-            ForEach(TripStatus.allCases, id: \.self) { status in
-                Button {
-                    selectedStatusFilter = status
-                } label: {
-                    HStack {
-                        Text(status.displayName)
-                        if selectedStatusFilter == status {
-                            Image(systemName: "checkmark")
+                    ForEach(TripStatus.allCases, id: \.self) { status in
+                        AppFilterChip(
+                            label: status.displayName,
+                            icon: status.icon,
+                            isSelected: selectedStatusFilters.contains(status),
+                            tint: status.color,
+                            selectedGradient: AppTheme.tripGradient
+                        ) {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                if selectedStatusFilters.contains(status) {
+                                    selectedStatusFilters.remove(status)
+                                } else {
+                                    selectedStatusFilters.insert(status)
+                                }
+                            }
                         }
                     }
                 }
+                .padding(.horizontal, 2)
             }
-        } label: {
-            Label("Filter", systemImage: selectedStatusFilter == nil ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
         }
     }
 
@@ -216,6 +241,15 @@ struct TripsView: View {
     private var tripsList: some View {
         ScrollView {
             LazyVStack(spacing: AppTheme.listSpacing) {
+                if !isSelectMode {
+                    tripsOverviewCard
+                }
+
+                if !isSelectMode {
+                    statusFilterSection
+                        .padding(.bottom, AppTheme.Space.xs)
+                }
+
                 // Active trips
                 ForEach(activeTrips) { trip in
                     tripRow(trip)
@@ -239,26 +273,67 @@ struct TripsView: View {
         }
     }
 
+    private var tripsOverviewCard: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Space.md) {
+            SectionHeader(icon: "airplane", title: "Travel Dashboard", gradient: AppTheme.tripGradient)
+
+            let upcoming = filteredTrips.filter { $0.computedStatus == .upcoming }.count
+            let active = filteredTrips.filter { $0.computedStatus == .active }.count
+            let completed = filteredTrips.filter { $0.computedStatus == .completed }.count
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: AppTheme.Space.sm) {
+                overviewTile(title: "Upcoming", value: "\(upcoming)", tint: .blue, icon: "calendar.badge.plus")
+                overviewTile(title: "Active", value: "\(active)", tint: .green, icon: "location.north.line")
+                overviewTile(title: "Completed", value: "\(completed)", tint: .gray, icon: "checkmark.circle")
+            }
+        }
+        .padding(AppTheme.Space.lg)
+        .tripModuleCard()
+    }
+
+    private func overviewTile(title: String, value: String, tint: Color, icon: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 10, weight: .semibold))
+                Text(title)
+                    .font(AppTheme.TextStyle.caption)
+            }
+            .foregroundStyle(tint)
+
+            Text(value)
+                .font(AppTheme.TextStyle.bodyBold)
+                .foregroundStyle(AppTheme.onSurface)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(tint.opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
     @ViewBuilder
     private func tripRow(_ trip: Trip) -> some View {
         if isSelectMode {
             selectableTripRow(trip)
         } else {
-            NavigationLink(value: trip.id) {
-                TripCard(trip: trip)
-            }
-            .buttonStyle(.plain)
-            .contextMenu {
-                Button {
-                    editingTrip = trip
-                } label: {
-                    Label("Edit", systemImage: "pencil")
+            liveHighlightedTripRow(trip.id) {
+                NavigationLink(value: trip.id) {
+                    TripCard(trip: trip)
                 }
+                .buttonStyle(.plain)
+                .contextMenu {
+                    Button {
+                        editingTrip = trip
+                    } label: {
+                        Label("Edit", systemImage: "pencil")
+                    }
 
-                Button(role: .destructive) {
-                    deleteTrip(trip)
-                } label: {
-                    Label("Delete", systemImage: "trash")
+                    Button(role: .destructive) {
+                        deleteTrip(trip)
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
                 }
             }
         }
@@ -292,8 +367,7 @@ struct TripsView: View {
                 }
                 .foregroundStyle(AppTheme.onSurfaceVariant)
                 .padding()
-                .background(AppTheme.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
+                .tripModuleCard()
             }
             .buttonStyle(.plain)
 
@@ -311,7 +385,9 @@ struct TripsView: View {
                 .font(.system(size: 24))
                 .foregroundStyle(selectedTrips.contains(trip.id) ? .blue : .secondary)
 
-            TripCard(trip: trip)
+            liveHighlightedTripRow(trip.id) {
+                TripCard(trip: trip)
+            }
         }
         .contentShape(Rectangle())
         .onTapGesture {
@@ -353,17 +429,35 @@ struct TripsView: View {
             .buttonStyle(.borderedProminent)
         }
         .padding()
+        .tripModuleCard()
+    }
+
+    private var noResultsView: some View {
+        VStack(spacing: AppTheme.Space.lg) {
+            if !isSelectMode {
+                statusFilterSection
+            }
+            noResultsContent
+        }
+        .padding(.horizontal)
+        .padding(.top, 8)
     }
 
     @ViewBuilder
-    private var noResultsView: some View {
+    private var noResultsContent: some View {
         if !searchText.isEmpty {
             ContentUnavailableView.search(text: searchText)
-        } else if let status = selectedStatusFilter {
+        } else if selectedStatusFilters.count == 1, let status = selectedStatusFilters.first {
             ContentUnavailableView(
                 "No \(status.displayName) Trips",
                 systemImage: "airplane",
                 description: Text("No trips with this status")
+            )
+        } else if !selectedStatusFilters.isEmpty {
+            ContentUnavailableView(
+                "No Matching Trips",
+                systemImage: "airplane",
+                description: Text("No trips match your selected filters")
             )
         } else {
             ContentUnavailableView.search
@@ -419,6 +513,47 @@ struct TripsView: View {
             withAnimation {
                 selectedTrips.removeAll()
                 isSelectMode = false
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func liveHighlightedTripRow<Content: View>(_ id: UUID, @ViewBuilder content: () -> Content) -> some View {
+        let isHighlighted = highlightedTripIds.contains(id)
+        content()
+            .scaleEffect(isHighlighted ? 1.015 : 1)
+            .overlay(
+                RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [
+                                Color.orange.opacity(isHighlighted ? 0.92 : 0),
+                                Color.orange.opacity(isHighlighted ? 0.35 : 0)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: isHighlighted ? 2 : 0
+                    )
+            )
+            .shadow(color: Color.orange.opacity(isHighlighted ? 0.30 : 0), radius: isHighlighted ? 16 : 0, x: 0, y: isHighlighted ? 8 : 0)
+            .animation(.spring(response: 0.44, dampingFraction: 0.82), value: isHighlighted)
+    }
+
+    private func pulseTripRow(_ id: UUID) {
+        withAnimation(.spring(response: 0.36, dampingFraction: 0.80)) {
+            _ = highlightedTripIds.insert(id)
+        }
+
+        highlightDismissTasks[id]?.cancel()
+        highlightDismissTasks[id] = Task {
+            try? await Task.sleep(nanoseconds: 2_200_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                withAnimation(.easeOut(duration: 0.28)) {
+                    _ = highlightedTripIds.remove(id)
+                }
+                highlightDismissTasks.removeValue(forKey: id)
             }
         }
     }

@@ -55,6 +55,7 @@ final class ShareService {
 
     /// Generates a share link for a trip or event. Returns a deep link URL.
     func createInviteLink(for resource: SharedResource) async throws -> URL {
+        guard authService.isAuthenticated else { throw ShareError.notAuthenticated }
         let currentUserId = try await client.auth.session.user.id
 
         let row: InviteTokenRow = try await client
@@ -70,7 +71,11 @@ final class ShareService {
             .value
 
         // Deep link format: cashew://join/<token>
-        guard let url = URL(string: "cashew://join/\(row.token)") else {
+        let pathAllowed = CharacterSet.urlPathAllowed.subtracting(CharacterSet(charactersIn: "/"))
+        guard
+            let encodedToken = row.token.addingPercentEncoding(withAllowedCharacters: pathAllowed),
+            let url = URL(string: "cashew://join/\(encodedToken)")
+        else {
             throw ShareError.invalidToken
         }
         return url
@@ -80,6 +85,7 @@ final class ShareService {
 
     /// Accepts an invite by token. Returns the resource type and ID so the caller can navigate.
     func acceptInvite(token: String) async throws -> SharedResource {
+        guard authService.isAuthenticated else { throw ShareError.notAuthenticated }
         let currentUserId = try await client.auth.session.user.id
 
         let invite: InviteLinkRow = try await client

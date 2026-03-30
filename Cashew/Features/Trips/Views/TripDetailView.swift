@@ -15,6 +15,7 @@ struct TripDetailView: View {
     @State private var shareURL: URL?
     @State private var isGeneratingShare = false
     @State private var showCollaborators = false
+    @State private var revealContent = false
 
     private var trip: Trip? {
         container.tripService.trip(by: tripId)
@@ -124,165 +125,578 @@ struct TripDetailView: View {
 
     private func tripContent(_ trip: Trip) -> some View {
         ScrollView {
-            VStack(spacing: 16) {
-                // Shared by banner
+            VStack(spacing: AppTheme.Space.md) {
                 if let name = trip.ownerName {
-                    sharedByBanner(name: name, color: .orange)
-                }
-
-                // Hero Header
-                tripHeader(trip)
-
-                // Quick Actions Grid
-                quickActionsGrid(trip)
-
-                // Details Card
-                VStack(alignment: .leading, spacing: 0) {
-                    sectionHeader("Details", icon: "info.circle")
-
-                    VStack(spacing: 12) {
-                        if let lat = trip.destinationLatitude, let lng = trip.destinationLongitude {
-                            TappableLocationRow(
-                                icon: "mappin.circle.fill", iconColor: .red,
-                                label: "Destination", value: trip.destination,
-                                latitude: lat, longitude: lng
-                            )
-                        } else {
-                            detailRow(icon: "mappin.circle.fill", iconColor: .red, label: "Destination", value: trip.destination)
-                        }
-
-                        
-                        HStack {
-                            Image(systemName: "flag.circle.fill")
-                                .font(.system(size: 20))
-                                .foregroundStyle(.blue)
-                                .frame(width: 28)
-                            Text("Status")
-                                .foregroundStyle(AppTheme.onSurfaceVariant)
-                            Spacer()
-                            StatusBadge(status: trip.computedStatus, style: .prominent)
-                        }
+                    stagedCard(0) {
+                        sharedByBanner(name: name, color: .orange)
                     }
-                    .padding()
                 }
-                .background(AppTheme.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
 
-                // Dates Card
-                VStack(alignment: .leading, spacing: 0) {
-                    sectionHeader("Dates", icon: "calendar")
-
-                    VStack(spacing: 12) {
-                        detailRow(icon: "airplane.departure", iconColor: .green, label: "Start", value: trip.startDate.formatted(date: .long, time: .omitted))
-
-                        
-                        detailRow(icon: "airplane.arrival", iconColor: .orange, label: "End", value: trip.endDate.formatted(date: .long, time: .omitted))
-
-                        
-                        detailRow(icon: "clock.fill", iconColor: .purple, label: "Duration", value: durationText(from: trip.startDate, to: trip.endDate))
-                    }
-                    .padding()
+                stagedCard(1) {
+                    tripHero(trip)
                 }
-                .background(AppTheme.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
 
-                // Photos Card
-                PhotosGridCard(attachments: trip.attachments, accentColor: .blue)
+                stagedCard(2) {
+                    snapshotCard(trip)
+                }
 
-                // Notes Card
+                stagedCard(3) {
+                    nextActionsCard
+                }
+
+                stagedCard(4) {
+                    quickActionsGrid(trip)
+                }
+
+                stagedCard(5) {
+                    detailsCard(trip)
+                }
+
+                stagedCard(6) {
+                    datesCard(trip)
+                }
+
+                stagedCard(7) {
+                    resourcesCard(trip)
+                }
+
+                stagedCard(8) {
+                    PhotosGridCard(attachments: trip.attachments, accentColor: .blue)
+                }
+
                 if !trip.notes.isEmpty {
-                    VStack(alignment: .leading, spacing: 0) {
-                        sectionHeader("Notes", icon: "note.text")
-
-                        Text(trip.notes)
-                            .font(.body)
-                            .foregroundStyle(AppTheme.onSurfaceVariant)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding()
+                    stagedCard(9) {
+                        notesCard(trip)
                     }
-                    .background(AppTheme.cardBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
                 }
 
-                // Linked Tasks Card
-                linkedTasksCard(tripId: trip.id)
-
-                // Info Card
-                VStack(alignment: .leading, spacing: 0) {
-                    sectionHeader("Info", icon: "clock.arrow.circlepath")
-
-                    VStack(spacing: 12) {
-                        detailRow(icon: "plus.circle.fill", iconColor: .gray, label: "Created", value: trip.createdAt.formatted(date: .abbreviated, time: .shortened))
-
-                        
-                        detailRow(icon: "pencil.circle.fill", iconColor: .gray, label: "Updated", value: trip.updatedAt.formatted(date: .abbreviated, time: .shortened))
-                    }
-                    .padding()
+                stagedCard(10) {
+                    linkedTasksCard(tripId: trip.id)
                 }
-                .background(AppTheme.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
+
+                stagedCard(11) {
+                    infoCard(trip)
+                }
             }
-            .padding()
+            .padding(.horizontal, AppTheme.Space.lg)
+            .padding(.vertical, AppTheme.Space.md)
+            .onAppear {
+                withAnimation(.spring(response: 0.50, dampingFraction: 0.86)) {
+                    revealContent = true
+                }
+            }
         }
         .background(AppTheme.background)
+        .navigationDestination(for: TripRoute.self) { route in
+            tripSectionView(route, trip: trip)
+        }
     }
 
-    // MARK: - Quick Actions Grid
+    // MARK: - Hero
 
-    private func quickActionsGrid(_ trip: Trip) -> some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-            // Budget
-            NavigationLink(value: TripSection.budget) {
-                QuickActionCard(
+    private func tripHero(_ trip: Trip) -> some View {
+        VStack(alignment: .leading, spacing: AppTheme.Space.md) {
+            HStack(alignment: .top, spacing: AppTheme.Space.md) {
+                Image(systemName: "airplane")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 48, height: 48)
+                    .background(.white.opacity(0.20))
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(trip.name)
+                        .font(AppTheme.TextStyle.title)
+                        .foregroundStyle(.white)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    heroChip(icon: "mappin.and.ellipse", label: trip.destination)
+                }
+
+                Spacer(minLength: 0)
+                StatusBadge(status: trip.computedStatus, style: .prominent)
+            }
+
+            HStack(spacing: 8) {
+                heroChip(icon: "calendar", label: trip.startDate.formatted(date: .abbreviated, time: .omitted))
+                heroChip(icon: "airplane.arrival", label: trip.endDate.formatted(date: .abbreviated, time: .omitted))
+                heroChip(icon: "clock.fill", label: durationText(from: trip.startDate, to: trip.endDate))
+            }
+        }
+        .padding(AppTheme.Space.lg)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(AppTheme.tripGradient)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous)
+                .strokeBorder(.white.opacity(0.10), lineWidth: 1)
+        )
+        .shadow(color: AppTheme.secondary.opacity(0.18), radius: 16, x: 0, y: 8)
+    }
+
+    private func heroChip(icon: String, label: String) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 10, weight: .semibold))
+            Text(label)
+                .font(AppTheme.TextStyle.caption)
+                .lineLimit(1)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(.white.opacity(0.16))
+        .clipShape(Capsule())
+    }
+
+    // MARK: - Snapshot + Actions
+
+    private func snapshotCard(_ trip: Trip) -> some View {
+        sectionCard("Trip Snapshot", icon: "sparkles") {
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: AppTheme.Space.sm) {
+                snapshotTile(
                     icon: "creditcard.fill",
                     title: "Budget",
-                    subtitle: budgetSubtitle(trip),
-                    progress: trip.budgetProgress,
-                    color: .green
+                    value: budgetSubtitle(trip),
+                    tint: .green
                 )
-            }
-            .buttonStyle(.plain)
-
-            // Itinerary
-            NavigationLink(value: TripSection.itinerary) {
-                QuickActionCard(
+                snapshotTile(
                     icon: "calendar.day.timeline.left",
                     title: "Itinerary",
-                    subtitle: "\(trip.activities.count) activities",
-                    progress: nil,
-                    color: .blue
+                    value: "\(trip.activities.count) activities",
+                    tint: .blue
                 )
-            }
-            .buttonStyle(.plain)
-
-            // Packing
-            NavigationLink(value: TripSection.packing) {
-                QuickActionCard(
+                snapshotTile(
                     icon: "bag.fill",
                     title: "Packing",
-                    subtitle: packingSubtitle(trip),
-                    progress: trip.packingItems.isEmpty ? nil : trip.packingProgress,
-                    color: .orange
+                    value: packingSubtitle(trip),
+                    tint: .orange
                 )
-            }
-            .buttonStyle(.plain)
-
-            // Checklist
-            NavigationLink(value: TripSection.checklist) {
-                QuickActionCard(
+                snapshotTile(
                     icon: "checklist",
                     title: "Checklist",
-                    subtitle: checklistSubtitle(trip),
-                    progress: trip.checklistItems.isEmpty ? nil : trip.checklistProgress,
-                    color: .purple
+                    value: checklistSubtitle(trip),
+                    tint: .purple
                 )
             }
-            .buttonStyle(.plain)
-        }
-        .navigationDestination(for: TripSection.self) { section in
-            tripSectionView(section, trip: trip)
         }
     }
+
+    private func snapshotTile(icon: String, title: String, value: String, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 5) {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .semibold))
+                Text(title)
+                    .font(AppTheme.TextStyle.captionBold)
+            }
+            .foregroundStyle(tint)
+
+            Text(value)
+                .font(AppTheme.TextStyle.bodyBold)
+                .foregroundStyle(AppTheme.onSurface)
+                .lineLimit(2)
+                .minimumScaleFactor(0.9)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 10)
+        .background(tint.opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private var nextActionsCard: some View {
+        sectionCard("Next Actions", icon: "bolt.fill") {
+            VStack(spacing: AppTheme.Space.sm) {
+                actionLink(
+                    title: "Add Itinerary Activity",
+                    subtitle: "Drop the next stop into your timeline",
+                    icon: "calendar.badge.plus",
+                    tint: .blue,
+                    route: TripRoute(section: .itinerary, intent: .addActivity)
+                )
+                actionLink(
+                    title: "Log New Expense",
+                    subtitle: "Keep budget on track in real time",
+                    icon: "creditcard.circle",
+                    tint: .green,
+                    route: TripRoute(section: .budget, intent: .addExpense)
+                )
+                actionLink(
+                    title: "Review What Is Left to Pack",
+                    subtitle: "Focus only on unpacked items",
+                    icon: "bag.badge.questionmark",
+                    tint: .orange,
+                    route: TripRoute(section: .packing, intent: .reviewPacking)
+                )
+                actionLink(
+                    title: "Handle Priority Checklist Items",
+                    subtitle: "Jump to urgent and high-priority tasks",
+                    icon: "exclamationmark.circle",
+                    tint: .red,
+                    route: TripRoute(section: .checklist, intent: .reviewChecklist)
+                )
+            }
+        }
+    }
+
+    private func actionLink(
+        title: String,
+        subtitle: String,
+        icon: String,
+        tint: Color,
+        route: TripRoute
+    ) -> some View {
+        NavigationLink(value: route) {
+            HStack(spacing: 10) {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(tint)
+                    .frame(width: 24)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(AppTheme.TextStyle.bodyBold)
+                        .foregroundStyle(AppTheme.onSurface)
+                    Text(subtitle)
+                        .font(AppTheme.TextStyle.caption)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(AppTheme.surfaceContainerLow)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Quick Action Grid
+
+    private func quickActionsGrid(_ trip: Trip) -> some View {
+        sectionCard("Modules", icon: "square.grid.2x2.fill") {
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                NavigationLink(value: TripRoute(section: .budget)) {
+                    QuickActionCard(
+                        icon: "creditcard.fill",
+                        title: "Budget",
+                        subtitle: budgetSubtitle(trip),
+                        progress: trip.budgetProgress,
+                        color: .green
+                    )
+                }
+                .buttonStyle(.plain)
+
+                NavigationLink(value: TripRoute(section: .itinerary)) {
+                    QuickActionCard(
+                        icon: "calendar.day.timeline.left",
+                        title: "Itinerary",
+                        subtitle: "\(trip.activities.count) activities",
+                        progress: nil,
+                        color: .blue
+                    )
+                }
+                .buttonStyle(.plain)
+
+                NavigationLink(value: TripRoute(section: .packing)) {
+                    QuickActionCard(
+                        icon: "bag.fill",
+                        title: "Packing",
+                        subtitle: packingSubtitle(trip),
+                        progress: trip.packingItems.isEmpty ? nil : trip.packingProgress,
+                        color: .orange
+                    )
+                }
+                .buttonStyle(.plain)
+
+                NavigationLink(value: TripRoute(section: .checklist)) {
+                    QuickActionCard(
+                        icon: "checklist",
+                        title: "Checklist",
+                        subtitle: checklistSubtitle(trip),
+                        progress: trip.checklistItems.isEmpty ? nil : trip.checklistProgress,
+                        color: .purple
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    // MARK: - Detail Cards
+
+    private func detailsCard(_ trip: Trip) -> some View {
+        sectionCard("Details", icon: "info.circle") {
+            VStack(spacing: 12) {
+                if let lat = trip.destinationLatitude, let lng = trip.destinationLongitude {
+                    Button {
+                        MapLink.open(name: trip.destination, latitude: lat, longitude: lng)
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "mappin.circle.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(.red)
+                                .frame(width: 24)
+                            Text("Destination")
+                                .font(AppTheme.TextStyle.body)
+                                .foregroundStyle(AppTheme.onSurfaceVariant)
+                            Spacer(minLength: 10)
+                            Text(trip.destination)
+                                .font(AppTheme.TextStyle.bodyBold)
+                                .foregroundStyle(AppTheme.onSurface)
+                                .multilineTextAlignment(.trailing)
+                            Image(systemName: "arrow.up.right.square")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(AppTheme.onSurfaceVariant)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    detailLine(icon: "mappin.circle.fill", tint: .red, title: "Destination", value: trip.destination)
+                }
+
+                HStack {
+                    Image(systemName: "flag.circle.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.blue)
+                        .frame(width: 24)
+                    Text("Status")
+                        .font(AppTheme.TextStyle.body)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
+                    Spacer()
+                    StatusBadge(status: trip.computedStatus, style: .prominent)
+                }
+            }
+        }
+    }
+
+    private func datesCard(_ trip: Trip) -> some View {
+        sectionCard("Dates", icon: "calendar") {
+            VStack(spacing: 12) {
+                detailLine(
+                    icon: "airplane.departure",
+                    tint: .green,
+                    title: "Start",
+                    value: trip.startDate.formatted(date: .long, time: .omitted)
+                )
+                detailLine(
+                    icon: "airplane.arrival",
+                    tint: .orange,
+                    title: "End",
+                    value: trip.endDate.formatted(date: .long, time: .omitted)
+                )
+                detailLine(
+                    icon: "clock.fill",
+                    tint: .purple,
+                    title: "Duration",
+                    value: durationText(from: trip.startDate, to: trip.endDate)
+                )
+            }
+        }
+    }
+
+    private func resourcesCard(_ trip: Trip) -> some View {
+        sectionCard("Travel Notes", icon: "suitcase.rolling") {
+            VStack(spacing: 12) {
+                if !trip.accommodationName.isEmpty {
+                    detailLine(
+                        icon: "bed.double.fill",
+                        tint: .blue,
+                        title: "Stay",
+                        value: trip.accommodationName
+                    )
+                }
+                if !trip.transportationType.isEmpty {
+                    detailLine(
+                        icon: "car.fill",
+                        tint: .indigo,
+                        title: "Transport",
+                        value: trip.transportationType
+                    )
+                }
+                if !trip.accommodationConfirmation.isEmpty {
+                    detailLine(
+                        icon: "number.circle.fill",
+                        tint: .mint,
+                        title: "Hotel Confirmation",
+                        value: trip.accommodationConfirmation
+                    )
+                }
+                if !trip.transportationConfirmation.isEmpty {
+                    detailLine(
+                        icon: "ticket.fill",
+                        tint: .cyan,
+                        title: "Transport Confirmation",
+                        value: trip.transportationConfirmation
+                    )
+                }
+                if trip.accommodationName.isEmpty &&
+                    trip.transportationType.isEmpty &&
+                    trip.accommodationConfirmation.isEmpty &&
+                    trip.transportationConfirmation.isEmpty {
+                    Text("No travel resource details yet.")
+                        .font(AppTheme.TextStyle.body)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+    }
+
+    private func notesCard(_ trip: Trip) -> some View {
+        sectionCard("Notes", icon: "note.text") {
+            Text(trip.notes)
+                .font(AppTheme.TextStyle.body)
+                .foregroundStyle(AppTheme.onSurface)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 12)
+                .background(AppTheme.surfaceContainerLow)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+    }
+
+    private func infoCard(_ trip: Trip) -> some View {
+        sectionCard("Info", icon: "clock.arrow.circlepath") {
+            VStack(spacing: 12) {
+                detailLine(
+                    icon: "plus.circle.fill",
+                    tint: AppTheme.onSurfaceVariant,
+                    title: "Created",
+                    value: trip.createdAt.formatted(date: .abbreviated, time: .shortened)
+                )
+                detailLine(
+                    icon: "pencil.circle.fill",
+                    tint: AppTheme.onSurfaceVariant,
+                    title: "Updated",
+                    value: trip.updatedAt.formatted(date: .abbreviated, time: .shortened)
+                )
+            }
+        }
+    }
+
+    // MARK: - Linked Tasks
+
+    @ViewBuilder
+    private func linkedTasksCard(tripId: UUID) -> some View {
+        let linkedTasks = container.dayPlannerService.allTasks.filter { $0.tripId == tripId }
+
+        if !linkedTasks.isEmpty {
+            sectionCard("Linked Tasks", icon: "checklist") {
+                VStack(spacing: AppTheme.Space.sm) {
+                    ForEach(linkedTasks) { task in
+                        HStack(spacing: 10) {
+                            Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
+                                .font(.system(size: 20))
+                                .foregroundStyle(task.isCompleted ? .green : task.category.color)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(task.title)
+                                    .font(AppTheme.TextStyle.bodyBold)
+                                    .strikethrough(task.isCompleted)
+                                    .foregroundStyle(task.isCompleted ? AppTheme.onSurfaceVariant : AppTheme.onSurface)
+
+                                Text(task.date.formatted(date: .abbreviated, time: .omitted))
+                                    .font(AppTheme.TextStyle.caption)
+                                    .foregroundStyle(AppTheme.onSurfaceVariant)
+                            }
+
+                            Spacer()
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(AppTheme.surfaceContainerLow)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Navigation
+
+    @ViewBuilder
+    private func tripSectionView(_ route: TripRoute, trip: Trip) -> some View {
+        let tripBinding = Binding<Trip>(
+            get: { container.tripService.trip(by: tripId) ?? trip },
+            set: { newTrip in
+                Task {
+                    try? await container.tripService.updateTrip(newTrip)
+                }
+            }
+        )
+
+        switch route.section {
+        case .budget:
+            TripBudgetView(trip: tripBinding, initialIntent: route.intent)
+        case .itinerary:
+            TripItineraryView(trip: tripBinding, initialIntent: route.intent)
+        case .packing:
+            TripPackingView(trip: tripBinding, initialIntent: route.intent)
+        case .checklist:
+            TripChecklistView(trip: tripBinding, initialIntent: route.intent)
+        }
+    }
+
+    // MARK: - Shared Components
+
+    private func sectionCard<Content: View>(
+        _ title: String,
+        icon: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: AppTheme.Space.md) {
+            SectionHeader(icon: icon, title: title, gradient: AppTheme.tripGradient)
+            content()
+        }
+        .padding(AppTheme.Space.lg)
+        .background(AppTheme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous)
+                .strokeBorder(AppTheme.outlineVariant, lineWidth: 1)
+        )
+        .shadow(color: AppTheme.cardShadow, radius: 16, x: 0, y: 6)
+    }
+
+    private func detailLine(icon: String, tint: Color, title: String, value: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: 24)
+
+            Text(title)
+                .font(AppTheme.TextStyle.body)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
+
+            Spacer(minLength: 10)
+
+            Text(value)
+                .font(AppTheme.TextStyle.bodyBold)
+                .foregroundStyle(AppTheme.onSurface)
+                .multilineTextAlignment(.trailing)
+        }
+    }
+
+    private func stagedCard<Content: View>(_ index: Int, @ViewBuilder content: () -> Content) -> some View {
+        content()
+            .opacity(revealContent ? 1 : 0)
+            .offset(y: revealContent ? 0 : 14)
+            .animation(
+                .spring(response: 0.48, dampingFraction: 0.88).delay(Double(index) * 0.04),
+                value: revealContent
+            )
+    }
+
+    // MARK: - Formatting + Helpers
 
     private func budgetSubtitle(_ trip: Trip) -> String {
         if let budget = trip.budget {
@@ -311,190 +725,21 @@ struct TripDetailView: View {
         return "\(done)/\(trip.checklistItems.count) done"
     }
 
-    @ViewBuilder
-    private func tripSectionView(_ section: TripSection, trip: Trip) -> some View {
-        let tripBinding = Binding<Trip>(
-            get: { container.tripService.trip(by: tripId) ?? trip },
-            set: { newTrip in
-                Task {
-                    try? await container.tripService.updateTrip(newTrip)
-                }
-            }
-        )
-
-        switch section {
-        case .budget:
-            TripBudgetView(trip: tripBinding)
-        case .itinerary:
-            TripItineraryView(trip: tripBinding)
-        case .packing:
-            TripPackingView(trip: tripBinding)
-        case .checklist:
-            TripChecklistView(trip: tripBinding)
-        }
-    }
-
     private func sharedByBanner(name: String, color: Color) -> some View {
         HStack(spacing: AppTheme.Space.sm) {
             Image(systemName: "person.fill.checkmark")
                 .font(.caption)
                 .foregroundStyle(color)
             Text("Shared by \(name)")
-                .font(.caption)
-                .fontWeight(.medium)
+                .font(AppTheme.TextStyle.captionBold)
                 .foregroundStyle(color)
             Spacer()
         }
         .padding(.horizontal, AppTheme.Space.md)
         .padding(.vertical, AppTheme.Space.sm)
-        .background(color.opacity(0.08))
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
+        .background(color.opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
-
-    private func tripHeader(_ trip: Trip) -> some View {
-        VStack(spacing: 16) {
-            // Icon
-            Image(systemName: "airplane.circle.fill")
-                .font(.system(size: 60))
-                .foregroundStyle(AppTheme.tripGradient)
-
-            // Title and destination
-            VStack(spacing: 4) {
-                Text(trip.name)
-                    .font(.title2)
-                    .fontWeight(.bold)
-
-                if let lat = trip.destinationLatitude, let lng = trip.destinationLongitude {
-                    Button {
-                        MapLink.open(name: trip.destination, latitude: lat, longitude: lng)
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "location.fill")
-                                .font(.caption)
-                            Text(trip.destination)
-                        }
-                        .font(.subheadline)
-                        .foregroundStyle(AppTheme.onSurfaceVariant)
-                    }
-                } else {
-                    Text(trip.destination)
-                        .font(.subheadline)
-                        .foregroundStyle(AppTheme.onSurfaceVariant)
-                }
-            }
-
-            // Days indicator
-            if trip.computedStatus == .upcoming {
-                let days = Calendar.current.dateComponents([.day], from: Date(), to: trip.startDate).day ?? 0
-                if days > 0 {
-                    HStack(spacing: 4) {
-                        Text("\(days)")
-                            .font(.title)
-                            .fontWeight(.bold)
-                            .foregroundStyle(.blue)
-                        Text("days until departure")
-                            .font(.subheadline)
-                            .foregroundStyle(AppTheme.onSurfaceVariant)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(.blue.opacity(0.1))
-                    .clipShape(Capsule())
-                }
-            } else if trip.computedStatus == .active {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(.green)
-                        .frame(width: 8, height: 8)
-                    Text("Currently on this trip")
-                        .font(.subheadline)
-                        .foregroundStyle(.green)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(.green.opacity(0.1))
-                .clipShape(Capsule())
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
-        .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
-    }
-
-    private func sectionHeader(_ title: String, icon: String) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.blue)
-            Text(title)
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundStyle(AppTheme.onSurfaceVariant)
-        }
-        .padding(.horizontal)
-        .padding(.vertical, 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(AppTheme.surfaceContainerLow)
-    }
-
-    private func detailRow(icon: String, iconColor: Color, label: String, value: String) -> some View {
-        HStack {
-            Image(systemName: icon)
-                .font(.system(size: 20))
-                .foregroundStyle(iconColor)
-                .frame(width: 28)
-            Text(label)
-                .foregroundStyle(AppTheme.onSurfaceVariant)
-            Spacer()
-            Text(value)
-                .fontWeight(.medium)
-        }
-    }
-
-    // MARK: - Linked Tasks
-
-    @ViewBuilder
-    private func linkedTasksCard(tripId: UUID) -> some View {
-        let linkedTasks = container.dayPlannerService.allTasks.filter { $0.tripId == tripId }
-
-        if !linkedTasks.isEmpty {
-            VStack(alignment: .leading, spacing: 0) {
-                sectionHeader("Linked Tasks", icon: "checklist")
-
-                VStack(spacing: 0) {
-                    ForEach(linkedTasks) { task in
-                        HStack(spacing: 12) {
-                            Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
-                                .font(.system(size: 20))
-                                .foregroundStyle(task.isCompleted ? .green : task.category.color)
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(task.title)
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                                    .strikethrough(task.isCompleted)
-                                    .foregroundStyle(task.isCompleted ? AppTheme.onSurfaceVariant : AppTheme.onSurface)
-
-                                Text(task.date.formatted(date: .abbreviated, time: .omitted))
-                                    .font(.caption)
-                                    .foregroundStyle(AppTheme.onSurfaceVariant)
-                            }
-
-                            Spacer()
-                        }
-                        .padding(.horizontal)
-                        .padding(.vertical, 10)
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-            .background(AppTheme.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
-        }
-    }
-
-    // MARK: - Helpers
 
     private func durationText(from start: Date, to end: Date) -> String {
         let days = Calendar.current.dateComponents([.day], from: start, to: end).day ?? 0
@@ -509,6 +754,11 @@ struct TripDetailView: View {
 
     private func generateShareLink() async {
         guard let trip else { return }
+        guard container.dataSyncService.isEnabled else {
+            error = "Enable CashewCloud in Settings to share trips."
+            showError = true
+            return
+        }
         isGeneratingShare = true
         do {
             shareURL = try await container.shareService.createInviteLink(for: .trip(trip))
@@ -532,15 +782,6 @@ struct TripDetailView: View {
             isDeleting = false
         }
     }
-}
-
-// MARK: - Trip Section
-
-enum TripSection: Hashable {
-    case budget
-    case itinerary
-    case packing
-    case checklist
 }
 
 // MARK: - Quick Action Card
@@ -577,26 +818,42 @@ private struct QuickActionCard: View {
                 Text(subtitle)
                     .font(.caption)
                     .foregroundStyle(AppTheme.onSurfaceVariant)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.85)
             }
 
-            if let progress {
-                GeometryReader { geometry in
-                    ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(AppTheme.surfaceContainerHigh)
-                            .frame(height: 6)
-
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(color.gradient)
-                            .frame(width: geometry.size.width * progress, height: 6)
-                    }
-                }
-                .frame(height: 6)
-            }
+            bottomIndicator
         }
         .padding()
-        .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
+        .frame(maxWidth: .infinity, minHeight: 148, alignment: .topLeading)
+        .background(AppTheme.surfaceContainerLow)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var bottomIndicator: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(AppTheme.surfaceContainerHigh)
+                    .frame(height: 6)
+
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(color.gradient)
+                    .frame(
+                        width: geometry.size.width * progressWidth,
+                        height: 6
+                    )
+            }
+        }
+        .frame(height: 6)
+        .opacity(progress == nil ? 0.35 : 1)
+    }
+
+    private var progressWidth: Double {
+        if let progress {
+            return min(max(progress, 0), 1)
+        }
+        return 0.22
     }
 }
 

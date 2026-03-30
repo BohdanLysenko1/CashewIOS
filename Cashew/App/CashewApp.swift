@@ -36,7 +36,7 @@ struct CashewApp: App {
                     handleDeepLink(url)
                 }
                 .sheet(isPresented: .init(
-                    get: { pendingInviteToken != nil },
+                    get: { pendingInviteToken != nil && container.authService.isAuthenticated },
                     set: { if !$0 { pendingInviteToken = nil } }
                 )) {
                     if let token = pendingInviteToken {
@@ -76,11 +76,9 @@ struct CashewApp: App {
             }
         case "join":
             // cashew://join/<token>
-            guard
-                let token = url.pathComponents.dropFirst().first,
-                !token.isEmpty,
-                container.authService.isAuthenticated
-            else { return }
+            guard let rawToken = url.pathComponents.dropFirst().first else { return }
+            let token = rawToken.removingPercentEncoding ?? rawToken
+            guard !token.isEmpty else { return }
             pendingInviteToken = token
         default:
             break

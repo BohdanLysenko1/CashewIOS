@@ -2,38 +2,66 @@ import SwiftUI
 
 struct TripPackingView: View {
     @Binding var trip: Trip
+    let initialIntent: TripSectionIntent
     @State private var showAddItem = false
     @State private var editingItem: PackingItem?
-    @State private var showCategoryPicker = false
-    @State private var selectedCategory: PackingCategory?
+    @State private var showUnpackedOnly = false
+    @State private var didApplyInitialIntent = false
+
+    init(trip: Binding<Trip>, initialIntent: TripSectionIntent = .overview) {
+        self._trip = trip
+        self.initialIntent = initialIntent
+    }
 
     private var groupedItems: [PackingCategory: [PackingItem]] {
         Dictionary(grouping: trip.packingItems) { $0.category }
     }
 
-    private var sortedCategories: [PackingCategory] {
-        groupedItems.keys.sorted { $0.displayName < $1.displayName }
+    private var displayedItems: [PackingCategory: [PackingItem]] {
+        if !showUnpackedOnly {
+            return groupedItems
+        }
+
+        return groupedItems.compactMapValues { items in
+            let remaining = items.filter { !$0.isPacked }
+            return remaining.isEmpty ? nil : remaining
+        }
+    }
+
+    private var displayedCategories: [PackingCategory] {
+        displayedItems.keys.sorted { $0.displayName < $1.displayName }
     }
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
-                // Progress Card
+            VStack(spacing: AppTheme.Space.md) {
                 progressCard
 
-                // Items by Category
+                TripSectionCard("View Options", icon: "line.3.horizontal.decrease.circle.fill") {
+                    Toggle(isOn: $showUnpackedOnly) {
+                        Text("Show unpacked only")
+                            .font(AppTheme.TextStyle.body)
+                            .foregroundStyle(AppTheme.onSurface)
+                    }
+                    .tint(AppTheme.secondary)
+                }
+
                 if trip.packingItems.isEmpty {
                     emptyView
                 } else {
-                    ForEach(sortedCategories, id: \.self) { category in
-                        categorySection(category: category, items: groupedItems[category] ?? [])
+                    if displayedCategories.isEmpty {
+                        filteredEmptyView
+                    } else {
+                        ForEach(displayedCategories, id: \.self) { category in
+                            categorySection(category: category, items: displayedItems[category] ?? [])
+                        }
                     }
                 }
 
-                // Quick Add Suggestions
                 suggestionsCard
             }
-            .padding()
+            .padding(.horizontal, AppTheme.Space.lg)
+            .padding(.vertical, AppTheme.Space.md)
         }
         .background(AppTheme.background)
         .navigationTitle("Packing List")
@@ -52,59 +80,37 @@ struct TripPackingView: View {
         .sheet(item: $editingItem) { item in
             PackingItemFormView(trip: $trip, item: item)
         }
+        .onAppear {
+            applyInitialIntentIfNeeded()
+        }
     }
 
     // MARK: - Progress Card
 
     private var progressCard: some View {
-        VStack(spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Packing Progress")
-                        .font(.subheadline)
-                        .foregroundStyle(AppTheme.onSurfaceVariant)
+        let packed = trip.packingItems.filter { $0.isPacked }.count
+        let total = trip.packingItems.count
 
-                    let packed = trip.packingItems.filter { $0.isPacked }.count
-                    let total = trip.packingItems.count
-
-                    Text("\(packed) of \(total) items")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                }
-
-                Spacer()
-
-                ZStack {
-                    Circle()
-                        .stroke(AppTheme.surfaceContainerHigh, lineWidth: 8)
-                        .frame(width: 60, height: 60)
-
-                    Circle()
-                        .trim(from: 0, to: trip.packingProgress)
-                        .stroke(progressColor.gradient, style: StrokeStyle(lineWidth: 8, lineCap: .round))
-                        .frame(width: 60, height: 60)
-                        .rotationEffect(.degrees(-90))
-
-                    Text("\(Int(trip.packingProgress * 100))%")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                }
+        return TripHeroCard(
+            icon: "bag.fill",
+            title: "Packing",
+            subtitle: total == 0 ? "Start building your travel list" : "\(packed) of \(total) items ready"
+        ) {
+            HStack(spacing: AppTheme.Space.sm) {
+                TripMetricPill(label: "Packed", value: "\(packed)")
+                TripMetricPill(label: "Left", value: "\(max(0, total - packed))")
+                TripMetricPill(label: "Progress", value: "\(Int(trip.packingProgress * 100))%")
             }
+
+            AppProgressBar(progress: trip.packingProgress, color: progressColor)
+                .frame(height: AppTheme.progressBarHeight)
 
             if trip.packingProgress == 1.0 && !trip.packingItems.isEmpty {
-                HStack {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                    Text("All packed and ready to go!")
-                        .font(.subheadline)
-                        .foregroundStyle(.green)
-                }
-                .padding(.top, 4)
+                Label("All packed and ready to go!", systemImage: "checkmark.circle.fill")
+                    .font(AppTheme.TextStyle.captionBold)
+                    .foregroundStyle(.white.opacity(0.92))
             }
         }
-        .padding()
-        .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
     }
 
     private var progressColor: Color {
@@ -140,39 +146,50 @@ struct TripPackingView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
-        .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
+        .padding(AppTheme.Space.lg)
+        .tripModuleCard()
+    }
+
+    private var filteredEmptyView: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "checkmark.seal")
+                .font(.system(size: 40))
+                .foregroundStyle(.green)
+            Text("Everything is packed")
+                .font(.headline)
+                .foregroundStyle(AppTheme.onSurface)
+            Text("No unpacked items left in this filter.")
+                .font(.subheadline)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 36)
+        .padding(AppTheme.Space.lg)
+        .tripModuleCard()
     }
 
     // MARK: - Category Section
 
     private func categorySection(category: PackingCategory, items: [PackingItem]) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Header
+        let packed = items.filter { $0.isPacked }.count
+        return TripSectionCard(category.displayName, icon: category.icon) {
             HStack {
-                Image(systemName: category.icon)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 24, height: 24)
-                    .background(category.color.gradient)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-
-                Text(category.displayName)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-
-                Spacer()
-
-                let packed = items.filter { $0.isPacked }.count
-                Text("\(packed)/\(items.count)")
-                    .font(.caption)
+                Text("\(packed) packed of \(items.count)")
+                    .font(AppTheme.TextStyle.secondary)
                     .foregroundStyle(AppTheme.onSurfaceVariant)
+                Spacer()
+                Text("\(Int((items.isEmpty ? 0 : (Double(packed) / Double(items.count))) * 100))%")
+                    .font(AppTheme.TextStyle.captionBold)
+                    .foregroundStyle(category.color)
             }
-            .padding()
-            .background(AppTheme.surfaceContainerLow)
 
-            // Items
-            VStack(spacing: 0) {
+            AppProgressBar(
+                progress: items.isEmpty ? 0 : Double(packed) / Double(items.count),
+                color: category.color
+            )
+            .frame(height: AppTheme.progressBarHeight)
+
+            VStack(spacing: AppTheme.Space.xs) {
                 ForEach(items.sorted(by: { !$0.isPacked && $1.isPacked })) { item in
                     PackingItemRow(item: item) {
                         toggleItem(item)
@@ -183,24 +200,15 @@ struct TripPackingView: View {
                     }
                 }
             }
-            .padding(.vertical, 4)
         }
-        .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
     }
 
     // MARK: - Suggestions Card
 
     private var suggestionsCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Quick Add")
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundStyle(AppTheme.onSurfaceVariant)
-                .padding(.horizontal)
-
+        TripSectionCard("Quick Add", icon: "sparkles") {
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                HStack(spacing: AppTheme.Space.sm) {
                     ForEach(quickAddSuggestions, id: \.self) { suggestion in
                         Button {
                             addQuickItem(suggestion)
@@ -215,12 +223,9 @@ struct TripPackingView: View {
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(.horizontal)
+                .padding(.horizontal, 2)
             }
         }
-        .padding(.vertical, 12)
-        .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
     }
 
     private var quickAddSuggestions: [String] {
@@ -274,6 +279,20 @@ struct TripPackingView: View {
         return .other
     }
 
+    private func applyInitialIntentIfNeeded() {
+        guard !didApplyInitialIntent else { return }
+        didApplyInitialIntent = true
+
+        switch initialIntent {
+        case .addPackingItem:
+            showAddItem = true
+        case .reviewPacking:
+            showUnpackedOnly = true
+        default:
+            break
+        }
+    }
+
 }
 
 // MARK: - Packing Item Row
@@ -320,8 +339,9 @@ private struct PackingItemRow: View {
 
             Spacer()
         }
-        .padding(.horizontal)
+        .padding(.horizontal, 12)
         .padding(.vertical, 10)
+        .tripSoftSurface()
         .contentShape(Rectangle())
         .contextMenu {
             Button { onEdit() } label: {

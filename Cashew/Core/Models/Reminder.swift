@@ -45,6 +45,20 @@ enum ReminderInterval: String, Codable, Sendable, CaseIterable {
         }
     }
 
+    var notificationStartText: String {
+        switch self {
+        case .atTime: "now"
+        case .fiveMinutes: "in 5 minutes"
+        case .fifteenMinutes: "in 15 minutes"
+        case .thirtyMinutes: "in 30 minutes"
+        case .oneHour: "in 1 hour"
+        case .twoHours: "in 2 hours"
+        case .oneDay: "in 1 day"
+        case .twoDays: "in 2 days"
+        case .oneWeek: "in 1 week"
+        }
+    }
+
     var seconds: TimeInterval {
         switch self {
         case .atTime: 0

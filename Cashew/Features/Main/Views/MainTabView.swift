@@ -2,10 +2,16 @@ import SwiftUI
 
 struct MainTabView: View {
 
+    @Environment(AppContainer.self) private var container
     @State private var selectedTab: Tab = .dashboard
     @State private var coordinator = OnboardingCoordinator()
     @State private var showWelcome = false
     @State private var showCompletion = false
+    @State private var showLiveUpdateBanner = false
+    @State private var liveUpdateMessage = ""
+    @State private var liveUpdateIcon = "bolt.horizontal.circle.fill"
+    @State private var liveUpdateTint: Color = .teal
+    @State private var hideLiveUpdateTask: Task<Void, Never>?
     /// Distinguishes a "start tour" dismiss from a "skip" dismiss in onWelcomeDismissed.
     @State private var tourStartRequested = false
 
@@ -69,8 +75,39 @@ struct MainTabView: View {
                     .transition(.opacity)
                     .zIndex(1)
             }
+
+            if showLiveUpdateBanner {
+                liveUpdateBanner
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .zIndex(2)
+            }
         }
-        .onAppear(perform: startOnboardingIfNeeded)
+        .onAppear {
+            startOnboardingIfNeeded()
+            configureRealtimeSync()
+        }
+        .onDisappear {
+            stopRealtimeSync()
+            hideLiveUpdateTask?.cancel()
+        }
+        .onChange(of: container.dataSyncService.isEnabled) { _, _ in
+            configureRealtimeSync()
+        }
+        .onChange(of: (container.tripService as? TripService)?.realtimeEventCounter ?? 0) { _, newValue in
+            guard
+                newValue > 0,
+                let message = (container.tripService as? TripService)?.realtimeIndicatorMessage
+            else { return }
+            presentLiveUpdate(message, icon: "airplane.circle.fill", tint: .orange)
+        }
+        .onChange(of: (container.eventService as? EventService)?.realtimeEventCounter ?? 0) { _, newValue in
+            guard
+                newValue > 0,
+                let message = (container.eventService as? EventService)?.realtimeIndicatorMessage
+            else { return }
+            presentLiveUpdate(message, icon: "star.circle.fill", tint: .pink)
+        }
         .onChange(of: coordinator.currentStep) { _, newStep in
             onStepChanged(to: newStep)
         }
@@ -147,6 +184,78 @@ struct MainTabView: View {
     /// Called by fullScreenCover's onDismiss after the completion sheet has fully animated out.
     private func finishTour() {
         coordinator.complete()
+    }
+
+    private var liveUpdateBanner: some View {
+        HStack(spacing: 10) {
+            Image(systemName: liveUpdateIcon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.white)
+                .symbolEffect(.pulse, options: .repeating, isActive: showLiveUpdateBanner)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Live Update")
+                    .font(.caption2)
+                    .fontWeight(.bold)
+                    .foregroundStyle(.white.opacity(0.88))
+                Text(liveUpdateMessage)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            LinearGradient(
+                colors: [liveUpdateTint.opacity(0.95), liveUpdateTint.opacity(0.72)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .clipShape(Capsule())
+        .overlay(Capsule().strokeBorder(.white.opacity(0.24), lineWidth: 1))
+        .shadow(color: liveUpdateTint.opacity(0.35), radius: 18, x: 0, y: 8)
+        .padding(.horizontal, 14)
+        .frame(maxHeight: .infinity, alignment: .top)
+    }
+
+    private func configureRealtimeSync() {
+        guard container.dataSyncService.isEnabled else {
+            stopRealtimeSync()
+            return
+        }
+        (container.tripService as? TripService)?.startRealtimeSync()
+        (container.eventService as? EventService)?.startRealtimeSync()
+    }
+
+    private func stopRealtimeSync() {
+        (container.tripService as? TripService)?.stopRealtimeSync()
+        (container.eventService as? EventService)?.stopRealtimeSync()
+    }
+
+    private func presentLiveUpdate(_ message: String, icon: String, tint: Color) {
+        liveUpdateMessage = message
+        liveUpdateIcon = icon
+        liveUpdateTint = tint
+
+        withAnimation(.spring(response: 0.45, dampingFraction: 0.84)) {
+            showLiveUpdateBanner = true
+        }
+
+        hideLiveUpdateTask?.cancel()
+        hideLiveUpdateTask = Task {
+            try? await Task.sleep(nanoseconds: 2_400_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.22)) {
+                    showLiveUpdateBanner = false
+                }
+            }
+        }
     }
 }
 

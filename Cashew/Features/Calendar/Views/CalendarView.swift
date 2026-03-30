@@ -10,8 +10,8 @@ struct CalendarView: View {
     @State private var showTrips = true
     @State private var showEvents = true
     @State private var showTasks = true
-    @State private var selectedTripStatus: TripStatus?
-    @State private var selectedEventCategory: EventCategory?
+    @State private var selectedTripStatuses: Set<TripStatus> = []
+    @State private var selectedEventCategories: Set<EventCategory> = []
     @State private var showUpcoming = true
     @State private var showPast = false
     @State private var isCalendarCollapsed = false
@@ -107,8 +107,8 @@ struct CalendarView: View {
                 showTrips: $showTrips,
                 showEvents: $showEvents,
                 showTasks: $showTasks,
-                selectedTripStatus: $selectedTripStatus,
-                selectedEventCategory: $selectedEventCategory,
+                selectedTripStatuses: $selectedTripStatuses,
+                selectedEventCategories: $selectedEventCategories,
                 onReset: resetFilters
             )
         }
@@ -582,49 +582,59 @@ struct CalendarView: View {
     // MARK: - Filter
 
     private var hasActiveFilters: Bool {
-        !showTrips || !showEvents || !showTasks || selectedTripStatus != nil || selectedEventCategory != nil
+        !showTrips || !showEvents || !showTasks || !selectedTripStatuses.isEmpty || !selectedEventCategories.isEmpty
     }
 
     private var activeFilterCount: Int {
-        [!showTrips, !showEvents, !showTasks,
-         selectedTripStatus != nil, selectedEventCategory != nil]
-            .filter { $0 }.count
+        [!showTrips, !showEvents, !showTasks].filter { $0 }.count
+            + selectedTripStatuses.count
+            + selectedEventCategories.count
     }
 
     private func resetFilters() {
         showTrips = true
         showEvents = true
         showTasks = true
-        selectedTripStatus = nil
-        selectedEventCategory = nil
+        selectedTripStatuses.removeAll()
+        selectedEventCategories.removeAll()
     }
 
     private var filterButton: some View {
         Button { showFilterSheet = true } label: {
-            ZStack(alignment: .topTrailing) {
+            HStack(spacing: 6) {
                 Image(systemName: hasActiveFilters
                     ? "line.3.horizontal.decrease.circle.fill"
                     : "line.3.horizontal.decrease.circle")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(hasActiveFilters ? .orange : .secondary)
-                    .padding(4)
-                    .onGeometryChange(for: CGRect.self) { proxy in
-                        proxy.frame(in: .global)
-                    } action: { frame in
-                        onboardingCoordinator.registerFrame(
-                            id: "anchor_calendar_filter",
-                            frame: frame
-                        )
-                    }
+                    .font(.system(size: 14, weight: .semibold))
+                Text("Filters")
+                    .font(AppTheme.TextStyle.captionBold)
                 if activeFilterCount > 0 {
                     Text("\(activeFilterCount)")
-                        .font(.system(size: 9, weight: .bold))
+                        .font(AppTheme.TextStyle.micro)
+                        .fontWeight(.bold)
                         .foregroundStyle(.white)
-                        .frame(width: 15, height: 15)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
                         .background(.orange)
-                        .clipShape(Circle())
-                        .offset(x: 4, y: -2)
+                        .clipShape(Capsule())
                 }
+            }
+            .foregroundStyle(hasActiveFilters ? .orange : AppTheme.onSurfaceVariant)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(hasActiveFilters ? .orange.opacity(0.12) : AppTheme.surfaceContainerLow)
+            .clipShape(Capsule())
+            .overlay(
+                Capsule()
+                    .strokeBorder(hasActiveFilters ? .orange.opacity(0.3) : Color.clear, lineWidth: 1)
+            )
+            .onGeometryChange(for: CGRect.self) { proxy in
+                proxy.frame(in: .global)
+            } action: { frame in
+                onboardingCoordinator.registerFrame(
+                    id: "anchor_calendar_filter",
+                    frame: frame
+                )
             }
         }
         .buttonStyle(.plain)
@@ -726,13 +736,13 @@ struct CalendarView: View {
     }
 
     private func matchesTripFilter(_ trip: Trip) -> Bool {
-        guard let statusFilter = selectedTripStatus else { return true }
-        return trip.status == statusFilter
+        guard !selectedTripStatuses.isEmpty else { return true }
+        return selectedTripStatuses.contains(trip.computedStatus)
     }
 
     private func matchesEventFilter(_ event: Event) -> Bool {
-        guard let categoryFilter = selectedEventCategory else { return true }
-        return event.category == categoryFilter
+        guard !selectedEventCategories.isEmpty else { return true }
+        return selectedEventCategories.contains(event.category)
     }
 
     private func loadData() async {

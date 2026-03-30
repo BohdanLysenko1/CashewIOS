@@ -10,6 +10,7 @@ struct TaskCreationWizardView: View {
 
     @State private var showError = false
     @State private var goingForward = true
+    @State private var showRepeatDayPicker = false
     @FocusState private var focusedField: Field?
 
     enum Field: Hashable {
@@ -67,13 +68,25 @@ struct TaskCreationWizardView: View {
         .task {
             await viewModel.loadLinkedDataIfNeeded()
         }
+        .sheet(isPresented: $showRepeatDayPicker) {
+            NavigationStack {
+                DayOfWeekPicker(selectedDays: $viewModel.selectedRepeatDays)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") {
+                                showRepeatDayPicker = false
+                            }
+                        }
+                    }
+            }
+        }
     }
 
     private var header: some View {
         CreationWizardHeader(
             title: viewModel.stepTitle,
             currentStep: viewModel.currentStep,
-            totalSteps: TaskCreationWizardViewModel.totalSteps,
+            totalSteps: viewModel.totalSteps,
             gradient: AppTheme.dayPlannerGradient,
             onClose: onDismiss
         )
@@ -92,9 +105,19 @@ struct TaskCreationWizardView: View {
                 switch viewModel.currentStep {
                 case 0: basicsStep
                 case 1: scheduleStep
-                case 2: categoryAndLinksStep
-                case 3: subtasksStep
-                case 4: notesStep
+                case 2: categoryStep(showLinks: !viewModel.createAsRoutine)
+                case 3:
+                    if viewModel.createAsRoutine {
+                        notesStep
+                    } else {
+                        subtasksStep
+                    }
+                case 4:
+                    if viewModel.createAsRoutine {
+                        EmptyView()
+                    } else {
+                        notesStep
+                    }
                 default: EmptyView()
                 }
             }
@@ -128,6 +151,23 @@ struct TaskCreationWizardView: View {
                 .padding(.horizontal, AppTheme.Space.lg)
                 .padding(.vertical, AppTheme.Space.md)
             }
+
+            infoCard {
+                VStack(spacing: 0) {
+                    toggleRow(title: "Make this a repeatable routine", isOn: $viewModel.createAsRoutine)
+                    if viewModel.createAsRoutine {
+                        Divider().padding(.leading, AppTheme.Space.lg)
+                        HStack {
+                            Text("You will choose repeat days and time on the next step.")
+                                .font(AppTheme.TextStyle.caption)
+                                .foregroundStyle(AppTheme.onSurfaceVariant)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, AppTheme.Space.lg)
+                        .padding(.vertical, AppTheme.Space.md)
+                    }
+                }
+            }
         }
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
@@ -156,11 +196,60 @@ struct TaskCreationWizardView: View {
                 }
             }
 
+            if viewModel.createAsRoutine {
+                infoCard {
+                    VStack(spacing: 0) {
+                        pickerRow(title: "Repeat", selected: viewModel.repeatPattern.displayName) {
+                            ForEach(RepeatPattern.allCases, id: \.self) { pattern in
+                                Button(pattern.displayName) {
+                                    viewModel.repeatPattern = pattern
+                                    if pattern != .custom {
+                                        viewModel.selectedRepeatDays.removeAll()
+                                    }
+                                }
+                            }
+                        }
+
+                        if viewModel.repeatPattern == .custom {
+                            Divider().padding(.leading, AppTheme.Space.lg)
+                            Button {
+                                showRepeatDayPicker = true
+                            } label: {
+                                HStack {
+                                    Text("Days")
+                                        .font(AppTheme.TextStyle.body)
+                                        .foregroundStyle(AppTheme.onSurface)
+                                    Spacer()
+                                    Text(selectedRepeatDaysText)
+                                        .font(AppTheme.TextStyle.body)
+                                        .foregroundStyle(AppTheme.onSurfaceVariant)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.8)
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundStyle(AppTheme.onSurfaceVariant.opacity(0.75))
+                                }
+                                .padding(.horizontal, AppTheme.Space.lg)
+                                .padding(.vertical, AppTheme.Space.md)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+
             if viewModel.hasTime && viewModel.hasEndTime && viewModel.endTime < viewModel.startTime {
                 CreationInlineError(text: "End time must be after start time")
                     .padding(.horizontal, AppTheme.Space.xs)
+            } else if viewModel.createAsRoutine && viewModel.repeatPattern == .custom && viewModel.selectedRepeatDays.isEmpty {
+                CreationInlineError(text: "Select at least one repeat day")
+                    .padding(.horizontal, AppTheme.Space.xs)
             } else {
-                Text("Tasks without a specific time will appear in your to-do list.")
+                Text(
+                    viewModel.createAsRoutine
+                        ? "Routine tasks repeat based on your schedule."
+                        : "Tasks without a specific time will appear in your to-do list."
+                )
                     .font(AppTheme.TextStyle.caption)
                     .foregroundStyle(AppTheme.onSurfaceVariant)
                     .padding(.horizontal, AppTheme.Space.xs)
@@ -168,7 +257,7 @@ struct TaskCreationWizardView: View {
         }
     }
 
-    private var categoryAndLinksStep: some View {
+    private func categoryStep(showLinks: Bool) -> some View {
         VStack(spacing: AppTheme.Space.md) {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Category")
@@ -176,7 +265,7 @@ struct TaskCreationWizardView: View {
                     .foregroundStyle(AppTheme.onSurfaceVariant)
 
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: AppTheme.Space.sm) {
-                    ForEach(TaskCategory.allCases, id: \.self) { cat in
+                    ForEach(viewModel.availableCategories, id: \.self) { cat in
                         let isSelected = viewModel.category == cat
                         Button {
                             HapticManager.impact(.light)
@@ -203,7 +292,7 @@ struct TaskCreationWizardView: View {
                 }
             }
 
-            if viewModel.category == .custom {
+            if !viewModel.createAsRoutine && viewModel.category == .custom {
                 infoCard {
                     VStack(alignment: .leading, spacing: AppTheme.Space.sm) {
                         Text("Custom Category Name")
@@ -219,28 +308,30 @@ struct TaskCreationWizardView: View {
                 }
             }
 
-            infoCard {
-                VStack(spacing: 0) {
-                    pickerRow(title: "Trip", selected: selectedTripTitle) {
-                        Button("None") {
-                            viewModel.selectedTripId = nil
-                        }
-                        ForEach(viewModelTripOptions) { trip in
-                            Button(trip.name) {
-                                viewModel.selectedTripId = trip.id
+            if showLinks {
+                infoCard {
+                    VStack(spacing: 0) {
+                        pickerRow(title: "Trip", selected: selectedTripTitle) {
+                            Button("None") {
+                                viewModel.selectedTripId = nil
+                            }
+                            ForEach(viewModelTripOptions) { trip in
+                                Button(trip.name) {
+                                    viewModel.selectedTripId = trip.id
+                                }
                             }
                         }
-                    }
 
-                    Divider().padding(.leading, AppTheme.Space.lg)
+                        Divider().padding(.leading, AppTheme.Space.lg)
 
-                    pickerRow(title: "Event", selected: selectedEventTitle) {
-                        Button("None") {
-                            viewModel.selectedEventId = nil
-                        }
-                        ForEach(viewModelEventOptions) { event in
-                            Button(event.title) {
-                                viewModel.selectedEventId = event.id
+                        pickerRow(title: "Event", selected: selectedEventTitle) {
+                            Button("None") {
+                                viewModel.selectedEventId = nil
+                            }
+                            ForEach(viewModelEventOptions) { event in
+                                Button(event.title) {
+                                    viewModel.selectedEventId = event.id
+                                }
                             }
                         }
                     }
@@ -349,14 +440,14 @@ struct TaskCreationWizardView: View {
     }
 
     private var bottomBar: some View {
-        let isLastStep = viewModel.currentStep == TaskCreationWizardViewModel.totalSteps - 1
+        let isLastStep = viewModel.currentStep == viewModel.totalSteps - 1
         return CreationWizardNavigationBar(
             isFirstStep: viewModel.currentStep == 0,
             isLastStep: isLastStep,
             canContinue: viewModel.isCurrentStepValid,
             isLoading: viewModel.isSaving,
             gradient: AppTheme.dayPlannerGradient,
-            finalStepTitle: "Create Task",
+            finalStepTitle: viewModel.createAsRoutine ? "Create Routine" : "Create Task",
             onBack: {
                 HapticManager.impact(.medium)
                 goingForward = false
@@ -458,6 +549,19 @@ struct TaskCreationWizardView: View {
     private var selectedEventTitle: String {
         guard let id = viewModel.selectedEventId else { return "None" }
         return viewModelEventOptions.first(where: { $0.id == id })?.title ?? "None"
+    }
+
+    private var selectedRepeatDaysText: String {
+        if viewModel.selectedRepeatDays.isEmpty {
+            return "None"
+        }
+        if viewModel.selectedRepeatDays.count == 7 {
+            return "Every day"
+        }
+        return viewModel.selectedRepeatDays
+            .sorted { $0.rawValue < $1.rawValue }
+            .map { $0.shortName }
+            .joined(separator: ", ")
     }
 
     private var viewModelTripOptions: [Trip] {

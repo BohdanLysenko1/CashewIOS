@@ -15,6 +15,7 @@ struct EventDetailView: View {
     @State private var shareURL: URL?
     @State private var isGeneratingShare = false
     @State private var showCollaborators = false
+    @State private var revealContent = false
 
     private var event: Event? {
         container.eventService.event(by: eventId)
@@ -124,239 +125,557 @@ struct EventDetailView: View {
 
     private func eventContent(_ event: Event) -> some View {
         ScrollView {
-            VStack(spacing: 16) {
-                // Shared by banner
+            VStack(spacing: AppTheme.Space.md) {
                 if let name = event.ownerName {
-                    sharedByBanner(name: name)
-                }
-
-                // Hero Header
-                eventHeader(event)
-
-                // Details Card
-                VStack(alignment: .leading, spacing: 0) {
-                    sectionHeader("Details", icon: "info.circle")
-
-                    VStack(spacing: 12) {
-                        HStack {
-                            Image(systemName: event.category.icon)
-                                .font(.system(size: 20))
-                                .foregroundStyle(event.category.color)
-                                .frame(width: 28)
-                            Text("Category")
-                                .foregroundStyle(AppTheme.onSurfaceVariant)
-                            Spacer()
-                            CategoryBadge(category: event.category, customName: event.customCategoryName, style: .prominent)
-                        }
-
-                        
-                        HStack {
-                            Image(systemName: event.priority.icon)
-                                .font(.system(size: 20))
-                                .foregroundStyle(priorityColor(event.priority))
-                                .frame(width: 28)
-                            Text("Priority")
-                                .foregroundStyle(AppTheme.onSurfaceVariant)
-                            Spacer()
-                            Text(event.priority.displayName)
-                                .fontWeight(.medium)
-                                .foregroundStyle(priorityColor(event.priority))
-                        }
-
-                        if !event.location.isEmpty {
-                                                        if let lat = event.locationLatitude, let lng = event.locationLongitude {
-                                TappableLocationRow(
-                                    icon: "mappin.circle.fill", iconColor: .red,
-                                    label: "Location", value: event.location,
-                                    latitude: lat, longitude: lng
-                                )
-                            } else {
-                                detailRow(icon: "mappin.circle.fill", iconColor: .red, label: "Location", value: event.location)
-                            }
-                        }
-
-                        if !event.address.isEmpty {
-                                                        detailRow(icon: "map.fill", iconColor: .orange, label: "Address", value: event.address)
-                        }
+                    stagedCard(0) {
+                        sharedByBanner(name: name)
                     }
-                    .padding()
                 }
-                .background(AppTheme.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
 
-                // Date & Time Card
-                VStack(alignment: .leading, spacing: 0) {
-                    sectionHeader("Date & Time", icon: "calendar")
-
-                    VStack(spacing: 12) {
-                        if event.isAllDay {
-                            detailRow(icon: "calendar.circle.fill", iconColor: .blue, label: "Date", value: event.date.formatted(date: .long, time: .omitted))
-
-                            
-                            HStack {
-                                Image(systemName: "sun.max.fill")
-                                    .font(.system(size: 20))
-                                    .foregroundStyle(.orange)
-                                    .frame(width: 28)
-                                Text("All Day")
-                                    .foregroundStyle(AppTheme.onSurfaceVariant)
-                                Spacer()
-                                Text("Yes")
-                                    .fontWeight(.medium)
-                                    .foregroundStyle(.blue)
-                            }
-                        } else {
-                            detailRow(icon: "play.circle.fill", iconColor: .green, label: "Starts", value: event.date.formatted(date: .long, time: .shortened))
-
-                            if let endDate = event.endDate {
-                                
-                                detailRow(icon: "stop.circle.fill", iconColor: .red, label: "Ends", value: endDate.formatted(date: .long, time: .shortened))
-
-                                
-                                detailRow(icon: "clock.fill", iconColor: .purple, label: "Duration", value: durationText(from: event.date, to: endDate))
-                            }
-                        }
-
-                        // Recurrence
-                        if let rule = event.recurrenceRule {
-                            
-                            HStack {
-                                Image(systemName: "repeat")
-                                    .font(.system(size: 20))
-                                    .foregroundStyle(.blue)
-                                    .frame(width: 28)
-                                Text("Repeats")
-                                    .foregroundStyle(AppTheme.onSurfaceVariant)
-                                Spacer()
-                                Text(rule.displayText)
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                                    .foregroundStyle(.blue)
-                            }
-                        }
-                    }
-                    .padding()
+                stagedCard(1) {
+                    eventHero(event)
                 }
-                .background(AppTheme.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
 
-                // Reminders Card
+                stagedCard(2) {
+                    snapshotCard(event)
+                }
+
+                stagedCard(3) {
+                    coreDetailsCard(event)
+                }
+
                 if !event.reminders.isEmpty {
-                    VStack(alignment: .leading, spacing: 0) {
-                        sectionHeader("Reminders", icon: "bell.fill")
-
-                        VStack(spacing: 12) {
-                            ForEach(event.reminders) { reminder in
-                                HStack {
-                                    Image(systemName: "bell.fill")
-                                        .font(.system(size: 20))
-                                        .foregroundStyle(.orange)
-                                        .frame(width: 28)
-                                    Text(reminder.interval.displayName)
-                                        .foregroundStyle(AppTheme.onSurfaceVariant)
-                                    Spacer()
-                                    if reminder.isEnabled {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .foregroundStyle(.green)
-                                    }
-                                }
-                            }
-                        }
-                        .padding()
+                    stagedCard(4) {
+                        remindersCard(event)
                     }
-                    .background(AppTheme.cardBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
                 }
 
-                // Links & Cost Card
-                let nonPhotoAttachments = event.attachments.filter { $0.type != .image }
-                if event.url != nil || event.cost != nil || !nonPhotoAttachments.isEmpty {
-                    VStack(alignment: .leading, spacing: 0) {
-                        sectionHeader("Links & Cost", icon: "link")
-
-                        VStack(spacing: 12) {
-                            if let url = event.url {
-                                HStack {
-                                    Image(systemName: "globe")
-                                        .font(.system(size: 20))
-                                        .foregroundStyle(.blue)
-                                        .frame(width: 28)
-                                    Link(url.host ?? url.absoluteString, destination: url)
-                                        .font(.subheadline)
-                                    Spacer()
-                                    Image(systemName: "arrow.up.right.square")
-                                        .foregroundStyle(AppTheme.onSurfaceVariant)
-                                }
-                            }
-
-                            if let cost = event.cost {
-                                detailRow(icon: "creditcard.fill", iconColor: .green, label: "Cost", value: formatCost(cost, currency: event.currency))
-                            }
-
-                            ForEach(nonPhotoAttachments) { attachment in
-                                
-                                HStack {
-                                    Image(systemName: attachment.type.icon)
-                                        .font(.system(size: 20))
-                                        .foregroundStyle(.purple)
-                                        .frame(width: 28)
-                                    Text(attachment.name)
-                                        .font(.subheadline)
-                                    Spacer()
-                                    if let url = attachment.url {
-                                        Link(destination: url) {
-                                            Image(systemName: "arrow.up.right.square")
-                                                .foregroundStyle(.blue)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        .padding()
+                if shouldShowResources(event) {
+                    stagedCard(5) {
+                        resourcesCard(event)
                     }
-                    .background(AppTheme.cardBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
                 }
 
-                // Photos Card
-                PhotosGridCard(attachments: event.attachments, accentColor: .purple)
+                stagedCard(6) {
+                    PhotosGridCard(attachments: event.attachments, accentColor: AppTheme.tertiary)
+                }
 
-                // Notes Card
                 if !event.notes.isEmpty {
-                    VStack(alignment: .leading, spacing: 0) {
-                        sectionHeader("Notes", icon: "note.text")
-
-                        Text(event.notes)
-                            .font(.body)
-                            .foregroundStyle(AppTheme.onSurfaceVariant)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding()
+                    stagedCard(7) {
+                        notesCard(event)
                     }
-                    .background(AppTheme.cardBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
                 }
 
-                // Linked Tasks Card
-                linkedTasksCard(eventId: event.id)
-
-                // Info Card
-                VStack(alignment: .leading, spacing: 0) {
-                    sectionHeader("Info", icon: "clock.arrow.circlepath")
-
-                    VStack(spacing: 12) {
-                        detailRow(icon: "plus.circle.fill", iconColor: .gray, label: "Created", value: event.createdAt.formatted(date: .abbreviated, time: .shortened))
-
-                        
-                        detailRow(icon: "pencil.circle.fill", iconColor: .gray, label: "Updated", value: event.updatedAt.formatted(date: .abbreviated, time: .shortened))
-                    }
-                    .padding()
+                stagedCard(8) {
+                    linkedTasksCard(eventId: event.id)
                 }
-                .background(AppTheme.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
+
+                stagedCard(9) {
+                    metaCard(event)
+                }
             }
-            .padding()
+            .padding(.horizontal, AppTheme.Space.lg)
+            .padding(.vertical, AppTheme.Space.md)
+            .onAppear {
+                withAnimation(.spring(response: 0.50, dampingFraction: 0.86)) {
+                    revealContent = true
+                }
+            }
         }
         .background(AppTheme.background)
+    }
+
+    // MARK: - Hero
+
+    private func eventHero(_ event: Event) -> some View {
+        let status = temporalStatus(for: event)
+
+        return VStack(alignment: .leading, spacing: AppTheme.Space.md) {
+            HStack(alignment: .top, spacing: AppTheme.Space.md) {
+                Image(systemName: event.category.icon)
+                    .font(.system(size: 21, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 48, height: 48)
+                    .background(event.category.color.opacity(0.75))
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(event.title)
+                        .font(AppTheme.TextStyle.title)
+                        .foregroundStyle(.white)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    HStack(spacing: 6) {
+                        heroChip(icon: event.category.icon, label: event.categoryDisplayName)
+                        heroChip(icon: event.priority.icon, label: event.priority.displayName)
+                    }
+                }
+
+                Spacer(minLength: 0)
+
+                HStack(spacing: 5) {
+                    Image(systemName: status.icon)
+                    Text(status.text)
+                }
+                .font(AppTheme.TextStyle.captionBold)
+                .foregroundStyle(status.color)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 6)
+                .background(.white.opacity(0.95))
+                .clipShape(Capsule())
+            }
+
+            if !event.location.isEmpty {
+                if let lat = event.locationLatitude, let lng = event.locationLongitude {
+                    Button {
+                        MapLink.open(name: event.location, latitude: lat, longitude: lng)
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "mappin.and.ellipse")
+                            Text(event.location)
+                                .lineLimit(1)
+                            Image(systemName: "arrow.up.right.square")
+                                .font(.system(size: 10, weight: .semibold))
+                        }
+                        .font(AppTheme.TextStyle.caption)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 6)
+                        .background(.white.opacity(0.16))
+                        .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    heroChip(icon: "mappin.and.ellipse", label: event.location)
+                }
+            }
+
+            HStack(spacing: 8) {
+                heroChip(icon: "calendar", label: event.date.formatted(date: .abbreviated, time: .omitted))
+                heroChip(icon: event.isAllDay ? "sun.max.fill" : "clock.fill", label: timeSummary(for: event))
+                if event.recurrenceRule != nil {
+                    heroChip(icon: "repeat", label: "Repeats")
+                }
+            }
+        }
+        .padding(AppTheme.Space.lg)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(AppTheme.eventGradient)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous)
+                .strokeBorder(.white.opacity(0.10), lineWidth: 1)
+        )
+        .shadow(color: AppTheme.tertiary.opacity(0.20), radius: 16, x: 0, y: 8)
+    }
+
+    private func heroChip(icon: String, label: String) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 10, weight: .semibold))
+            Text(label)
+                .font(AppTheme.TextStyle.caption)
+                .lineLimit(1)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(.white.opacity(0.16))
+        .clipShape(Capsule())
+    }
+
+    // MARK: - Cards
+
+    private func snapshotCard(_ event: Event) -> some View {
+        sectionCard("Snapshot", icon: "sparkles") {
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: AppTheme.Space.sm) {
+                snapshotTile(
+                    icon: "calendar.circle.fill",
+                    title: "Date",
+                    value: event.date.formatted(date: .abbreviated, time: .omitted),
+                    tint: .blue
+                )
+                snapshotTile(
+                    icon: event.isAllDay ? "sun.max.fill" : "clock.fill",
+                    title: "Time",
+                    value: timeSummary(for: event),
+                    tint: event.isAllDay ? .orange : .purple
+                )
+                snapshotTile(
+                    icon: "repeat",
+                    title: "Recurrence",
+                    value: event.recurrenceRule?.displayText ?? "Does not repeat",
+                    tint: AppTheme.tertiary
+                )
+                snapshotTile(
+                    icon: "hourglass",
+                    title: "Duration",
+                    value: event.formattedDuration ?? "Not set",
+                    tint: .green
+                )
+            }
+        }
+    }
+
+    private func snapshotTile(icon: String, title: String, value: String, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 5) {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .semibold))
+                Text(title)
+                    .font(AppTheme.TextStyle.captionBold)
+            }
+            .foregroundStyle(tint)
+
+            Text(value)
+                .font(AppTheme.TextStyle.bodyBold)
+                .foregroundStyle(AppTheme.onSurface)
+                .lineLimit(2)
+                .minimumScaleFactor(0.9)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 10)
+        .background(tint.opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private func coreDetailsCard(_ event: Event) -> some View {
+        sectionCard("Core Details", icon: "info.circle") {
+            VStack(spacing: 12) {
+                HStack {
+                    Image(systemName: event.category.icon)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(event.category.color)
+                        .frame(width: 24)
+                    Text("Category")
+                        .font(AppTheme.TextStyle.body)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
+                    Spacer()
+                    CategoryBadge(category: event.category, customName: event.customCategoryName, style: .prominent)
+                }
+
+                detailLine(
+                    icon: event.priority.icon,
+                    tint: priorityColor(event.priority),
+                    title: "Priority",
+                    value: event.priority.displayName
+                )
+
+                if !event.location.isEmpty {
+                    if let lat = event.locationLatitude, let lng = event.locationLongitude {
+                        Button {
+                            MapLink.open(name: event.location, latitude: lat, longitude: lng)
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: "mappin.circle.fill")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(.red)
+                                    .frame(width: 24)
+
+                                Text("Location")
+                                    .font(AppTheme.TextStyle.body)
+                                    .foregroundStyle(AppTheme.onSurfaceVariant)
+
+                                Spacer(minLength: 10)
+
+                                Text(event.location)
+                                    .font(AppTheme.TextStyle.bodyBold)
+                                    .foregroundStyle(AppTheme.onSurface)
+                                    .multilineTextAlignment(.trailing)
+
+                                Image(systemName: "arrow.up.right.square")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(AppTheme.onSurfaceVariant)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        detailLine(icon: "mappin.circle.fill", tint: .red, title: "Location", value: event.location)
+                    }
+                }
+
+                if !event.address.isEmpty {
+                    detailLine(icon: "map.fill", tint: .orange, title: "Address", value: event.address)
+                }
+
+                if let tripId = event.tripId, let tripName = container.tripService.trip(by: tripId)?.name {
+                    detailLine(icon: "airplane", tint: AppTheme.secondary, title: "Trip", value: tripName)
+                }
+            }
+        }
+    }
+
+    private func remindersCard(_ event: Event) -> some View {
+        sectionCard("Reminders", icon: "bell.fill") {
+            VStack(spacing: AppTheme.Space.sm) {
+                ForEach(event.reminders) { reminder in
+                    HStack(spacing: 10) {
+                        Image(systemName: reminder.isEnabled ? "bell.badge.fill" : "bell.slash")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(reminder.isEnabled ? .orange : AppTheme.onSurfaceVariant)
+                            .frame(width: 24)
+
+                        Text(reminder.interval.displayName)
+                            .font(AppTheme.TextStyle.body)
+                            .foregroundStyle(AppTheme.onSurface)
+
+                        Spacer()
+
+                        Image(systemName: reminder.isEnabled ? "checkmark.circle.fill" : "minus.circle")
+                            .foregroundStyle(reminder.isEnabled ? .green : AppTheme.onSurfaceVariant)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(AppTheme.surfaceContainerLow)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+            }
+        }
+    }
+
+    private func resourcesCard(_ event: Event) -> some View {
+        let nonPhotoAttachments = event.attachments.filter { $0.type != .image }
+
+        return sectionCard("Resources", icon: "link") {
+            VStack(spacing: 12) {
+                if let url = event.url {
+                    HStack(spacing: 10) {
+                        Image(systemName: "globe")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.blue)
+                            .frame(width: 24)
+
+                        Text("Website")
+                            .font(AppTheme.TextStyle.body)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
+
+                        Spacer(minLength: 10)
+
+                        Link(url.host ?? url.absoluteString, destination: url)
+                            .font(AppTheme.TextStyle.bodyBold)
+                            .lineLimit(1)
+
+                        Image(systemName: "arrow.up.right.square")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
+                    }
+                }
+
+                if let cost = event.cost {
+                    detailLine(
+                        icon: "creditcard.fill",
+                        tint: .green,
+                        title: "Cost",
+                        value: formatCost(cost, currency: event.currency)
+                    )
+                }
+
+                ForEach(nonPhotoAttachments) { attachment in
+                    HStack(spacing: 10) {
+                        Image(systemName: attachment.type.icon)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.purple)
+                            .frame(width: 24)
+
+                        Text("Attachment")
+                            .font(AppTheme.TextStyle.body)
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
+
+                        Spacer(minLength: 10)
+
+                        Text(attachment.name)
+                            .font(AppTheme.TextStyle.bodyBold)
+                            .lineLimit(1)
+
+                        if let url = attachment.url {
+                            Link(destination: url) {
+                                Image(systemName: "arrow.up.right.square")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(.blue)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func notesCard(_ event: Event) -> some View {
+        sectionCard("Notes", icon: "note.text") {
+            Text(event.notes)
+                .font(AppTheme.TextStyle.body)
+                .foregroundStyle(AppTheme.onSurface)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 12)
+                .background(AppTheme.surfaceContainerLow)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+    }
+
+    private func metaCard(_ event: Event) -> some View {
+        sectionCard("Info", icon: "clock.arrow.circlepath") {
+            VStack(spacing: 12) {
+                detailLine(
+                    icon: "plus.circle.fill",
+                    tint: AppTheme.onSurfaceVariant,
+                    title: "Created",
+                    value: event.createdAt.formatted(date: .abbreviated, time: .shortened)
+                )
+                detailLine(
+                    icon: "pencil.circle.fill",
+                    tint: AppTheme.onSurfaceVariant,
+                    title: "Updated",
+                    value: event.updatedAt.formatted(date: .abbreviated, time: .shortened)
+                )
+            }
+        }
+    }
+
+    // MARK: - Linked Tasks
+
+    @ViewBuilder
+    private func linkedTasksCard(eventId: UUID) -> some View {
+        let linkedTasks = container.dayPlannerService.allTasks.filter { $0.eventId == eventId }
+
+        if !linkedTasks.isEmpty {
+            sectionCard("Linked Tasks", icon: "checklist") {
+                VStack(spacing: AppTheme.Space.sm) {
+                    ForEach(linkedTasks) { task in
+                        HStack(spacing: 10) {
+                            Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
+                                .font(.system(size: 20))
+                                .foregroundStyle(task.isCompleted ? .green : task.category.color)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(task.title)
+                                    .font(AppTheme.TextStyle.bodyBold)
+                                    .strikethrough(task.isCompleted)
+                                    .foregroundStyle(task.isCompleted ? AppTheme.onSurfaceVariant : AppTheme.onSurface)
+
+                                Text(task.date.formatted(date: .abbreviated, time: .omitted))
+                                    .font(AppTheme.TextStyle.caption)
+                                    .foregroundStyle(AppTheme.onSurfaceVariant)
+                            }
+
+                            Spacer()
+
+                            HStack(spacing: 4) {
+                                Image(systemName: task.category.icon)
+                                Text(task.categoryDisplayName)
+                            }
+                            .font(AppTheme.TextStyle.caption)
+                            .foregroundStyle(task.category.color)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 4)
+                            .background(task.category.color.opacity(0.12))
+                            .clipShape(Capsule())
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(AppTheme.surfaceContainerLow)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Reusable Building Blocks
+
+    private func sectionCard<Content: View>(
+        _ title: String,
+        icon: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: AppTheme.Space.md) {
+            SectionHeader(icon: icon, title: title, gradient: AppTheme.eventGradient)
+            content()
+        }
+        .padding(AppTheme.Space.lg)
+        .background(AppTheme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous)
+                .strokeBorder(AppTheme.outlineVariant, lineWidth: 1)
+        )
+        .shadow(color: AppTheme.cardShadow, radius: 16, x: 0, y: 6)
+    }
+
+    private func detailLine(icon: String, tint: Color, title: String, value: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: 24)
+
+            Text(title)
+                .font(AppTheme.TextStyle.body)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
+
+            Spacer(minLength: 10)
+
+            Text(value)
+                .font(AppTheme.TextStyle.bodyBold)
+                .foregroundStyle(AppTheme.onSurface)
+                .multilineTextAlignment(.trailing)
+        }
+    }
+
+    private func stagedCard<Content: View>(_ index: Int, @ViewBuilder content: () -> Content) -> some View {
+        content()
+            .opacity(revealContent ? 1 : 0)
+            .offset(y: revealContent ? 0 : 14)
+            .animation(
+                .spring(response: 0.48, dampingFraction: 0.88).delay(Double(index) * 0.04),
+                value: revealContent
+            )
+    }
+
+    // MARK: - Helpers
+
+    private func shouldShowResources(_ event: Event) -> Bool {
+        let nonPhotoAttachments = event.attachments.filter { $0.type != .image }
+        return event.url != nil || event.cost != nil || !nonPhotoAttachments.isEmpty
+    }
+
+    private func temporalStatus(for event: Event) -> (text: String, icon: String, color: Color) {
+        let calendar = Calendar.current
+
+        if calendar.isDateInToday(event.date) {
+            return ("Today", "circle.fill", .red)
+        }
+        if calendar.isDateInTomorrow(event.date) {
+            return ("Tomorrow", "sunrise.fill", .orange)
+        }
+
+        let days = calendar.dateComponents(
+            [.day],
+            from: calendar.startOfDay(for: Date()),
+            to: calendar.startOfDay(for: event.date)
+        ).day ?? 0
+
+        if days > 0 {
+            return ("In \(days)d", "calendar.badge.clock", .blue)
+        } else if days < 0 {
+            return ("Past", "clock.arrow.trianglehead.counterclockwise.rotate.90", AppTheme.onSurfaceVariant)
+        }
+
+        return ("Upcoming", "calendar", .blue)
+    }
+
+    private func timeSummary(for event: Event) -> String {
+        if event.isAllDay {
+            return "All Day"
+        }
+
+        if let endDate = event.endDate {
+            return "\(event.date.formatted(date: .omitted, time: .shortened)) - \(endDate.formatted(date: .omitted, time: .shortened))"
+        }
+
+        return event.date.formatted(date: .omitted, time: .shortened)
     }
 
     private func priorityColor(_ priority: EventPriority) -> Color {
@@ -374,193 +693,13 @@ struct EventDetailView: View {
         return formatter.string(from: cost as NSNumber) ?? "\(currency) \(cost)"
     }
 
-    private func eventHeader(_ event: Event) -> some View {
-        VStack(spacing: 16) {
-            // Category icon
-            Image(systemName: event.category.icon)
-                .font(.system(size: 40, weight: .medium))
-                .foregroundStyle(.white)
-                .frame(width: 80, height: 80)
-                .background(event.category.color.gradient)
-                .clipShape(RoundedRectangle(cornerRadius: 20))
-
-            // Title
-            VStack(spacing: 4) {
-                Text(event.title)
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .multilineTextAlignment(.center)
-
-                if !event.location.isEmpty {
-                    if let lat = event.locationLatitude, let lng = event.locationLongitude {
-                        Button {
-                            MapLink.open(name: event.location, latitude: lat, longitude: lng)
-                        } label: {
-                            Label(event.location, systemImage: "location.fill")
-                                .font(.subheadline)
-                                .foregroundStyle(AppTheme.onSurfaceVariant)
-                        }
-                    } else {
-                        Label(event.location, systemImage: "location.fill")
-                            .font(.subheadline)
-                            .foregroundStyle(AppTheme.onSurfaceVariant)
-                    }
-                }
-            }
-
-            // Time indicator
-            timeIndicatorView(for: event)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
-        .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
-    }
-
-    @ViewBuilder
-    private func timeIndicatorView(for event: Event) -> some View {
-        let calendar = Calendar.current
-        if calendar.isDateInToday(event.date) {
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(.red)
-                    .frame(width: 8, height: 8)
-                Text("Today")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.red)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(.red.opacity(0.1))
-            .clipShape(Capsule())
-        } else if calendar.isDateInTomorrow(event.date) {
-            Text("Tomorrow")
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundStyle(.orange)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(.orange.opacity(0.1))
-                .clipShape(Capsule())
-        } else {
-            let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: Date()), to: calendar.startOfDay(for: event.date)).day ?? 0
-            if days > 0 {
-                HStack(spacing: 4) {
-                    Text("\(days)")
-                        .font(.title3)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.blue)
-                    Text(days == 1 ? "day away" : "days away")
-                        .font(.subheadline)
-                        .foregroundStyle(AppTheme.onSurfaceVariant)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(.blue.opacity(0.1))
-                .clipShape(Capsule())
-            } else if days < 0 {
-                Text("Past event")
-                    .font(.subheadline)
-                    .foregroundStyle(AppTheme.onSurfaceVariant)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(AppTheme.surfaceContainerLow)
-                    .clipShape(Capsule())
-            }
-        }
-    }
-
-    private func sectionHeader(_ title: String, icon: String) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.purple)
-            Text(title)
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundStyle(AppTheme.onSurfaceVariant)
-        }
-        .padding(.horizontal)
-        .padding(.vertical, 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(AppTheme.surfaceContainerLow)
-    }
-
-    private func detailRow(icon: String, iconColor: Color, label: String, value: String) -> some View {
-        HStack {
-            Image(systemName: icon)
-                .font(.system(size: 20))
-                .foregroundStyle(iconColor)
-                .frame(width: 28)
-            Text(label)
-                .foregroundStyle(AppTheme.onSurfaceVariant)
-            Spacer()
-            Text(value)
-                .fontWeight(.medium)
-        }
-    }
-
-    // MARK: - Linked Tasks
-
-    @ViewBuilder
-    private func linkedTasksCard(eventId: UUID) -> some View {
-        let linkedTasks = container.dayPlannerService.allTasks.filter { $0.eventId == eventId }
-
-        if !linkedTasks.isEmpty {
-            VStack(alignment: .leading, spacing: 0) {
-                sectionHeader("Linked Tasks", icon: "checklist")
-
-                VStack(spacing: 0) {
-                    ForEach(linkedTasks) { task in
-                        HStack(spacing: 12) {
-                            Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
-                                .font(.system(size: 20))
-                                .foregroundStyle(task.isCompleted ? .green : task.category.color)
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(task.title)
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                                    .strikethrough(task.isCompleted)
-                                    .foregroundStyle(task.isCompleted ? AppTheme.onSurfaceVariant : AppTheme.onSurface)
-
-                                Text(task.date.formatted(date: .abbreviated, time: .omitted))
-                                    .font(.caption)
-                                    .foregroundStyle(AppTheme.onSurfaceVariant)
-                            }
-
-                            Spacer()
-                        }
-                        .padding(.horizontal)
-                        .padding(.vertical, 10)
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-            .background(AppTheme.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
-        }
-    }
-
-    // MARK: - Helpers
-
-    private func durationText(from start: Date, to end: Date) -> String {
-        let components = Calendar.current.dateComponents([.hour, .minute], from: start, to: end)
-        let hours = components.hour ?? 0
-        let minutes = components.minute ?? 0
-
-        if hours > 0 && minutes > 0 {
-            return "\(hours)h \(minutes)m"
-        } else if hours > 0 {
-            return "\(hours) hour\(hours == 1 ? "" : "s")"
-        } else {
-            return "\(minutes) minute\(minutes == 1 ? "" : "s")"
-        }
-    }
-
     private func generateShareLink() async {
         guard let event else { return }
+        guard container.dataSyncService.isEnabled else {
+            error = "Enable CashewCloud in Settings to share events."
+            showError = true
+            return
+        }
         isGeneratingShare = true
         do {
             shareURL = try await container.shareService.createInviteLink(for: .event(event))
@@ -577,15 +716,14 @@ struct EventDetailView: View {
                 .font(.caption)
                 .foregroundStyle(.pink)
             Text("Shared by \(name)")
-                .font(.caption)
-                .fontWeight(.medium)
+                .font(AppTheme.TextStyle.captionBold)
                 .foregroundStyle(.pink)
             Spacer()
         }
         .padding(.horizontal, AppTheme.Space.md)
         .padding(.vertical, AppTheme.Space.sm)
-        .background(Color.pink.opacity(0.08))
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
+        .background(Color.pink.opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private func deleteEvent() {

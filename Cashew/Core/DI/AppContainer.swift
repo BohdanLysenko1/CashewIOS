@@ -15,6 +15,7 @@ final class AppContainer {
     let notificationScheduler: NotificationScheduler
     let syncService: SyncService
     let dataSyncService: DataSyncService
+    let offlineSyncCoordinator: OfflineSyncCoordinatorProtocol
     let gamificationService: GamificationService
     let shareService: ShareService
 
@@ -67,18 +68,45 @@ final class AppContainer {
         )
         self.dataSyncService = dataSync
 
-        // Switchable repositories — route to Supabase or local based on dataSyncService.isEnabled
+        // Offline queue + flush orchestrator for eventual cloud sync
+        let offlineSync = OfflineSyncCoordinator(
+            dataSyncService: dataSync,
+            remoteTripRepo: supabaseTripRepo,
+            remoteEventRepo: supabaseEventRepo,
+            remoteTaskRepo: supabaseTaskRepo,
+            remoteRoutineRepo: supabaseRoutineRepo,
+            localTripRepo: localTripRepo,
+            localEventRepo: localEventRepo,
+            localTaskRepo: localTaskRepo,
+            localRoutineRepo: localRoutineRepo
+        )
+        self.offlineSyncCoordinator = offlineSync
+        dataSync.attachOfflineSyncCoordinator(offlineSync)
+
+        // Offline-first repositories — always local-first, queue cloud writes when enabled.
         let tripRepo = tripRepository ?? SwitchableTripRepository(
-            remote: supabaseTripRepo, local: localTripRepo, syncService: dataSync
+            remote: supabaseTripRepo,
+            local: localTripRepo,
+            syncService: dataSync,
+            syncCoordinator: offlineSync
         )
         let eventRepo = eventRepository ?? SwitchableEventRepository(
-            remote: supabaseEventRepo, local: localEventRepo, syncService: dataSync
+            remote: supabaseEventRepo,
+            local: localEventRepo,
+            syncService: dataSync,
+            syncCoordinator: offlineSync
         )
         let taskRepo = dailyTaskRepository ?? SwitchableDailyTaskRepository(
-            remote: supabaseTaskRepo, local: localTaskRepo, syncService: dataSync
+            remote: supabaseTaskRepo,
+            local: localTaskRepo,
+            syncService: dataSync,
+            syncCoordinator: offlineSync
         )
         let routineRepo = dailyRoutineRepository ?? SwitchableDailyRoutineRepository(
-            remote: supabaseRoutineRepo, local: localRoutineRepo, syncService: dataSync
+            remote: supabaseRoutineRepo,
+            local: localRoutineRepo,
+            syncService: dataSync,
+            syncCoordinator: offlineSync
         )
 
         // Services

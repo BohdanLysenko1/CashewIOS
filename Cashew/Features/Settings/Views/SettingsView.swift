@@ -163,6 +163,59 @@ struct SettingsView: View {
                             .foregroundStyle(AppTheme.onSurfaceVariant)
                     }
 
+                    if container.dataSyncService.isEnabled {
+                        HStack {
+                            Label(
+                                container.dataSyncService.syncIsOnline ? "Connection: Online" : "Connection: Offline",
+                                systemImage: container.dataSyncService.syncIsOnline ? "wifi" : "wifi.slash"
+                            )
+                            .foregroundStyle(container.dataSyncService.syncIsOnline ? AppTheme.positive : AppTheme.warning)
+                            Spacer()
+                        }
+                        .font(.caption)
+
+                        if container.dataSyncService.syncPendingCount > 0 {
+                            HStack {
+                                Label(
+                                    "\(container.dataSyncService.syncPendingCount) change\(container.dataSyncService.syncPendingCount == 1 ? "" : "s") pending",
+                                    systemImage: "arrow.clockwise"
+                                )
+                                .foregroundStyle(AppTheme.warning)
+                                Spacer()
+                            }
+                            .font(.caption)
+                        }
+
+                        if container.dataSyncService.syncIsFlushing {
+                            HStack {
+                                ProgressView()
+                                    .padding(.trailing, 6)
+                                Text("Syncing queued changes…")
+                                    .font(.caption)
+                                    .foregroundStyle(AppTheme.onSurfaceVariant)
+                            }
+                        }
+
+                        if let lastSync = container.dataSyncService.syncLastSuccessfulAt {
+                            HStack {
+                                Label(
+                                    "Last sync: \(lastSync.formatted(date: .abbreviated, time: .shortened))",
+                                    systemImage: "checkmark.circle"
+                                )
+                                .foregroundStyle(AppTheme.onSurfaceVariant)
+                                Spacer()
+                            }
+                            .font(.caption)
+                        }
+
+                        if let syncError = container.dataSyncService.syncLastError, !syncError.isEmpty {
+                            Text(syncError)
+                                .font(.caption2)
+                                .foregroundStyle(AppTheme.warning)
+                                .lineLimit(2)
+                        }
+                    }
+
                     if container.dataSyncService.isDeleting {
                         HStack {
                             ProgressView()

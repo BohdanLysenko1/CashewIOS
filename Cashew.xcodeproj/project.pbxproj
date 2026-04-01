@@ -13,7 +13,18 @@
 		06164D5A2F633AB2006B7C4C /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 06164D592F633AB2006B7C4C /* Supabase */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		0672EFAE2F7D9CF000BD352E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 06E912062F3262E4005983B4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 06E9120D2F3262E4005983B4;
+			remoteInfo = Cashew;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
+		0672EFAA2F7D9CF000BD352E /* CashewTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CashewTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		06E9120E2F3262E4005983B4 /* Cashew.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Cashew.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -28,6 +39,11 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		0672EFAB2F7D9CF000BD352E /* CashewTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = CashewTests;
+			sourceTree = "<group>";
+		};
 		06E912102F3262E4005983B4 /* Cashew */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -39,6 +55,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		0672EFA72F7D9CF000BD352E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		06E9120B2F3262E4005983B4 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -57,6 +80,7 @@
 			isa = PBXGroup;
 			children = (
 				06E912102F3262E4005983B4 /* Cashew */,
+				0672EFAB2F7D9CF000BD352E /* CashewTests */,
 				06E9120F2F3262E4005983B4 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -65,6 +89,7 @@
 			isa = PBXGroup;
 			children = (
 				06E9120E2F3262E4005983B4 /* Cashew.app */,
+				0672EFAA2F7D9CF000BD352E /* CashewTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -72,6 +97,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		0672EFA92F7D9CF000BD352E /* CashewTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0672EFB02F7D9CF000BD352E /* Build configuration list for PBXNativeTarget "CashewTests" */;
+			buildPhases = (
+				0672EFA62F7D9CF000BD352E /* Sources */,
+				0672EFA72F7D9CF000BD352E /* Frameworks */,
+				0672EFA82F7D9CF000BD352E /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				0672EFAF2F7D9CF000BD352E /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				0672EFAB2F7D9CF000BD352E /* CashewTests */,
+			);
+			name = CashewTests;
+			packageProductDependencies = (
+			);
+			productName = CashewTests;
+			productReference = 0672EFAA2F7D9CF000BD352E /* CashewTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		06E9120D2F3262E4005983B4 /* Cashew */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 06E9121B2F3262E5005983B4 /* Build configuration list for PBXNativeTarget "Cashew" */;
@@ -108,6 +156,10 @@
 				LastSwiftUpdateCheck = 2620;
 				LastUpgradeCheck = 2620;
 				TargetAttributes = {
+					0672EFA92F7D9CF000BD352E = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = 06E9120D2F3262E4005983B4;
+					};
 					06E9120D2F3262E4005983B4 = {
 						CreatedOnToolsVersion = 26.2;
 					};
@@ -131,11 +183,19 @@
 			projectRoot = "";
 			targets = (
 				06E9120D2F3262E4005983B4 /* Cashew */,
+				0672EFA92F7D9CF000BD352E /* CashewTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		0672EFA82F7D9CF000BD352E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		06E9120C2F3262E4005983B4 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -146,6 +206,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		0672EFA62F7D9CF000BD352E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		06E9120A2F3262E4005983B4 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -155,7 +222,55 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		0672EFAF2F7D9CF000BD352E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 06E9120D2F3262E4005983B4 /* Cashew */;
+			targetProxy = 0672EFAE2F7D9CF000BD352E /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		0672EFB12F7D9CF000BD352E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.voyagr.CashewTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Cashew.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Cashew";
+			};
+			name = Debug;
+		};
+		0672EFB22F7D9CF000BD352E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.voyagr.CashewTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Cashew.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Cashew";
+			};
+			name = Release;
+		};
 		06E912192F3262E5005983B4 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -346,6 +461,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		0672EFB02F7D9CF000BD352E /* Build configuration list for PBXNativeTarget "CashewTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0672EFB12F7D9CF000BD352E /* Debug */,
+				0672EFB22F7D9CF000BD352E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		06E912092F3262E4005983B4 /* Build configuration list for PBXProject "Cashew" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

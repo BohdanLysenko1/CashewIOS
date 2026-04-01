@@ -32,6 +32,7 @@ struct CashewApp: App {
                     guard newPhase == .active else { return }
                     appearance.syncWithSystem()
                     Task {
+                        await container.offlineSyncCoordinator.flushIfPossible()
                         await refreshNotificationSchedulesIfAuthorized()
                     }
                 }

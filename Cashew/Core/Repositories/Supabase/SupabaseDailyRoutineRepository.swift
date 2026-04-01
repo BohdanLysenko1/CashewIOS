@@ -105,6 +105,17 @@ final class SupabaseDailyRoutineRepository: DailyRoutineRepositoryProtocol, @unc
         return dtos.map { $0.toRoutine() }
     }
 
+    func fetch(by id: UUID) async throws -> DailyRoutine {
+        let dto: DailyRoutineDTO = try await client
+            .from(SupabaseSchema.Table.dailyRoutines)
+            .select()
+            .eq("id", value: id.uuidString)
+            .single()
+            .execute()
+            .value
+        return dto.toRoutine()
+    }
+
     @discardableResult
     func save(_ routine: DailyRoutine) async throws -> DailyRoutine {
         let session = try await client.auth.session

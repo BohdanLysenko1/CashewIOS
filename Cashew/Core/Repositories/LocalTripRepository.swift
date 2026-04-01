@@ -35,11 +35,25 @@ actor LocalTripRepository: TripRepositoryProtocol {
         return updatedTrip
     }
 
+    @discardableResult
+    func saveFromSync(_ trip: Trip) async throws -> Trip {
+        try await loadIfNeeded()
+        cache[trip.id] = trip
+        try await persist()
+        return trip
+    }
+
     func delete(by id: UUID) async throws {
         try await loadIfNeeded()
         guard cache.removeValue(forKey: id) != nil else {
             throw RepositoryError.notFound
         }
+        try await persist()
+    }
+
+    func replaceAll(_ trips: [Trip]) async throws {
+        try await loadIfNeeded()
+        cache = Dictionary(uniqueKeysWithValues: trips.map { ($0.id, $0) })
         try await persist()
     }
 

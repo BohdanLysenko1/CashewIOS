@@ -7,3 +7,5 @@ protocol HasUpdatedAt {
 
 extension Trip:  HasUpdatedAt {}
 extension Event: HasUpdatedAt {}
+extension DailyTask: HasUpdatedAt {}
+extension DailyRoutine: HasUpdatedAt {}

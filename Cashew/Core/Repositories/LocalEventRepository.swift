@@ -35,11 +35,25 @@ actor LocalEventRepository: EventRepositoryProtocol {
         return updatedEvent
     }
 
+    @discardableResult
+    func saveFromSync(_ event: Event) async throws -> Event {
+        try await loadIfNeeded()
+        cache[event.id] = event
+        try await persist()
+        return event
+    }
+
     func delete(by id: UUID) async throws {
         try await loadIfNeeded()
         guard cache.removeValue(forKey: id) != nil else {
             throw RepositoryError.notFound
         }
+        try await persist()
+    }
+
+    func replaceAll(_ events: [Event]) async throws {
+        try await loadIfNeeded()
+        cache = Dictionary(uniqueKeysWithValues: events.map { ($0.id, $0) })
         try await persist()
     }
 

@@ -9,10 +9,21 @@ final class DataSyncService {
 
     private(set) var isDeleting = false
     private(set) var deleteError: String?
+    private weak var offlineSyncCoordinator: OfflineSyncCoordinatorProtocol?
+    private var offlineStatusObserverToken: UUID?
+
+    private(set) var syncIsOnline = true
+    private(set) var syncPendingCount = 0
+    private(set) var syncIsFlushing = false
+    private(set) var syncLastError: String?
+    private(set) var syncLastSuccessfulAt: Date?
 
     var isEnabled: Bool {
         didSet {
             UserDefaults.standard.set(isEnabled, forKey: UserDefaultsKeys.isDataSyncEnabled)
+            if isEnabled {
+                Task { await offlineSyncCoordinator?.flushIfPossible() }
+            }
         }
     }
 
@@ -53,6 +64,17 @@ final class DataSyncService {
         self.isEnabled = UserDefaults.standard.object(forKey: UserDefaultsKeys.isDataSyncEnabled) as? Bool ?? true
     }
 
+    func attachOfflineSyncCoordinator(_ coordinator: OfflineSyncCoordinatorProtocol) {
+        if let token = offlineStatusObserverToken {
+            offlineSyncCoordinator?.removeStatusObserver(token)
+        }
+        self.offlineSyncCoordinator = coordinator
+        applySnapshot(coordinator.statusSnapshot)
+        offlineStatusObserverToken = coordinator.addStatusObserver { [weak self] snapshot in
+            self?.applySnapshot(snapshot)
+        }
+    }
+
     // MARK: - Disable & Delete
 
     /// Migrates all data from Supabase to local storage, bulk-deletes from Supabase,
@@ -87,8 +109,17 @@ final class DataSyncService {
 
             // 6. Switch flag — repos will now route to local
             isEnabled = false
+            await offlineSyncCoordinator?.clearQueue()
         } catch {
             deleteError = error.localizedDescription
         }
+    }
+
+    private func applySnapshot(_ snapshot: OfflineSyncStatusSnapshot) {
+        syncIsOnline = snapshot.isOnline
+        syncPendingCount = snapshot.pendingCount
+        syncIsFlushing = snapshot.isFlushing
+        syncLastError = snapshot.lastSyncError
+        syncLastSuccessfulAt = snapshot.lastSuccessfulSyncAt
     }
 }

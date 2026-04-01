@@ -17,6 +17,14 @@ actor LocalDailyRoutineRepository: DailyRoutineRepositoryProtocol {
         return Array(cache.values).sorted { $0.createdAt < $1.createdAt }
     }
 
+    func fetch(by id: UUID) async throws -> DailyRoutine {
+        try await loadIfNeeded()
+        guard let routine = cache[id] else {
+            throw RepositoryError.notFound
+        }
+        return routine
+    }
+
     @discardableResult
     func save(_ routine: DailyRoutine) async throws -> DailyRoutine {
         try await loadIfNeeded()
@@ -27,11 +35,25 @@ actor LocalDailyRoutineRepository: DailyRoutineRepositoryProtocol {
         return updatedRoutine
     }
 
+    @discardableResult
+    func saveFromSync(_ routine: DailyRoutine) async throws -> DailyRoutine {
+        try await loadIfNeeded()
+        cache[routine.id] = routine
+        try await persist()
+        return routine
+    }
+
     func delete(by id: UUID) async throws {
         try await loadIfNeeded()
         guard cache.removeValue(forKey: id) != nil else {
             throw RepositoryError.notFound
         }
+        try await persist()
+    }
+
+    func replaceAll(_ routines: [DailyRoutine]) async throws {
+        try await loadIfNeeded()
+        cache = Dictionary(uniqueKeysWithValues: routines.map { ($0.id, $0) })
         try await persist()
     }
 

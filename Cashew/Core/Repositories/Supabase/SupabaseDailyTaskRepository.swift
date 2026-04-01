@@ -141,6 +141,17 @@ final class SupabaseDailyTaskRepository: DailyTaskRepositoryProtocol, @unchecked
         return dtos.map { $0.toTask() }
     }
 
+    func fetch(by id: UUID) async throws -> DailyTask {
+        let dto: DailyTaskDTO = try await client
+            .from(SupabaseSchema.Table.dailyTasks)
+            .select()
+            .eq("id", value: id.uuidString)
+            .single()
+            .execute()
+            .value
+        return dto.toTask()
+    }
+
     @discardableResult
     func save(_ task: DailyTask) async throws -> DailyTask {
         let session = try await client.auth.session

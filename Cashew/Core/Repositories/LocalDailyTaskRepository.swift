@@ -49,6 +49,14 @@ actor LocalDailyTaskRepository: DailyTaskRepositoryProtocol {
             }
     }
 
+    func fetch(by id: UUID) async throws -> DailyTask {
+        try await loadIfNeeded()
+        guard let task = cache[id] else {
+            throw RepositoryError.notFound
+        }
+        return task
+    }
+
     @discardableResult
     func save(_ task: DailyTask) async throws -> DailyTask {
         try await loadIfNeeded()
@@ -57,6 +65,14 @@ actor LocalDailyTaskRepository: DailyTaskRepositoryProtocol {
         cache[task.id] = updatedTask
         try await persist()
         return updatedTask
+    }
+
+    @discardableResult
+    func saveFromSync(_ task: DailyTask) async throws -> DailyTask {
+        try await loadIfNeeded()
+        cache[task.id] = task
+        try await persist()
+        return task
     }
 
     func delete(by id: UUID) async throws {
@@ -83,6 +99,27 @@ actor LocalDailyTaskRepository: DailyTaskRepositoryProtocol {
         if !idsToRemove.isEmpty {
             try await persist()
         }
+    }
+
+    func replaceAll(_ tasks: [DailyTask]) async throws {
+        try await loadIfNeeded()
+        cache = Dictionary(uniqueKeysWithValues: tasks.map { ($0.id, $0) })
+        try await persist()
+    }
+
+    func replaceTasks(on date: Date, with tasks: [DailyTask]) async throws {
+        try await loadIfNeeded()
+        let calendar = Calendar.current
+
+        cache = cache.filter { _, task in
+            !calendar.isDate(task.date, inSameDayAs: date)
+        }
+
+        for task in tasks {
+            cache[task.id] = task
+        }
+
+        try await persist()
     }
 
     // MARK: - Private

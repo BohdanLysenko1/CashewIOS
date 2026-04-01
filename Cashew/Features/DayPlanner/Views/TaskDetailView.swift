@@ -189,7 +189,7 @@ struct TaskDetailView: View {
         .foregroundStyle(liveTask.isCompleted ? .green : .white.opacity(0.96))
         .padding(.horizontal, 9)
         .padding(.vertical, 6)
-        .background(liveTask.isCompleted ? Color.white.opacity(0.95) : Color.white.opacity(0.18))
+        .background(liveTask.isCompleted ? AppTheme.surfaceContainerLowest.opacity(0.95) : Color.white.opacity(0.18))
         .clipShape(Capsule())
     }
 

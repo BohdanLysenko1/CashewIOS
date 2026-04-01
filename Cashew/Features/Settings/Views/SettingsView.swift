@@ -82,6 +82,25 @@ struct SettingsView: View {
                     }
                 }
 
+                // Appearance Section
+                Section("Appearance") {
+                    HStack(spacing: 14) {
+                        Image(systemName: "circle.lefthalf.filled")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 32, height: 32)
+                            .background(Color.gray.gradient)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                        Picker("Appearance", selection: Bindable(AppearanceManager.shared).mode) {
+                            ForEach(AppearanceMode.allCases, id: \.self) { mode in
+                                Text(mode.label).tag(mode)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                }
+
                 // Notifications Section
                 Section("Notifications") {
                     NavigationLink {
@@ -164,7 +183,7 @@ struct SettingsView: View {
                             Label("Version", systemImage: "info.circle")
                                 .foregroundStyle(AppTheme.onSurface)
                             Spacer()
-                            Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0")
+                            Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.1")
                                 .foregroundStyle(AppTheme.onSurfaceVariant)
                             Image(systemName: "chevron.right")
                                 .font(.caption)
@@ -262,7 +281,7 @@ struct SettingsView: View {
 
     private func sendFeedback() {
         let subject = "Cashew Feedback".addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.1"
         let body = ("App Version: \(version)\n\n").addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         if let url = URL(string: "mailto:cashew@cashewplanner.com?subject=\(subject)&body=\(body)") {
             UIApplication.shared.open(url)

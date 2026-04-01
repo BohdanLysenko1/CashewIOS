@@ -9,4 +9,5 @@ enum UserDefaultsKeys {
     static let customEventCategories = "customEventCategories"
     static let customTaskCategories = "customTaskCategories"
     static let hasCompletedOnboarding = "hasCompletedOnboarding"
+    static let appearanceMode = "appearanceMode"
 }

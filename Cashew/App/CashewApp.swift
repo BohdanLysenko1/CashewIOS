@@ -6,6 +6,7 @@ struct CashewApp: App {
 
     @Environment(\.scenePhase) private var scenePhase
     @State private var container = AppContainer()
+    private let appearance = AppearanceManager.shared
     @State private var pendingInviteToken: String?
     @State private var pendingNotificationEventId: UUID?
     @State private var pendingNotificationTripId: UUID?
@@ -23,11 +24,13 @@ struct CashewApp: App {
         WindowGroup {
             RootView()
                 .environment(container)
+                .preferredColorScheme(appearance.mode.colorScheme)
                 .task {
                     await requestNotificationPermissionIfNeeded()
                 }
                 .onChange(of: scenePhase) { _, newPhase in
                     guard newPhase == .active else { return }
+                    appearance.syncWithSystem()
                     Task {
                         await refreshNotificationSchedulesIfAuthorized()
                     }

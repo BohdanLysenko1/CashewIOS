@@ -222,7 +222,7 @@ struct EventDetailView: View {
                 .foregroundStyle(status.color)
                 .padding(.horizontal, 9)
                 .padding(.vertical, 6)
-                .background(.white.opacity(0.95))
+                .background(AppTheme.surfaceContainerLowest.opacity(0.95))
                 .clipShape(Capsule())
             }
 

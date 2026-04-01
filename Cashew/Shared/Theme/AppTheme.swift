@@ -4,88 +4,168 @@ import SwiftUI
 
 enum AppTheme {
 
+    private static var isDark: Bool { AppearanceManager.shared.isDark }
+
     // ─────────────────────────────────────────────
     // MARK: - Color Palette
     // ─────────────────────────────────────────────
 
     // Primary
-    static let primary        = Color(red: 0.21, green: 0.26, blue: 0.91)   // #3642e9
-    static let primaryDim     = Color(red: 0.20, green: 0.18, blue: 0.78)   // darker stop for gradients
-    static let primaryContainer = Color(red: 0.56, green: 0.59, blue: 1.00) // #8f97ff
-    static let onPrimary      = Color.white
+    static var primary: Color {
+        isDark
+            ? Color(red: 0.48, green: 0.52, blue: 1.00)   // #7B85FF
+            : Color(red: 0.21, green: 0.26, blue: 0.91)   // #3642E9
+    }
+    static var primaryDim: Color {
+        isDark
+            ? Color(red: 0.35, green: 0.32, blue: 0.88)   // #5A52E0
+            : Color(red: 0.20, green: 0.18, blue: 0.78)   // #332DC7
+    }
+    static var primaryContainer: Color {
+        isDark
+            ? Color(red: 0.23, green: 0.26, blue: 0.63)   // #3A42A0
+            : Color(red: 0.56, green: 0.59, blue: 1.00)   // #8F97FF
+    }
+    static let onPrimary = Color.white
 
     // Secondary — used to distinguish "Trips"
-    static let secondary      = Color(red: 0.45, green: 0.21, blue: 0.80)   // #7335cc
-    static let secondaryContainer = Color(red: 0.60, green: 0.40, blue: 0.90)
+    static var secondary: Color {
+        isDark
+            ? Color(red: 0.69, green: 0.48, blue: 1.00)   // #B07AFF
+            : Color(red: 0.45, green: 0.21, blue: 0.80)   // #7335CC
+    }
+    static var secondaryContainer: Color {
+        isDark
+            ? Color(red: 0.29, green: 0.18, blue: 0.50)   // #4A2D80
+            : Color(red: 0.60, green: 0.40, blue: 0.90)
+    }
 
     // Tertiary — used to distinguish "Events", rewards, streaks, XP
-    static let tertiary       = Color(red: 0.58, green: 0.22, blue: 0.48)   // #95377a
-    static let tertiaryContainer = Color(red: 0.75, green: 0.40, blue: 0.62)
+    static var tertiary: Color {
+        isDark
+            ? Color(red: 0.82, green: 0.42, blue: 0.69)   // #D06AAF
+            : Color(red: 0.58, green: 0.22, blue: 0.48)   // #95377A
+    }
+    static var tertiaryContainer: Color {
+        isDark
+            ? Color(red: 0.42, green: 0.18, blue: 0.33)   // #6B2D55
+            : Color(red: 0.75, green: 0.40, blue: 0.62)
+    }
 
     // Neutral / Surface hierarchy  ("layers of fine paper")
-    static let background            = Color(red: 0.96, green: 0.96, blue: 0.97) // #f5f6f7
-    static let surface               = Color(red: 0.97, green: 0.97, blue: 0.98)
-    static let surfaceContainerLow   = Color(red: 0.95, green: 0.95, blue: 0.96)
-    static let surfaceContainer      = Color(red: 0.93, green: 0.93, blue: 0.95)
-    static let surfaceContainerHigh  = Color(red: 0.90, green: 0.90, blue: 0.92)
-    static let surfaceContainerLowest = Color.white                              // #ffffff
+    static var background: Color {
+        isDark
+            ? Color(red: 0.07, green: 0.07, blue: 0.08)   // #121214
+            : Color(red: 0.96, green: 0.96, blue: 0.97)   // #F5F6F7
+    }
+    static var surface: Color {
+        isDark
+            ? Color(red: 0.10, green: 0.10, blue: 0.12)   // #1A1A1E
+            : Color(red: 0.97, green: 0.97, blue: 0.98)
+    }
+    static var surfaceContainerLow: Color {
+        isDark
+            ? Color(red: 0.12, green: 0.12, blue: 0.13)   // #1E1E22
+            : Color(red: 0.95, green: 0.95, blue: 0.96)
+    }
+    static var surfaceContainer: Color {
+        isDark
+            ? Color(red: 0.14, green: 0.14, blue: 0.16)   // #242428
+            : Color(red: 0.93, green: 0.93, blue: 0.95)
+    }
+    static var surfaceContainerHigh: Color {
+        isDark
+            ? Color(red: 0.17, green: 0.17, blue: 0.20)   // #2C2C32
+            : Color(red: 0.90, green: 0.90, blue: 0.92)
+    }
+    static var surfaceContainerLowest: Color {
+        isDark
+            ? Color(red: 0.06, green: 0.06, blue: 0.07)   // #0F0F12
+            : Color.white
+    }
 
     // On-surface text  (never use pure #000000)
-    static let onSurface        = Color(red: 0.17, green: 0.18, blue: 0.19)     // #2c2f30
-    static let onSurfaceVariant = Color(red: 0.40, green: 0.42, blue: 0.44)
-    static let outlineVariant   = Color(red: 0.17, green: 0.18, blue: 0.19).opacity(0.10) // ghost border
+    static var onSurface: Color {
+        isDark
+            ? Color(red: 0.89, green: 0.89, blue: 0.91)   // #E4E4E8
+            : Color(red: 0.17, green: 0.18, blue: 0.19)   // #2C2F30
+    }
+    static var onSurfaceVariant: Color {
+        isDark
+            ? Color(red: 0.63, green: 0.64, blue: 0.67)   // #A0A4AA
+            : Color(red: 0.40, green: 0.42, blue: 0.44)
+    }
+    static var outlineVariant: Color {
+        isDark
+            ? onSurface.opacity(0.12)
+            : onSurface.opacity(0.10)
+    }
 
     // ─────────────────────────────────────────────
     // MARK: - Gradients
     // ─────────────────────────────────────────────
 
     // "Moments of Action" — hero CTAs, active states
-    static let primaryGradient = LinearGradient(
-        colors: [primary, primaryContainer],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
+    static var primaryGradient: LinearGradient {
+        LinearGradient(
+            colors: [primary, primaryContainer],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
 
     /// Tasks, planning, productivity  (uses primary range)
-    static let dayPlannerGradient = LinearGradient(
-        colors: [primary, primaryDim],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
+    static var dayPlannerGradient: LinearGradient {
+        LinearGradient(
+            colors: [primary, primaryDim],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
 
     /// Trips, travel — secondary accent
-    static let tripGradient = LinearGradient(
-        colors: [secondary, secondaryContainer],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
+    static var tripGradient: LinearGradient {
+        LinearGradient(
+            colors: [secondary, secondaryContainer],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
 
     /// Events, social — tertiary accent
-    static let eventGradient = LinearGradient(
-        colors: [tertiary, tertiaryContainer],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
+    static var eventGradient: LinearGradient {
+        LinearGradient(
+            colors: [tertiary, tertiaryContainer],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
 
     /// Achievement, XP, levels, streaks — tertiary range per design "DO" rule
-    static let gamificationGradient = LinearGradient(
-        colors: [tertiary, secondary],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
+    static var gamificationGradient: LinearGradient {
+        LinearGradient(
+            colors: [tertiary, secondary],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
 
-    static let calendarGradient = LinearGradient(
-        colors: [primary, secondary],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
+    static var calendarGradient: LinearGradient {
+        LinearGradient(
+            colors: [primary, secondary],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
 
     // Signature "Mission / Hero" card fill
-    static let heroGradient = LinearGradient(
-        colors: [primary, secondary],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
+    static var heroGradient: LinearGradient {
+        LinearGradient(
+            colors: [primary, secondary],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
 
     /// Deep navy/indigo — shared by the onboarding welcome and completion screens.
     static let onboardingBackground = LinearGradient(
@@ -102,8 +182,8 @@ enum AppTheme {
     // MARK: - Surface Shortcuts (backward-compatible)
     // ─────────────────────────────────────────────
 
-    static let cardBackground = surfaceContainerLowest
-    static let secondaryBackground = surfaceContainerLow
+    static var cardBackground: Color { surfaceContainerLowest }
+    static var secondaryBackground: Color { surfaceContainerLow }
 
     // ─────────────────────────────────────────────
     // MARK: - Elevation & Shadows
@@ -111,7 +191,9 @@ enum AppTheme {
     //   Signature Glow: on_surface 6%, blur 32-48, y 8
     // ─────────────────────────────────────────────
 
-    static let cardShadow = onSurface.opacity(0.06)
+    static var cardShadow: Color {
+        isDark ? Color.clear : onSurface.opacity(0.06)
+    }
     static let cardShadowRadius: CGFloat = 32
     static let cardShadowY: CGFloat = 8
 
@@ -221,10 +303,18 @@ enum AppTheme {
 // MARK: - View Modifiers
 
 struct CardStyle: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+
     func body(content: Content) -> some View {
         content
             .background(AppTheme.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
+            .overlay(
+                colorScheme == .dark
+                    ? AnyShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
+                        .stroke(AppTheme.onSurface.opacity(0.08), lineWidth: 0.5)
+                    : nil
+            )
             .shadow(
                 color: AppTheme.cardShadow,
                 radius: AppTheme.cardShadowRadius,

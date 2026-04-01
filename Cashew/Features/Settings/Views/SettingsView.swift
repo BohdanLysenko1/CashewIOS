@@ -9,7 +9,7 @@ struct SettingsView: View {
 
     @State private var showSignOutError = false
     @State private var signOutErrorMessage = ""
-    @State private var showEditProfile = false
+    @State private var showProfile = false
     @State private var showWhatsNew = false
     @State private var showDisableSyncConfirmation = false
     @State private var showSyncDeleteError = false
@@ -24,23 +24,40 @@ struct SettingsView: View {
                 // Profile Section
                 Section {
                     Button {
-                        showEditProfile = true
+                        showProfile = true
                     } label: {
                         HStack(spacing: 14) {
-                            profileAvatar
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(container.authService.currentUser?.displayName ?? "")
-                                    .font(.headline)
+                            UserAvatarView(
+                                displayName: profileName,
+                                avatarPath: container.authService.currentUser?.avatarPath,
+                                size: 52,
+                                tint: .blue
+                            )
+
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(profileName)
+                                    .font(AppTheme.TextStyle.sectionTitle)
                                     .foregroundStyle(AppTheme.onSurface)
-                                Text(container.authService.currentUser?.email ?? "")
-                                    .font(.caption)
+
+                                Text(profileEmail)
+                                    .font(AppTheme.TextStyle.secondary)
                                     .foregroundStyle(AppTheme.onSurfaceVariant)
+                                    .lineLimit(1)
+
+                                Text("Manage profile")
+                                    .font(AppTheme.TextStyle.captionBold)
+                                    .foregroundStyle(AppTheme.primary)
                             }
-                            Spacer()
+
+                            Spacer(minLength: 8)
+
                             Image(systemName: "chevron.right")
-                                .font(.caption)
+                                .font(.system(size: 12, weight: .semibold))
                                 .foregroundStyle(AppTheme.onSurfaceVariant)
+                                .frame(width: 26, height: 26)
+                                .background(AppTheme.surfaceContainerLow, in: Circle())
                         }
+                        .padding(.vertical, 4)
                     }
                 }
 
@@ -66,31 +83,30 @@ struct SettingsView: View {
                 }
 
                 // Notifications Section
-                Section(
-                    header: Text("Notifications"),
-                    footer: Text("Event reminders are local notifications. If reminders were created before permission was granted, use Resync Event Reminders.")
-                ) {
-                    HStack {
-                        Label("Status", systemImage: "bell")
-                            .foregroundStyle(AppTheme.onSurface)
-                        Spacer()
-                        Text(container.notificationService.authorizationStatusDescription)
-                            .foregroundStyle(container.notificationService.isAuthorized ? .green : .orange)
+                Section("Notifications") {
+                    NavigationLink {
+                        NotificationPreferencesView()
+                            .environment(container)
+                    } label: {
+                        HStack(spacing: 14) {
+                            Image(systemName: "bell.badge")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 32, height: 32)
+                                .background(Color.indigo.gradient)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                            Text("Notification Preferences")
+                                .foregroundStyle(AppTheme.onSurface)
+
+                            Spacer()
+
+                            Text(container.notificationService.isAuthorized ? "On" : "Off")
+                                .foregroundStyle(AppTheme.onSurfaceVariant)
+                        }
                     }
 
-                    if container.notificationService.isAuthorized {
-                        Button {
-                            Task { await scheduleTestNotification() }
-                        } label: {
-                            settingsRow(icon: "checkmark.seal", color: .green, label: "Send Test Notification (5s)")
-                        }
-
-                        Button {
-                            Task { await resyncEventReminders() }
-                        } label: {
-                            settingsRow(icon: "arrow.clockwise", color: .blue, label: "Resync Event Reminders")
-                        }
-                    } else {
+                    if !container.notificationService.isAuthorized {
                         Button {
                             Task { await enableNotifications() }
                         } label: {
@@ -148,7 +164,7 @@ struct SettingsView: View {
                             Label("Version", systemImage: "info.circle")
                                 .foregroundStyle(AppTheme.onSurface)
                             Spacer()
-                            Text("1.0.0")
+                            Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0")
                                 .foregroundStyle(AppTheme.onSurfaceVariant)
                             Image(systemName: "chevron.right")
                                 .font(.caption)
@@ -177,8 +193,8 @@ struct SettingsView: View {
             } message: {
                 Text(signOutErrorMessage)
             }
-            .sheet(isPresented: $showEditProfile) {
-                EditProfileView()
+            .sheet(isPresented: $showProfile) {
+                ProfileView()
                     .environment(container)
             }
             .sheet(isPresented: $showWhatsNew) {
@@ -219,24 +235,13 @@ struct SettingsView: View {
         }
     }
 
-    private var profileAvatar: some View {
-        ZStack {
-            Circle()
-                .fill(Color.blue.gradient)
-                .frame(width: 44, height: 44)
-            Text(initials)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.white)
-        }
+    private var profileName: String {
+        let name = container.authService.currentUser?.displayName.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return name.isEmpty ? "Bodo" : name
     }
 
-    private var initials: String {
-        let name = container.authService.currentUser?.displayName ?? ""
-        let parts = name.split(separator: " ")
-        if parts.count >= 2 {
-            return "\(parts[0].prefix(1))\(parts[1].prefix(1))".uppercased()
-        }
-        return String(name.prefix(2)).uppercased()
+    private var profileEmail: String {
+        container.authService.currentUser?.email ?? "No email"
     }
 
     // MARK: - Helpers
@@ -257,7 +262,8 @@ struct SettingsView: View {
 
     private func sendFeedback() {
         let subject = "Cashew Feedback".addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let body = ("App Version: 1.0.0\n\n").addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+        let body = ("App Version: \(version)\n\n").addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         if let url = URL(string: "mailto:cashew@cashewplanner.com?subject=\(subject)&body=\(body)") {
             UIApplication.shared.open(url)
         }
@@ -281,9 +287,15 @@ struct SettingsView: View {
             let granted = container.notificationService.isAuthorized
 
             if granted {
-                await container.eventService.refreshNotificationSchedules()
+                await container.notificationScheduler.rescheduleAll(
+                    events: container.eventService.events,
+                    tasks: container.dayPlannerService.allTasks,
+                    routines: container.dayPlannerService.routines,
+                    trips: container.tripService.trips,
+                    gamificationService: container.gamificationService
+                )
                 notificationAlertTitle = "Notifications Enabled"
-                notificationAlertMessage = "Event reminders are now enabled and existing reminders were resynced."
+                notificationAlertMessage = "All reminders are now enabled and synced."
             } else {
                 notificationAlertTitle = "Notifications Disabled"
                 notificationAlertMessage = "Permission was not granted. You can enable notifications in iOS Settings."
@@ -295,23 +307,7 @@ struct SettingsView: View {
         openNotificationSettings()
     }
 
-    private func scheduleTestNotification() async {
-        let scheduled = await container.notificationService.scheduleTestNotification(after: 5)
-        notificationAlertTitle = scheduled ? "Test Scheduled" : "Unable to Schedule"
-        notificationAlertMessage = scheduled
-            ? "A test notification should appear in about 5 seconds."
-            : "Notifications are not authorized. Enable them in iOS Settings."
-        showNotificationAlert = true
-    }
-
-    private func resyncEventReminders() async {
-        await container.eventService.refreshNotificationSchedules()
-        notificationAlertTitle = "Resync Complete"
-        notificationAlertMessage = "Event reminders were refreshed."
-        showNotificationAlert = true
-    }
-
-    private func openNotificationSettings() {
+private func openNotificationSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         UIApplication.shared.open(url)
     }

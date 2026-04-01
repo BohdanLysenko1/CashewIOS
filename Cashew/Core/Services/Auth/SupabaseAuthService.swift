@@ -16,6 +16,7 @@ final class SupabaseAuthService: AuthServiceProtocol {
     private let client = SupabaseManager.client
     private var currentNonce: String?
     private static var delegateKey: UInt8 = 0
+    private static let avatarBucket = "avatars"
 
     init() {
         Task { await restoreSession() }
@@ -40,6 +41,11 @@ final class SupabaseAuthService: AuthServiceProtocol {
                 if let id = session?.user.id {
                     await fetchCurrentUser(id: id)
                 }
+            case .signedOut:
+                // Handles server-side session expiry or token revocation.
+                isAuthenticated = false
+                isRecoveringPassword = false
+                currentUser = nil
             default:
                 break
             }
@@ -88,11 +94,23 @@ final class SupabaseAuthService: AuthServiceProtocol {
            let family = fullName.familyName {
             let name = "\(given) \(family)".trimmingCharacters(in: .whitespaces)
             do {
-                _ = try await client
-                    .from(SupabaseSchema.Table.users)
-                    .update(["display_name": name])
-                    .eq("id", value: session.user.id.uuidString)
-                    .execute()
+                do {
+                    _ = try await client
+                        .from(SupabaseSchema.Table.users)
+                        .update(DisplayNameUpdatePayload(displayName: name, username: name))
+                        .eq("id", value: session.user.id.uuidString)
+                        .select()
+                        .single()
+                        .execute()
+                } catch {
+                    _ = try await client
+                        .from(SupabaseSchema.Table.users)
+                        .update(["display_name": name])
+                        .eq("id", value: session.user.id.uuidString)
+                        .select()
+                        .single()
+                        .execute()
+                }
             } catch {
                 print("[SupabaseAuthService] Failed to update display name: \(error)")
             }
@@ -110,17 +128,30 @@ final class SupabaseAuthService: AuthServiceProtocol {
         await fetchCurrentUser(id: session.user.id)
         // If profile row is missing (e.g. first email sign-in), create it
         if currentUser == nil {
+            let baseName = email.components(separatedBy: "@").first ?? email
             do {
                 _ = try await client
                     .from(SupabaseSchema.Table.users)
                     .upsert([
                         "id": session.user.id.uuidString,
                         "email": email,
-                        "display_name": email.components(separatedBy: "@").first ?? email
+                        "display_name": baseName,
+                        "username": baseName
                     ])
                     .execute()
             } catch {
-                print("[SupabaseAuthService] Failed to create profile on first sign-in: \(error)")
+                do {
+                    _ = try await client
+                        .from(SupabaseSchema.Table.users)
+                        .upsert([
+                            "id": session.user.id.uuidString,
+                            "email": email,
+                            "display_name": baseName
+                        ])
+                        .execute()
+                } catch {
+                    print("[SupabaseAuthService] Failed to create profile on first sign-in: \(error)")
+                }
             }
             await fetchCurrentUser(id: session.user.id)
         }
@@ -130,7 +161,10 @@ final class SupabaseAuthService: AuthServiceProtocol {
         let response = try await client.auth.signUp(
             email: email,
             password: password,
-            data: ["display_name": .string(displayName)],
+            data: [
+                "display_name": .string(displayName),
+                "username": .string(displayName)
+            ],
             redirectTo: URL(string: "cashew://login-callback")
         )
         // If email confirmation is required, session is nil until the user confirms
@@ -172,17 +206,86 @@ final class SupabaseAuthService: AuthServiceProtocol {
 
     func updateDisplayName(_ name: String) async throws {
         guard let userId = currentUser?.id else { return }
-        try await client
+        do {
+            let updated: AppUser = try await client
+                .from(SupabaseSchema.Table.users)
+                .update(DisplayNameUpdatePayload(displayName: name, username: name))
+                .eq("id", value: userId.uuidString)
+                .select()
+                .single()
+                .execute()
+                .value
+            currentUser = updated
+        } catch {
+            // Backward compatibility if `username` column is absent in older schemas.
+            let updated: AppUser = try await client
+                .from(SupabaseSchema.Table.users)
+                .update(["display_name": name])
+                .eq("id", value: userId.uuidString)
+                .select()
+                .single()
+                .execute()
+                .value
+            currentUser = updated
+        }
+    }
+
+    func updateAvatarImage(data: Data, contentType: String) async throws {
+        guard let userId = currentUser?.id else { return }
+        let avatarPath = "\(userId.uuidString.lowercased())/avatar.jpg"
+
+        try await client.storage
+            .from(Self.avatarBucket)
+            .upload(
+                avatarPath,
+                data: data,
+                options: FileOptions(contentType: contentType, upsert: true)
+            )
+
+        let updated: AppUser = try await client
             .from(SupabaseSchema.Table.users)
-            .update(["display_name": name])
+            .update(AvatarPathUpdatePayload(avatarPath: avatarPath))
             .eq("id", value: userId.uuidString)
+            .select()
+            .single()
             .execute()
-        currentUser?.displayName = name
+            .value
+        currentUser = updated
+    }
+
+    func removeAvatarImage() async throws {
+        guard let userId = currentUser?.id else { return }
+        let existingPath = currentUser?.avatarPath
+
+        if let existingPath, !existingPath.isEmpty {
+            _ = try? await client.storage
+                .from(Self.avatarBucket)
+                .remove(paths: [existingPath])
+        }
+
+        let updated: AppUser = try await client
+            .from(SupabaseSchema.Table.users)
+            .update(AvatarPathUpdatePayload(avatarPath: nil))
+            .eq("id", value: userId.uuidString)
+            .select()
+            .single()
+            .execute()
+            .value
+        currentUser = updated
+    }
+
+    func signedAvatarURL(for path: String, expiresIn: Int) async throws -> URL {
+        try await client.storage
+            .from(Self.avatarBucket)
+            .createSignedURL(path: path, expiresIn: expiresIn)
     }
 
     // MARK: - User Fetch
 
     private func fetchCurrentUser(id: UUID) async {
+        // Always get the canonical email from the auth session
+        let authEmail = (try? await client.auth.session.user.email) ?? ""
+
         do {
             let user: AppUser = try await client
                 .from(SupabaseSchema.Table.users)
@@ -191,9 +294,50 @@ final class SupabaseAuthService: AuthServiceProtocol {
                 .single()
                 .execute()
                 .value
+
+            // Sync email if it's empty or out of date
+            if !authEmail.isEmpty, user.email != authEmail {
+                _ = try? await client
+                    .from(SupabaseSchema.Table.users)
+                    .update(["email": authEmail])
+                    .eq("id", value: id.uuidString)
+                    .execute()
+                currentUser = AppUser(
+                    id: user.id,
+                    email: authEmail,
+                    displayName: user.displayName,
+                    avatarPath: user.avatarPath,
+                    createdAt: user.createdAt
+                )
+            } else {
+                currentUser = user
+            }
+        } catch {
+            // Row doesn't exist yet — create it from auth metadata
+            await createProfileRow(id: id, email: authEmail)
+        }
+    }
+
+    private func createProfileRow(id: UUID, email: String) async {
+        do {
+            let displayName = (try? await client.auth.session.user.userMetadata["display_name"]?.stringValue)
+                ?? email.components(separatedBy: "@").first
+                ?? "User"
+
+            let user: AppUser = try await client
+                .from(SupabaseSchema.Table.users)
+                .insert([
+                    "id": id.uuidString,
+                    "email": email,
+                    "display_name": displayName
+                ])
+                .select()
+                .single()
+                .execute()
+                .value
             currentUser = user
         } catch {
-            print("[SupabaseAuthService] Could not fetch user profile for \(id): \(error)")
+            print("[SupabaseAuthService] Failed to create profile for \(id): \(error)")
         }
     }
 
@@ -227,6 +371,33 @@ final class SupabaseAuthService: AuthServiceProtocol {
         let data = Data(input.utf8)
         let hash = SHA256.hash(data: data)
         return hash.compactMap { String(format: "%02x", $0) }.joined()
+    }
+}
+
+private struct AvatarPathUpdatePayload: Encodable {
+    let avatarPath: String?
+
+    enum CodingKeys: String, CodingKey {
+        case avatarPath = "avatar_url"
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        if let avatarPath {
+            try container.encode(avatarPath, forKey: .avatarPath)
+        } else {
+            try container.encodeNil(forKey: .avatarPath)
+        }
+    }
+}
+
+private struct DisplayNameUpdatePayload: Encodable {
+    let displayName: String
+    let username: String
+
+    enum CodingKeys: String, CodingKey {
+        case displayName = "display_name"
+        case username
     }
 }
 

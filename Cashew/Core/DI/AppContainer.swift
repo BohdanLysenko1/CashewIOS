@@ -12,6 +12,7 @@ final class AppContainer {
     let eventService: EventServiceProtocol
     let dayPlannerService: DayPlannerServiceProtocol
     let notificationService: NotificationServiceProtocol
+    let notificationScheduler: NotificationScheduler
     let syncService: SyncService
     let dataSyncService: DataSyncService
     let gamificationService: GamificationService
@@ -32,8 +33,10 @@ final class AppContainer {
         let auth = authService ?? SupabaseAuthService()
         self.authService = auth
 
-        // Notification service
-        self.notificationService = notificationService ?? NotificationService()
+        // Notification service & scheduler
+        let notifService: NotificationServiceProtocol = notificationService ?? NotificationService()
+        self.notificationService = notifService
+        self.notificationScheduler = NotificationScheduler(notificationService: notifService)
 
         // Gamification
         let gam = GamificationService()
@@ -79,7 +82,7 @@ final class AppContainer {
         )
 
         // Services
-        self.tripService = TripService(repository: tripRepo)
+        self.tripService = TripService(repository: tripRepo, notificationScheduler: self.notificationScheduler)
         self.eventService = EventService(
             repository: eventRepo,
             notificationService: self.notificationService
@@ -87,7 +90,8 @@ final class AppContainer {
         self.dayPlannerService = DayPlannerService(
             taskRepository: taskRepo,
             routineRepository: routineRepo,
-            gamificationService: gam
+            gamificationService: gam,
+            notificationScheduler: self.notificationScheduler
         )
 
         // Sync (CloudKit fallback / local backup) — unchanged

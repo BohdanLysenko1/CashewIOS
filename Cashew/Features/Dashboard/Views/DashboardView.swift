@@ -8,6 +8,7 @@ struct DashboardView: View {
     @State private var showAddTask = false
     @State private var showDayPlanner = false
     @State private var showProgress = false
+    @State private var showProfile = false
     @State private var showCreationWizard = false
     @State private var navigationPath = NavigationPath()
     @State private var pendingCreationResult: CreationResult?
@@ -93,14 +94,6 @@ struct DashboardView: View {
 
     private var dashboardFirstName: String {
         dashboardDisplayName.split(separator: " ").first.map(String.init) ?? dashboardDisplayName
-    }
-
-    private var dashboardInitials: String {
-        let parts = dashboardDisplayName.split(separator: " ")
-        if parts.count >= 2 {
-            return "\(parts[0].prefix(1))\(parts[1].prefix(1))".uppercased()
-        }
-        return String(dashboardDisplayName.prefix(2)).uppercased()
     }
 
     private var motivationalSubtitle: String {
@@ -296,6 +289,10 @@ struct DashboardView: View {
             .sheet(isPresented: $showDayPlanner) {
                 DayPlannerView()
             }
+            .sheet(isPresented: $showProfile) {
+                ProfileView()
+                    .environment(container)
+            }
             .fullScreenCover(isPresented: $showCreationWizard) {
                 TripEventCreationWizardView { created in
                     pendingCreationResult = created
@@ -310,15 +307,6 @@ struct DashboardView: View {
                     showDayPlanner = true
                 }
                 pendingCreationResult = nil
-            }
-            .onChange(of: container.dataSyncService.isEnabled) { _, isEnabled in
-                if isEnabled {
-                    (tripService as? TripService)?.startRealtimeSync()
-                    (eventService as? EventService)?.startRealtimeSync()
-                } else {
-                    (tripService as? TripService)?.stopRealtimeSync()
-                    (eventService as? EventService)?.stopRealtimeSync()
-                }
             }
         }
     }
@@ -360,6 +348,21 @@ struct DashboardView: View {
                 if !smartAlerts.isEmpty {
                     SmartAlertsSection(alerts: smartAlerts)
                 }
+
+                // 9. Error banner
+                if let error {
+                    HStack(spacing: 10) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.red)
+                        Text(error)
+                            .font(AppTheme.TextStyle.secondary)
+                            .foregroundStyle(.red)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(AppTheme.Space.md)
+                    .background(Color.red.opacity(0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
             }
             .padding(AppTheme.Space.lg)
         }
@@ -369,14 +372,17 @@ struct DashboardView: View {
 
     private var greetingHeader: some View {
         HStack(alignment: .center, spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(Color.blue.gradient)
-                    .frame(width: 52, height: 52)
-                Text(dashboardInitials)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.white)
+            Button {
+                showProfile = true
+            } label: {
+                UserAvatarView(
+                    displayName: dashboardDisplayName,
+                    avatarPath: container.authService.currentUser?.avatarPath,
+                    size: 52,
+                    tint: .blue
+                )
             }
+            .buttonStyle(.plain)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text("\(greeting), \(dashboardFirstName)")
@@ -687,10 +693,6 @@ struct DashboardView: View {
             try await tripService.loadTrips()
             try await eventService.loadEvents()
             try await dayPlannerService.loadData()
-            if container.dataSyncService.isEnabled {
-                (tripService as? TripService)?.startRealtimeSync()
-                (eventService as? EventService)?.startRealtimeSync()
-            }
         } catch {
             self.error = error.localizedDescription
         }

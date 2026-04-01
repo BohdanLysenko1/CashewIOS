@@ -1,12 +1,22 @@
 import Foundation
 import Supabase
 
+// MARK: - Owner info (nested join from users table)
+
+struct OwnerInfo: Codable {
+    let displayName: String
+
+    enum CodingKeys: String, CodingKey {
+        case displayName = "display_name"
+    }
+}
+
 // MARK: - Trip DTO (Supabase row ↔ Trip model)
 
 struct TripDTO: Codable {
     let id: UUID
     let ownerId: UUID
-    let ownerName: String?   // joined from users table
+    let owner: OwnerInfo?    // joined via "owner:users!owner_id(display_name)"
     let name: String
     let destination: String
     let destinationLatitude: Double?
@@ -37,7 +47,7 @@ struct TripDTO: Codable {
     enum CodingKeys: String, CodingKey {
         case id
         case ownerId              = "owner_id"
-        case ownerName            = "owner_name"
+        case owner
         case name, destination, notes, status, budget, currency
         case destinationLatitude  = "destination_latitude"
         case destinationLongitude = "destination_longitude"
@@ -64,7 +74,7 @@ struct TripDTO: Codable {
         Trip(
             id: id,
             ownerId: ownerId,
-            ownerName: ownerName,
+            ownerName: owner?.displayName,
             name: name,
             destination: destination,
             destinationLatitude: destinationLatitude,
@@ -225,7 +235,7 @@ final class SupabaseTripRepository: TripRepositoryProtocol {
         let dto: TripDTO = try await client
             .from(SupabaseSchema.Table.trips)
             .upsert(payload)
-            .select()
+            .select(SupabaseSchema.Select.tripWithOwner)
             .single()
             .execute()
             .value

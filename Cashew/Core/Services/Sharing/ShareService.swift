@@ -194,6 +194,16 @@ final class ShareService {
 
         return rows.map { $0.user }
     }
+
+    func fetchUser(id: UUID) async throws -> AppUser {
+        try await client
+            .from(SupabaseSchema.Table.users)
+            .select()
+            .eq("id", value: id.uuidString)
+            .single()
+            .execute()
+            .value
+    }
 }
 
 // MARK: - Private DTOs

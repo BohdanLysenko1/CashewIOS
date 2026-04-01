@@ -11,6 +11,7 @@ struct CollaboratorsView: View {
     @State private var isLoading = true
     @State private var removingId: UUID?
     @State private var errorMessage: String?
+    @State private var ownerProfile: AppUser?
 
     private var currentUser: AppUser? { container.authService.currentUser }
 
@@ -86,7 +87,12 @@ struct CollaboratorsView: View {
 
     private var ownerRow: some View {
         HStack(spacing: 12) {
-            avatar(name: ownerDisplayName, color: .blue)
+            UserAvatarView(
+                displayName: ownerDisplayName,
+                avatarPath: ownerAvatarPath,
+                size: 36,
+                tint: .blue
+            )
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
@@ -123,11 +129,30 @@ struct CollaboratorsView: View {
         }
     }
 
+    private var ownerId: UUID? {
+        switch resource {
+        case .trip(let t): return t.ownerId
+        case .event(let e): return e.ownerId
+        }
+    }
+
+    private var ownerAvatarPath: String? {
+        if ownerId == currentUser?.id {
+            return currentUser?.avatarPath
+        }
+        return ownerProfile?.avatarPath
+    }
+
     // MARK: - Collaborator Row
 
     private func collaboratorRow(_ user: AppUser) -> some View {
         HStack(spacing: 12) {
-            avatar(name: user.displayName, color: .purple)
+            UserAvatarView(
+                displayName: user.displayName,
+                avatarPath: user.avatarPath,
+                size: 36,
+                tint: .purple
+            )
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(user.displayName)
@@ -159,27 +184,33 @@ struct CollaboratorsView: View {
         .padding(.vertical, 4)
     }
 
-    // MARK: - Avatar
-
-    private func avatar(name: String, color: Color) -> some View {
-        Text(String(name.prefix(1)).uppercased())
-            .font(.system(size: 15, weight: .bold))
-            .foregroundStyle(.white)
-            .frame(width: 36, height: 36)
-            .background(color.gradient)
-            .clipShape(Circle())
-    }
-
     // MARK: - Actions
 
     private func loadCollaborators() async {
         isLoading = true
         do {
             collaborators = try await container.shareService.fetchCollaborators(for: resource)
+            await loadOwnerProfile()
         } catch {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+
+    private func loadOwnerProfile() async {
+        guard let ownerId else {
+            ownerProfile = nil
+            return
+        }
+        if ownerId == currentUser?.id {
+            ownerProfile = currentUser
+            return
+        }
+        do {
+            ownerProfile = try await container.shareService.fetchUser(id: ownerId)
+        } catch {
+            ownerProfile = nil
+        }
     }
 
     private func removeCollaborator(_ user: AppUser) async {

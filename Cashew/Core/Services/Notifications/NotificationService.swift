@@ -57,7 +57,7 @@ final class NotificationService: NotificationServiceProtocol {
             settings.authorizationStatus == .ephemeral
     }
 
-    // MARK: - Schedule Notifications
+    // MARK: - Event Notifications (existing)
 
     func scheduleNotifications(for event: Event) async {
         await checkAuthorizationStatus()
@@ -69,21 +69,22 @@ final class NotificationService: NotificationServiceProtocol {
 
         guard isAuthorized else { return }
 
-        // Cancel any existing notifications for this event first
         await cancelNotifications(for: event.id)
 
-        // Schedule notifications for each enabled reminder
         for reminder in event.reminders where reminder.isEnabled {
-            await scheduleNotification(for: event, reminder: reminder)
+            await scheduleEventNotification(for: event, reminder: reminder)
         }
     }
 
-    private func scheduleNotification(for event: Event, reminder: Reminder) async {
+    func scheduleEventReminder(for event: Event, reminder: Reminder) async {
+        guard isAuthorized, reminder.isEnabled else { return }
+        await scheduleEventNotification(for: event, reminder: reminder)
+    }
+
+    private func scheduleEventNotification(for event: Event, reminder: Reminder) async {
         var triggerDate = reminder.triggerDate(for: event.date)
         let now = Date()
 
-        // Skip reminders that are substantially in the past, but allow very recent
-        // "at time" reminders to fire immediately.
         if triggerDate <= now {
             let secondsLate = now.timeIntervalSince(triggerDate)
             guard secondsLate <= 30 else { return }
@@ -92,69 +93,271 @@ final class NotificationService: NotificationServiceProtocol {
 
         let content = UNMutableNotificationContent()
         content.title = event.title
-        content.body = notificationBody(for: event, reminder: reminder)
+        content.body = eventNotificationBody(for: event, reminder: reminder)
         content.sound = .default
-        content.categoryIdentifier = "EVENT_REMINDER"
-
-        // Add event info to userInfo for potential deep linking
+        content.categoryIdentifier = NotificationCategory.eventReminder
         content.userInfo = [
+            "type": "event",
             "eventId": event.id.uuidString,
             "reminderId": reminder.id.uuidString
         ]
 
-        // Create trigger based on the reminder's trigger date
-        let components = Calendar.current.dateComponents(
-            [.year, .month, .day, .hour, .minute, .second],
-            from: triggerDate
-        )
-        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        let identifier = "event_\(event.id.uuidString)_reminder_\(reminder.id.uuidString)"
+        await scheduleCalendarNotification(identifier: identifier, content: content, date: triggerDate)
+    }
 
-        // Create unique identifier for this notification
-        let identifier = notificationIdentifier(eventId: event.id, reminderId: reminder.id)
+    private func eventNotificationBody(for event: Event, reminder: Reminder) -> String {
+        var body = "Starting \(reminder.interval.notificationStartText)"
+        if !event.location.isEmpty {
+            body += " at \(event.location)"
+        }
+        return body
+    }
 
-        let request = UNNotificationRequest(
-            identifier: identifier,
-            content: content,
-            trigger: trigger
-        )
+    func cancelNotifications(for eventId: UUID) async {
+        await cancelAll(withPrefix: "event_\(eventId.uuidString)")
+    }
+
+    func updateNotifications(for event: Event) async {
+        await scheduleNotifications(for: event)
+    }
+
+    // MARK: - Task Reminders
+
+    func scheduleTaskReminder(task: DailyTask, leadMinutes: Int) async {
+        guard let startTime = task.startTime, !task.isCompleted else { return }
+
+        let triggerDate = startTime.addingTimeInterval(-TimeInterval(leadMinutes * 60))
+        guard triggerDate > Date() else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = task.title
+        content.body = leadMinutes > 0
+            ? "Starting in \(leadMinutes) minutes — \(task.categoryDisplayName)"
+            : "Starting now — \(task.categoryDisplayName)"
+        content.sound = .default
+        content.categoryIdentifier = NotificationCategory.taskReminder
+        content.userInfo = [
+            "type": "task",
+            "taskId": task.id.uuidString
+        ]
+
+        let identifier = "task_\(task.id.uuidString)"
+        await scheduleCalendarNotification(identifier: identifier, content: content, date: triggerDate)
+    }
+
+    func cancelTaskReminder(taskId: UUID) async {
+        await cancelAll(withPrefix: "task_\(taskId.uuidString)")
+    }
+
+    // MARK: - Routine Nudges
+
+    func scheduleRoutineNudge(routine: DailyRoutine, date: Date, streakCount: Int) async {
+        guard routine.isEnabled, let startTime = routine.startTime else { return }
+
+        let calendar = Calendar.current
+        let timeComponents = calendar.dateComponents([.hour, .minute], from: startTime)
+        guard let hour = timeComponents.hour, let minute = timeComponents.minute,
+              let triggerDate = calendar.date(bySettingHour: hour, minute: minute, second: 0, of: date),
+              triggerDate > Date()
+        else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "Time for \(routine.title)"
+        content.body = streakCount >= 3
+            ? "\(streakCount)-day streak! Keep it going."
+            : "Start your day right."
+        content.sound = .default
+        content.categoryIdentifier = NotificationCategory.routineNudge
+        content.userInfo = [
+            "type": "routine",
+            "routineId": routine.id.uuidString
+        ]
+
+        let dayKey = Self.dayKeyFormatter.string(from: date)
+        let identifier = "routine_\(routine.id.uuidString)_\(dayKey)"
+        await scheduleCalendarNotification(identifier: identifier, content: content, date: triggerDate)
+    }
+
+    // MARK: - Trip Countdown
+
+    func scheduleTripCountdown(trip: Trip, daysUntil: Int) async {
+        let calendar = Calendar.current
+        guard let countdownDate = calendar.date(byAdding: .day, value: -daysUntil,
+                                                to: calendar.startOfDay(for: trip.startDate)),
+              let triggerDate = calendar.date(bySettingHour: 9, minute: 0, second: 0, of: countdownDate),
+              triggerDate > Date()
+        else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = trip.name
+
+        let unpackedCount = trip.packingItems.filter { !$0.isPacked }.count
+        let readinessHint = unpackedCount > 0 ? "Still have \(unpackedCount) item\(unpackedCount == 1 ? "" : "s") to pack." : "You're all set!"
+
+        if daysUntil == 1 {
+            content.body = "Trip to \(trip.destination) starts tomorrow! \(readinessHint)"
+        } else {
+            content.body = "\(daysUntil) days until your trip to \(trip.destination)! \(readinessHint)"
+        }
+
+        content.sound = .default
+        content.categoryIdentifier = NotificationCategory.tripCountdown
+        content.userInfo = [
+            "type": "trip",
+            "tripId": trip.id.uuidString
+        ]
+
+        let identifier = "trip_\(trip.id.uuidString)_countdown_\(daysUntil)"
+        await scheduleCalendarNotification(identifier: identifier, content: content, date: triggerDate)
+    }
+
+    // MARK: - Trip Packing
+
+    func scheduleTripPacking(trip: Trip, unpackedCount: Int) async {
+        guard unpackedCount > 0 else { return }
+
+        let calendar = Calendar.current
+        guard let packingDate = calendar.date(byAdding: .day, value: -2,
+                                              to: calendar.startOfDay(for: trip.startDate)),
+              let triggerDate = calendar.date(bySettingHour: 10, minute: 0, second: 0, of: packingDate),
+              triggerDate > Date()
+        else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "Packing Reminder"
+        content.body = "\(unpackedCount) item\(unpackedCount == 1 ? "" : "s") still to pack for \(trip.name). Trip in 2 days!"
+        content.sound = .default
+        content.categoryIdentifier = NotificationCategory.tripPacking
+        content.userInfo = [
+            "type": "trip",
+            "tripId": trip.id.uuidString
+        ]
+
+        let identifier = "trip_\(trip.id.uuidString)_packing"
+        await scheduleCalendarNotification(identifier: identifier, content: content, date: triggerDate)
+    }
+
+    // MARK: - Streak Protection
+
+    func scheduleStreakProtection(routineId: UUID, routineName: String, streakCount: Int, date: Date) async {
+        let calendar = Calendar.current
+        let hour = NotificationPreferences.streakProtectionHour
+        let minute = NotificationPreferences.streakProtectionMinute
+        guard let triggerDate = calendar.date(bySettingHour: hour, minute: minute, second: 0, of: date),
+              triggerDate > Date()
+        else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "Streak at risk!"
+        content.body = "You haven't completed \(routineName) today. Don't break your \(streakCount)-day streak!"
+        content.sound = .default
+        content.categoryIdentifier = NotificationCategory.streakProtection
+        content.userInfo = [
+            "type": "routine",
+            "routineId": routineId.uuidString
+        ]
+
+        let dayKey = Self.dayKeyFormatter.string(from: date)
+        let identifier = "streak_\(routineId.uuidString)_\(dayKey)"
+        await scheduleCalendarNotification(identifier: identifier, content: content, date: triggerDate)
+    }
+
+    // MARK: - Morning Briefing
+
+    func scheduleMorningBriefing(date: Date, taskCount: Int, eventCount: Int, tripTeaser: String?) async {
+        let calendar = Calendar.current
+        let hour = NotificationPreferences.morningBriefingHour
+        let minute = NotificationPreferences.morningBriefingMinute
+        guard let triggerDate = calendar.date(bySettingHour: hour, minute: minute, second: 0, of: date),
+              triggerDate > Date()
+        else { return }
+
+        let greeting: String
+        switch hour {
+        case 5..<12:  greeting = "Good morning!"
+        case 12..<17: greeting = "Good afternoon!"
+        default:      greeting = "Hello!"
+        }
+
+        let content = UNMutableNotificationContent()
+        content.title = greeting
+
+        var parts: [String] = []
+        if taskCount > 0 { parts.append("\(taskCount) task\(taskCount == 1 ? "" : "s")") }
+        if eventCount > 0 { parts.append("\(eventCount) event\(eventCount == 1 ? "" : "s")") }
+
+        var body = parts.isEmpty ? "No tasks or events today. Enjoy your day!" : "\(parts.joined(separator: ", ")) today."
+        if let tripTeaser, !tripTeaser.isEmpty {
+            body += " \(tripTeaser)"
+        }
+        content.body = body
+        content.sound = .default
+        content.categoryIdentifier = NotificationCategory.morningBriefing
+        content.userInfo = ["type": "briefing"]
+
+        let dayKey = Self.dayKeyFormatter.string(from: date)
+        let identifier = "briefing_\(dayKey)"
+        await scheduleCalendarNotification(identifier: identifier, content: content, date: triggerDate)
+    }
+
+    // MARK: - Evening Wrap-up
+
+    func scheduleEveningWrapUp(date: Date, completedTasks: Int, totalTasks: Int, xpEarned: Int, streakMessage: String?) async {
+        let calendar = Calendar.current
+        let hour = NotificationPreferences.eveningWrapUpHour
+        let minute = NotificationPreferences.eveningWrapUpMinute
+        guard let triggerDate = calendar.date(bySettingHour: hour, minute: minute, second: 0, of: date),
+              triggerDate > Date()
+        else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "Daily Wrap-up"
+
+        var body: String
+        if totalTasks == 0 {
+            body = "No tasks today."
+        } else if completedTasks == totalTasks {
+            body = "All \(totalTasks) tasks done! \(xpEarned) XP earned."
+        } else {
+            body = "\(completedTasks)/\(totalTasks) tasks done. \(xpEarned) XP earned."
+        }
+        if let streakMessage, !streakMessage.isEmpty {
+            body += " \(streakMessage)"
+        }
+        content.body = body
+        content.sound = .default
+        content.categoryIdentifier = NotificationCategory.eveningWrapUp
+        content.userInfo = ["type": "wrapup"]
+
+        let dayKey = Self.dayKeyFormatter.string(from: date)
+        let identifier = "wrapup_\(dayKey)"
+        await scheduleCalendarNotification(identifier: identifier, content: content, date: triggerDate)
+    }
+
+    // MARK: - Level Up
+
+    func scheduleLevelUp(level: Int, title: String) async {
+        let content = UNMutableNotificationContent()
+        content.title = "Level \(level) Unlocked!"
+        content.body = "You're now a \(title). Keep crushing it!"
+        content.sound = .default
+        content.categoryIdentifier = NotificationCategory.levelUp
+        content.userInfo = ["type": "levelup"]
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(identifier: "levelup_\(level)", content: content, trigger: trigger)
+
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: ["levelup_\(level)"])
 
         do {
             try await notificationCenter.add(request)
         } catch {
-            print("NotificationService: Failed to schedule notification - \(error.localizedDescription)")
+            print("NotificationService: Failed to schedule level-up notification - \(error.localizedDescription)")
         }
     }
 
-    private func notificationBody(for event: Event, reminder: Reminder) -> String {
-        var body = "Starting \(reminder.interval.notificationStartText)"
-
-        if !event.location.isEmpty {
-            body += " at \(event.location)"
-        }
-
-        return body
-    }
-
-    // MARK: - Cancel Notifications
-
-    func cancelNotifications(for eventId: UUID) async {
-        let pending = await notificationCenter.pendingNotificationRequests()
-
-        let identifiersToRemove = pending
-            .filter { $0.identifier.hasPrefix("event_\(eventId.uuidString)") }
-            .map { $0.identifier }
-
-        if !identifiersToRemove.isEmpty {
-            notificationCenter.removePendingNotificationRequests(withIdentifiers: identifiersToRemove)
-        }
-    }
-
-    // MARK: - Update Notifications
-
-    func updateNotifications(for event: Event) async {
-        // Simply cancel and reschedule
-        await scheduleNotifications(for: event)
-    }
+    // MARK: - Test Notification
 
     func scheduleTestNotification(after seconds: TimeInterval = 5) async -> Bool {
         await checkAuthorizationStatus()
@@ -170,7 +373,7 @@ final class NotificationService: NotificationServiceProtocol {
         content.title = "Cashew Test Reminder"
         content.body = "Notifications are working."
         content.sound = .default
-        content.categoryIdentifier = "TEST_REMINDER"
+        content.categoryIdentifier = NotificationCategory.testReminder
 
         let trigger = UNTimeIntervalNotificationTrigger(
             timeInterval: max(1, seconds),
@@ -195,19 +398,73 @@ final class NotificationService: NotificationServiceProtocol {
         }
     }
 
+    // MARK: - Cancellation
+
+    func cancelAll(withPrefix prefix: String) async {
+        let pending = await notificationCenter.pendingNotificationRequests()
+        let identifiers = pending
+            .filter { $0.identifier.hasPrefix(prefix) }
+            .map { $0.identifier }
+        if !identifiers.isEmpty {
+            notificationCenter.removePendingNotificationRequests(withIdentifiers: identifiers)
+        }
+    }
+
+    func cancelAllNotifications() {
+        notificationCenter.removeAllPendingNotificationRequests()
+    }
+
     // MARK: - Helpers
 
-    private func notificationIdentifier(eventId: UUID, reminderId: UUID) -> String {
-        "event_\(eventId.uuidString)_reminder_\(reminderId.uuidString)"
+    private func scheduleCalendarNotification(identifier: String, content: UNMutableNotificationContent, date: Date) async {
+        let components = Calendar.current.dateComponents(
+            [.year, .month, .day, .hour, .minute, .second],
+            from: date
+        )
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: [identifier])
+
+        do {
+            try await notificationCenter.add(request)
+        } catch {
+            print("NotificationService: Failed to schedule notification '\(identifier)' - \(error.localizedDescription)")
+        }
     }
+
+    private static let dayKeyFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
 
     // MARK: - Debugging
 
     func getPendingNotifications() async -> [UNNotificationRequest] {
         await notificationCenter.pendingNotificationRequests()
     }
+}
 
-    func cancelAllNotifications() {
-        notificationCenter.removeAllPendingNotificationRequests()
-    }
+// MARK: - Notification Categories
+
+enum NotificationCategory {
+    static let eventReminder    = "EVENT_REMINDER"
+    static let taskReminder     = "TASK_REMINDER"
+    static let routineNudge     = "ROUTINE_NUDGE"
+    static let tripCountdown    = "TRIP_COUNTDOWN"
+    static let tripPacking      = "TRIP_PACKING"
+    static let streakProtection = "STREAK_PROTECTION"
+    static let morningBriefing  = "MORNING_BRIEFING"
+    static let eveningWrapUp    = "EVENING_WRAPUP"
+    static let levelUp          = "LEVEL_UP"
+    static let testReminder     = "TEST_REMINDER"
+}
+
+// MARK: - Notification Actions
+
+enum NotificationAction {
+    static let markComplete = "MARK_COMPLETE"
+    static let snooze15     = "SNOOZE_15"
+    static let openPlanner  = "OPEN_PLANNER"
 }

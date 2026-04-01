@@ -16,6 +16,7 @@ final class EventService: EventServiceProtocol {
 
     // Realtime
     private var syncTask: Task<Void, Never>?
+    private var syncChannel: RealtimeChannelV2?
     private var recentLocalMutations: [UUID: Date] = [:]
     private let localMutationSuppressionWindow: TimeInterval = 4
 
@@ -100,14 +101,20 @@ final class EventService: EventServiceProtocol {
     func startRealtimeSync() {
         guard syncTask == nil else { return }
 
-        syncTask = Task {
-            let channel = SupabaseManager.client.channel("events-sync")
-            let inserts = channel.postgresChange(InsertAction.self, schema: "public", table: "events")
-            let updates = channel.postgresChange(UpdateAction.self, schema: "public", table: "events")
-            let deletes = channel.postgresChange(DeleteAction.self, schema: "public", table: "events")
+        let channel = SupabaseManager.client.channel("events-sync")
+        // Register postgres changes synchronously before subscribing
+        let inserts = channel.postgresChange(InsertAction.self, schema: "public", table: "events")
+        let updates = channel.postgresChange(UpdateAction.self, schema: "public", table: "events")
+        let deletes = channel.postgresChange(DeleteAction.self, schema: "public", table: "events")
+        syncChannel = channel
 
-            do { try await channel.subscribeWithError() }
-            catch { print("[EventService] Realtime subscription failed: \(error)") }
+        syncTask = Task {
+            do {
+                try await channel.subscribeWithError()
+            } catch {
+                print("[EventService] Realtime subscription failed: \(error)")
+                return
+            }
 
             await withTaskGroup(of: Void.self) { group in
                 group.addTask { for await action in inserts { await self.handleInsert(action) } }
@@ -120,6 +127,10 @@ final class EventService: EventServiceProtocol {
     func stopRealtimeSync() {
         syncTask?.cancel()
         syncTask = nil
+        if let channel = syncChannel {
+            syncChannel = nil
+            Task { await SupabaseManager.client.removeChannel(channel) }
+        }
     }
 
     // MARK: - Realtime Handlers

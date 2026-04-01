@@ -8,6 +8,7 @@ final class DayPlannerService: DayPlannerServiceProtocol {
     private let taskRepository: DailyTaskRepositoryProtocol
     private let routineRepository: DailyRoutineRepositoryProtocol
     private let gamificationService: GamificationService?
+    private let notificationScheduler: NotificationScheduler?
 
     private(set) var allTasks: [DailyTask] = []
     private(set) var routines: [DailyRoutine] = []
@@ -55,11 +56,13 @@ final class DayPlannerService: DayPlannerServiceProtocol {
     init(
         taskRepository: DailyTaskRepositoryProtocol,
         routineRepository: DailyRoutineRepositoryProtocol,
-        gamificationService: GamificationService? = nil
+        gamificationService: GamificationService? = nil,
+        notificationScheduler: NotificationScheduler? = nil
     ) {
         self.taskRepository = taskRepository
         self.routineRepository = routineRepository
         self.gamificationService = gamificationService
+        self.notificationScheduler = notificationScheduler
     }
 
     // MARK: - Load Data
@@ -77,6 +80,7 @@ final class DayPlannerService: DayPlannerServiceProtocol {
     func createTask(_ task: DailyTask) async throws {
         let savedTask = try await taskRepository.save(task)
         allTasks.append(savedTask)
+        await notificationScheduler?.rescheduleTaskNotifications(tasks: allTasks)
     }
 
     func updateTask(_ task: DailyTask) async throws {
@@ -89,6 +93,7 @@ final class DayPlannerService: DayPlannerServiceProtocol {
     func deleteTask(by id: UUID) async throws {
         try await taskRepository.delete(by: id)
         allTasks.removeAll { $0.id == id }
+        await notificationScheduler?.rescheduleTaskNotifications(tasks: allTasks)
     }
 
     func toggleTaskCompletion(_ task: DailyTask) async throws {
@@ -104,8 +109,13 @@ final class DayPlannerService: DayPlannerServiceProtocol {
                 gam.deduct(xp: xp, streakDays: streak)
             } else {
                 gam.award(xp: xp, streakDays: streak)
+                await notificationScheduler?.scheduleLevelUpIfNeeded(gamificationService: gam)
             }
         }
+
+        // Refresh task + streak notifications after completion toggle
+        await notificationScheduler?.rescheduleTaskNotifications(tasks: allTasks)
+        await notificationScheduler?.rescheduleStreakProtection(routines: routines, allTasks: allTasks)
     }
 
     // MARK: - Subtask Operations
@@ -123,6 +133,7 @@ final class DayPlannerService: DayPlannerServiceProtocol {
             let streak = maxCurrentStreak()
             if wasCompleting {
                 gam.award(xp: XPCalculator.subtaskXP, streakDays: streak)
+                await notificationScheduler?.scheduleLevelUpIfNeeded(gamificationService: gam)
             } else {
                 gam.deduct(xp: XPCalculator.subtaskXP, streakDays: streak)
             }
@@ -135,6 +146,7 @@ final class DayPlannerService: DayPlannerServiceProtocol {
             allTasks[taskIndex].isCompleted = true
             if let gam = gamificationService {
                 gam.award(xp: XPCalculator.subtaskCompletionBonus, streakDays: maxCurrentStreak())
+                await notificationScheduler?.scheduleLevelUpIfNeeded(gamificationService: gam)
             }
         } else if !allDone && parentWasCompleted {
             allTasks[taskIndex].isCompleted = false
@@ -169,6 +181,8 @@ final class DayPlannerService: DayPlannerServiceProtocol {
             let task = savedRoutine.createTask(for: selectedDate)
             try await createTask(task)
         }
+
+        await notificationScheduler?.rescheduleRoutineNotifications(routines: routines, allTasks: allTasks)
     }
 
     func updateRoutine(_ routine: DailyRoutine) async throws {
@@ -179,6 +193,7 @@ final class DayPlannerService: DayPlannerServiceProtocol {
 
         // Update any existing tasks from this routine for today
         await updateRoutineTasksForToday(routine: savedRoutine)
+        await notificationScheduler?.rescheduleRoutineNotifications(routines: routines, allTasks: allTasks)
     }
 
     func deleteRoutine(by id: UUID) async throws {
@@ -190,6 +205,8 @@ final class DayPlannerService: DayPlannerServiceProtocol {
 
         try await routineRepository.delete(by: id)
         routines.removeAll { $0.id == id }
+
+        await notificationScheduler?.rescheduleRoutineNotifications(routines: routines, allTasks: allTasks)
     }
 
     func toggleRoutineEnabled(_ routine: DailyRoutine) async throws {
@@ -219,6 +236,8 @@ final class DayPlannerService: DayPlannerServiceProtocol {
                 try await deleteTask(by: task.id)
             }
         }
+
+        await notificationScheduler?.rescheduleRoutineNotifications(routines: routines, allTasks: allTasks)
     }
 
     // MARK: - Routine Task Generation

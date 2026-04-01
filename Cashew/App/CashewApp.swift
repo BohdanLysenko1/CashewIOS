@@ -8,11 +8,15 @@ struct CashewApp: App {
     @State private var container = AppContainer()
     @State private var pendingInviteToken: String?
     @State private var pendingNotificationEventId: UUID?
+    @State private var pendingNotificationTripId: UUID?
+    @State private var showDayPlannerFromNotification = false
+    @State private var showProgressFromNotification = false
 
     private let notificationDelegate = NotificationDelegate.shared
 
     init() {
         UNUserNotificationCenter.current().delegate = notificationDelegate
+        NotificationDelegate.registerCategories()
     }
 
     var body: some Scene {
@@ -28,13 +32,38 @@ struct CashewApp: App {
                         await refreshNotificationSchedulesIfAuthorized()
                     }
                 }
+                // Event notification tap
                 .onReceive(NotificationCenter.default.publisher(for: .didTapEventNotification)) { note in
                     guard let eventId = note.userInfo?["eventId"] as? UUID else { return }
                     pendingNotificationEventId = eventId
                 }
+                // Trip notification tap
+                .onReceive(NotificationCenter.default.publisher(for: .didTapTripNotification)) { note in
+                    guard let tripId = note.userInfo?["tripId"] as? UUID else { return }
+                    pendingNotificationTripId = tripId
+                }
+                // Day planner notification tap
+                .onReceive(NotificationCenter.default.publisher(for: .didTapDayPlannerNotification)) { _ in
+                    showDayPlannerFromNotification = true
+                }
+                // Progress notification tap
+                .onReceive(NotificationCenter.default.publisher(for: .didTapProgressNotification)) { _ in
+                    showProgressFromNotification = true
+                }
+                // Mark task complete from notification action
+                .onReceive(NotificationCenter.default.publisher(for: .didMarkTaskCompleteFromNotification)) { note in
+                    guard let taskId = note.userInfo?["taskId"] as? UUID else { return }
+                    Task {
+                        if let task = container.dayPlannerService.allTasks.first(where: { $0.id == taskId }),
+                           !task.isCompleted {
+                            try? await container.dayPlannerService.toggleTaskCompletion(task)
+                        }
+                    }
+                }
                 .onOpenURL { url in
                     handleDeepLink(url)
                 }
+                // Invite sheet
                 .sheet(isPresented: .init(
                     get: { pendingInviteToken != nil && container.authService.isAuthenticated },
                     set: { if !$0 { pendingInviteToken = nil } }
@@ -44,6 +73,7 @@ struct CashewApp: App {
                             .environment(container)
                     }
                 }
+                // Event detail sheet (from notification)
                 .sheet(isPresented: .init(
                     get: { pendingNotificationEventId != nil },
                     set: { if !$0 { pendingNotificationEventId = nil } }
@@ -53,6 +83,34 @@ struct CashewApp: App {
                             EventDetailView(eventId: eventId)
                                 .environment(container)
                         }
+                    }
+                }
+                // Trip detail sheet (from notification)
+                .sheet(isPresented: .init(
+                    get: { pendingNotificationTripId != nil },
+                    set: { if !$0 { pendingNotificationTripId = nil } }
+                )) {
+                    if let tripId = pendingNotificationTripId {
+                        NavigationStack {
+                            TripDetailView(tripId: tripId)
+                                .environment(container)
+                        }
+                    }
+                }
+                // Day planner sheet (from notification)
+                .sheet(isPresented: $showDayPlannerFromNotification) {
+                    DayPlannerView()
+                        .environment(container)
+                }
+                // Progress sheet (from notification)
+                .sheet(isPresented: $showProgressFromNotification) {
+                    NavigationStack {
+                        PlayerProgressView(gamification: container.gamificationService)
+                            .toolbar {
+                                ToolbarItem(placement: .confirmationAction) {
+                                    Button("Done") { showProgressFromNotification = false }
+                                }
+                            }
                     }
                 }
         }
@@ -101,6 +159,12 @@ struct CashewApp: App {
     private func refreshNotificationSchedulesIfAuthorized() async {
         await container.notificationService.checkAuthorizationStatus()
         guard container.notificationService.isAuthorized else { return }
-        await container.eventService.refreshNotificationSchedules()
+        await container.notificationScheduler.rescheduleAll(
+            events: container.eventService.events,
+            tasks: container.dayPlannerService.allTasks,
+            routines: container.dayPlannerService.routines,
+            trips: container.tripService.trips,
+            gamificationService: container.gamificationService
+        )
     }
 }

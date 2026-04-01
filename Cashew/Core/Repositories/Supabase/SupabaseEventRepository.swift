@@ -6,7 +6,7 @@ import Supabase
 struct EventDTO: Codable {
     let id: UUID
     let ownerId: UUID
-    let ownerName: String?
+    let owner: OwnerInfo?     // joined via "owner:users!owner_id(display_name)"
     let title: String
     let date: Date
     let endDate: Date?
@@ -32,7 +32,7 @@ struct EventDTO: Codable {
     enum CodingKeys: String, CodingKey {
         case id
         case ownerId    = "owner_id"
-        case ownerName  = "owner_name"
+        case owner
         case title, date, notes, category, priority, url, cost, currency
         case endDate              = "end_date"
         case location
@@ -72,7 +72,7 @@ struct EventDTO: Codable {
             currency: currency ?? "USD",
             tripId: tripId,
             ownerId: ownerId,
-            ownerName: ownerName
+            ownerName: owner?.displayName
         )
     }
 }
@@ -182,7 +182,7 @@ final class SupabaseEventRepository: EventRepositoryProtocol {
         let dto: EventDTO = try await client
             .from(SupabaseSchema.Table.events)
             .upsert(payload)
-            .select()
+            .select(SupabaseSchema.Select.eventWithOwner)
             .single()
             .execute()
             .value

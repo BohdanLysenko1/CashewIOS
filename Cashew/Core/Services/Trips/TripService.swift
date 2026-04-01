@@ -7,6 +7,7 @@ import Supabase
 final class TripService: TripServiceProtocol {
 
     private let repository: TripRepositoryProtocol
+    private let notificationScheduler: NotificationScheduler?
 
     private(set) var trips: [Trip] = []
     private(set) var realtimeEventCounter = 0
@@ -15,11 +16,13 @@ final class TripService: TripServiceProtocol {
 
     // Realtime
     private var syncTask: Task<Void, Never>?
+    private var syncChannel: RealtimeChannelV2?
     private var recentLocalMutations: [UUID: Date] = [:]
     private let localMutationSuppressionWindow: TimeInterval = 4
 
-    init(repository: TripRepositoryProtocol) {
+    init(repository: TripRepositoryProtocol, notificationScheduler: NotificationScheduler? = nil) {
         self.repository = repository
+        self.notificationScheduler = notificationScheduler
     }
 
     // MARK: - Load
@@ -50,6 +53,7 @@ final class TripService: TripServiceProtocol {
         registerLocalMutation(saved.id)
         trips.append(saved)
         sortTrips()
+        await notificationScheduler?.rescheduleTripNotifications(trips: trips)
     }
 
     func updateTrip(_ trip: Trip) async throws {
@@ -59,12 +63,14 @@ final class TripService: TripServiceProtocol {
             trips[index] = saved
             sortTrips()
         }
+        await notificationScheduler?.rescheduleTripNotifications(trips: trips)
     }
 
     func deleteTrip(by id: UUID) async throws {
         try await repository.delete(by: id)
         registerLocalMutation(id)
         trips.removeAll { $0.id == id }
+        await notificationScheduler?.rescheduleTripNotifications(trips: trips)
     }
 
     func trip(by id: UUID) -> Trip? {
@@ -80,14 +86,20 @@ final class TripService: TripServiceProtocol {
     func startRealtimeSync() {
         guard syncTask == nil else { return }
 
-        syncTask = Task {
-            let channel = SupabaseManager.client.channel("trips-sync")
-            let inserts = channel.postgresChange(InsertAction.self, schema: "public", table: "trips")
-            let updates = channel.postgresChange(UpdateAction.self, schema: "public", table: "trips")
-            let deletes = channel.postgresChange(DeleteAction.self, schema: "public", table: "trips")
+        let channel = SupabaseManager.client.channel("trips-sync")
+        // Register postgres changes synchronously before subscribing
+        let inserts = channel.postgresChange(InsertAction.self, schema: "public", table: "trips")
+        let updates = channel.postgresChange(UpdateAction.self, schema: "public", table: "trips")
+        let deletes = channel.postgresChange(DeleteAction.self, schema: "public", table: "trips")
+        syncChannel = channel
 
-            do { try await channel.subscribeWithError() }
-            catch { print("[TripService] Realtime subscription failed: \(error)") }
+        syncTask = Task {
+            do {
+                try await channel.subscribeWithError()
+            } catch {
+                print("[TripService] Realtime subscription failed: \(error)")
+                return
+            }
 
             await withTaskGroup(of: Void.self) { group in
                 group.addTask { for await action in inserts { await self.handleInsert(action) } }
@@ -100,6 +112,10 @@ final class TripService: TripServiceProtocol {
     func stopRealtimeSync() {
         syncTask?.cancel()
         syncTask = nil
+        if let channel = syncChannel {
+            syncChannel = nil
+            Task { await SupabaseManager.client.removeChannel(channel) }
+        }
     }
 
     // MARK: - Realtime Handlers

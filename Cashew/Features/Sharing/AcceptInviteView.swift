@@ -61,25 +61,25 @@ struct AcceptInviteView: View {
                 Circle()
                     .fill(iconColor(for: resource).opacity(0.12))
                     .frame(width: 88, height: 88)
-                Image(systemName: icon(for: resource))
+                Image(systemName: AcceptInvitePresentation.iconName(for: resource))
                     .font(.system(size: 36, weight: .semibold))
                     .foregroundStyle(iconColor(for: resource))
             }
 
             // Info
             VStack(spacing: AppTheme.Space.sm) {
-                Text(title(for: resource))
+                Text(AcceptInvitePresentation.title(for: resource))
                     .font(.title2)
                     .fontWeight(.bold)
                     .multilineTextAlignment(.center)
 
-                if let sharedBy = sharedBy(for: resource) {
+                if let sharedBy = AcceptInvitePresentation.sharedBy(for: resource) {
                     Text("Shared by \(sharedBy)")
                         .font(.subheadline)
                         .foregroundStyle(AppTheme.onSurfaceVariant)
                 }
 
-                Text(subtitle(for: resource))
+                Text(AcceptInvitePresentation.subtitle(for: resource))
                     .font(.caption)
                     .foregroundStyle(AppTheme.onSurfaceVariant)
                     .multilineTextAlignment(.center)
@@ -93,7 +93,7 @@ struct AcceptInviteView: View {
             Button {
                 dismiss()
             } label: {
-                Text("Open \(resourceTypeName(for: resource))")
+                Text("Open \(AcceptInvitePresentation.resourceTypeName(for: resource))")
                     .font(.subheadline)
                     .fontWeight(.bold)
                     .frame(maxWidth: .infinity)
@@ -148,59 +148,10 @@ struct AcceptInviteView: View {
 
     // MARK: - Helpers
 
-    private func icon(for resource: SharedResource) -> String {
-        switch resource {
-        case .trip:  return "airplane.circle.fill"
-        case .event: return "star.circle.fill"
-        }
-    }
-
     private func iconColor(for resource: SharedResource) -> Color {
         switch resource {
         case .trip:  return .orange
         case .event: return .pink
-        }
-    }
-
-    private func title(for resource: SharedResource) -> String {
-        switch resource {
-        case .trip(let t):  return t.name
-        case .event(let e): return e.title
-        }
-    }
-
-    private func subtitle(for resource: SharedResource) -> String {
-        switch resource {
-        case .trip(let t):
-            return "\(Self.tripDateFormatter.string(from: t.startDate)) – \(Self.tripDateFormatter.string(from: t.endDate))"
-        case .event(let e):
-            return Self.eventDateFormatter.string(from: e.date)
-        }
-    }
-
-    private static let tripDateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "MMM d"
-        return f
-    }()
-
-    private static let eventDateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateStyle = .medium
-        return f
-    }()
-
-    private func sharedBy(for resource: SharedResource) -> String? {
-        switch resource {
-        case .trip(let t):  return t.ownerName
-        case .event(let e): return e.ownerName
-        }
-    }
-
-    private func resourceTypeName(for resource: SharedResource) -> String {
-        switch resource {
-        case .trip:  return "Trip"
-        case .event: return "Event"
         }
     }
 }

@@ -138,9 +138,7 @@ struct CashewApp: App {
             }
         case "join":
             // cashew://join/<token>
-            guard let rawToken = url.pathComponents.dropFirst().first else { return }
-            let token = rawToken.removingPercentEncoding ?? rawToken
-            guard !token.isEmpty else { return }
+            guard let token = ShareLinkCodec.parseInviteToken(from: url) else { return }
             pendingInviteToken = token
         default:
             break

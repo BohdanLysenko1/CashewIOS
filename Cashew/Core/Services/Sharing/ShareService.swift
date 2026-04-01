@@ -1,5 +1,4 @@
 import Foundation
-import Supabase
 
 // MARK: - Shared Resource
 
@@ -42,106 +41,66 @@ struct PendingInvite: Identifiable {
 @MainActor
 final class ShareService {
 
-    private let client = SupabaseManager.client
     private let authService: AuthServiceProtocol
+    private let dataStore: SharingDataStoreProtocol
+    private let now: () -> Date
 
     var pendingInvites: [PendingInvite] = []
 
-    init(authService: AuthServiceProtocol) {
+    init(
+        authService: AuthServiceProtocol,
+        dataStore: SharingDataStoreProtocol? = nil,
+        now: @escaping () -> Date = Date.init
+    ) {
         self.authService = authService
+        self.dataStore = dataStore ?? SupabaseSharingDataStore()
+        self.now = now
     }
 
     // MARK: - Create Invite Link
 
     /// Generates a share link for a trip or event. Returns a deep link URL.
     func createInviteLink(for resource: SharedResource) async throws -> URL {
-        guard authService.isAuthenticated else { throw ShareError.notAuthenticated }
-        let currentUserId = try await client.auth.session.user.id
-
-        let row: InviteTokenRow = try await client
-            .from(SupabaseSchema.Table.inviteLinks)
-            .insert(InviteInsertPayload(
-                resource_type: resource.resourceType,
-                resource_id: resource.resourceId,
-                created_by: currentUserId
-            ))
-            .select("token")
-            .single()
-            .execute()
-            .value
-
-        // Deep link format: cashew://join/<token>
-        let pathAllowed = CharacterSet.urlPathAllowed.subtracting(CharacterSet(charactersIn: "/"))
-        guard
-            let encodedToken = row.token.addingPercentEncoding(withAllowedCharacters: pathAllowed),
-            let url = URL(string: "cashew://join/\(encodedToken)")
-        else {
-            throw ShareError.invalidToken
-        }
-        return url
+        let currentUserId = try currentUserIdOrThrow()
+        let token = try await dataStore.createInviteToken(
+            resourceType: resource.resourceType,
+            resourceId: resource.resourceId,
+            createdBy: currentUserId
+        )
+        return try ShareLinkCodec.makeInviteURL(token: token)
     }
 
     // MARK: - Accept Invite
 
     /// Accepts an invite by token. Returns the resource type and ID so the caller can navigate.
     func acceptInvite(token: String) async throws -> SharedResource {
-        guard authService.isAuthenticated else { throw ShareError.notAuthenticated }
-        let currentUserId = try await client.auth.session.user.id
-
-        let invite: InviteLinkRow = try await client
-            .from(SupabaseSchema.Table.inviteLinks)
-            .select()
-            .eq("token", value: token)
-            .single()
-            .execute()
-            .value
+        let currentUserId = try currentUserIdOrThrow()
+        let invite = try await dataStore.fetchInvite(token: token)
 
         // 2. Check expiry
-        if invite.expiresAt < Date() {
+        if invite.expiresAt < now() {
             throw ShareError.expired
         }
 
         // 3. Insert share record and return resource
         switch invite.resourceType {
         case SharedResource.tripType:
-            try await client
-                .from(SupabaseSchema.Table.tripShares)
-                .upsert(TripSharePayload(
-                    trip_id: invite.resourceId,
-                    user_id: currentUserId,
-                    invited_by: invite.createdBy,
-                    accepted_at: Date()
-                ))
-                .execute()
-
-            let trip: TripDTO = try await client
-                .from(SupabaseSchema.Table.trips)
-                .select(SupabaseSchema.Select.tripWithOwner)
-                .eq("id", value: invite.resourceId.uuidString)
-                .single()
-                .execute()
-                .value
-            return .trip(trip.toTrip())
+            try await dataStore.upsertTripShare(
+                tripId: invite.resourceId,
+                userId: currentUserId,
+                invitedBy: invite.createdBy,
+                acceptedAt: now()
+            )
+            return .trip(try await dataStore.fetchTrip(id: invite.resourceId))
 
         case SharedResource.eventType:
-            try await client
-                .from(SupabaseSchema.Table.eventShares)
-                .upsert(EventSharePayload(
-                    event_id: invite.resourceId,
-                    user_id: currentUserId,
-                    invited_by: invite.createdBy,
-                    accepted_at: Date()
-                ))
-                .execute()
-
-            let event: EventDTO = try await client
-                .from(SupabaseSchema.Table.events)
-                .select(SupabaseSchema.Select.eventWithOwner)
-                .eq("id", value: invite.resourceId.uuidString)
-                .single()
-                .execute()
-                .value
-            return .event(event.toEvent())
+            try await dataStore.upsertEventShare(
+                eventId: invite.resourceId,
+                userId: currentUserId,
+                invitedBy: invite.createdBy,
+                acceptedAt: now()
+            )
+            return .event(try await dataStore.fetchEvent(id: invite.resourceId))
 
         default:
             throw ShareError.unknownResourceType
@@ -153,108 +112,38 @@ final class ShareService {
     func removeCollaborator(userId: UUID, from resource: SharedResource) async throws {
         switch resource {
         case .trip(let trip):
-            try await client
-                .from(SupabaseSchema.Table.tripShares)
-                .delete()
-                .eq("trip_id", value: trip.id.uuidString)
-                .eq("user_id", value: userId.uuidString)
-                .execute()
+            try await dataStore.removeTripCollaborator(tripId: trip.id, userId: userId)
         case .event(let event):
-            try await client
-                .from(SupabaseSchema.Table.eventShares)
-                .delete()
-                .eq("event_id", value: event.id.uuidString)
-                .eq("user_id", value: userId.uuidString)
-                .execute()
+            try await dataStore.removeEventCollaborator(eventId: event.id, userId: userId)
         }
     }
 
     // MARK: - Fetch Collaborators
 
     func fetchCollaborators(for resource: SharedResource) async throws -> [AppUser] {
-        let rows: [CollaboratorRow]
         switch resource {
         case .trip(let trip):
-            rows = try await client
-                .from(SupabaseSchema.Table.tripShares)
-                .select(SupabaseSchema.Select.collaboratorRow)
-                .eq("trip_id", value: trip.id.uuidString)
-                .not("accepted_at", operator: .is, value: "null")
-                .execute()
-                .value
+            return try await dataStore.fetchTripCollaborators(tripId: trip.id)
         case .event(let event):
-            rows = try await client
-                .from(SupabaseSchema.Table.eventShares)
-                .select(SupabaseSchema.Select.collaboratorRow)
-                .eq("event_id", value: event.id.uuidString)
-                .not("accepted_at", operator: .is, value: "null")
-                .execute()
-                .value
+            return try await dataStore.fetchEventCollaborators(eventId: event.id)
         }
-
-        return rows.map { $0.user }
     }
 
     func fetchUser(id: UUID) async throws -> AppUser {
-        try await client
-            .from(SupabaseSchema.Table.users)
-            .select()
-            .eq("id", value: id.uuidString)
-            .single()
-            .execute()
-            .value
+        try await dataStore.fetchUser(id: id)
     }
-}
 
-// MARK: - Private DTOs
-
-private struct InviteInsertPayload: Encodable {
-    let resource_type: String
-    let resource_id: UUID
-    let created_by: UUID
-}
-
-private struct InviteTokenRow: Decodable {
-    let token: String
-}
-
-private struct InviteLinkRow: Decodable {
-    let id: UUID
-    let resourceType: String
-    let resourceId: UUID
-    let createdBy: UUID
-    let expiresAt: Date
-
-    enum CodingKeys: String, CodingKey {
-        case id
-        case resourceType = "resource_type"
-        case resourceId   = "resource_id"
-        case createdBy    = "created_by"
-        case expiresAt    = "expires_at"
+    private func currentUserIdOrThrow() throws -> UUID {
+        guard authService.isAuthenticated, let id = authService.currentUser?.id else {
+            throw ShareError.notAuthenticated
+        }
+        return id
     }
-}
-
-private struct TripSharePayload: Encodable {
-    let trip_id: UUID
-    let user_id: UUID
-    let invited_by: UUID
-    let accepted_at: Date
-}
-
-private struct EventSharePayload: Encodable {
-    let event_id: UUID
-    let user_id: UUID
-    let invited_by: UUID
-    let accepted_at: Date
-}
-
-private struct CollaboratorRow: Decodable {
-    let user: AppUser
 }
 
 // MARK: - Share Error
 
-enum ShareError: LocalizedError {
+enum ShareError: LocalizedError, Equatable {
     case notAuthenticated
     case expired
     case invalidToken

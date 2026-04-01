@@ -12,11 +12,11 @@ struct CheckEmailView: View {
             // Icon
             ZStack {
                 Circle()
-                    .fill(Color.blue.opacity(0.12))
+                    .fill(AppTheme.primary.opacity(0.14))
                     .frame(width: 100, height: 100)
                 Image(systemName: "envelope.badge.fill")
                     .font(.system(size: 44, weight: .semibold))
-                    .foregroundStyle(Color.blue)
+                    .foregroundStyle(AppTheme.primary)
             }
 
             Spacer().frame(height: 32)
@@ -52,7 +52,7 @@ struct CheckEmailView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 52)
                     .foregroundStyle(.white)
-                    .background(Color.blue)
+                    .background(AppTheme.primaryGradient)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
             }
             .buttonStyle(.plain)

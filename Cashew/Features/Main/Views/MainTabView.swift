@@ -1,8 +1,10 @@
 import SwiftUI
+import UIKit
 
 struct MainTabView: View {
 
     @Environment(AppContainer.self) private var container
+    @Bindable private var appearance = AppearanceManager.shared
     @State private var selectedTab: Tab = .dashboard
     @State private var coordinator = OnboardingCoordinator()
     @State private var showWelcome = false
@@ -84,6 +86,7 @@ struct MainTabView: View {
             }
         }
         .onAppear {
+            configureTabBarAppearance()
             startOnboardingIfNeeded()
             configureRealtimeSync()
         }
@@ -110,6 +113,9 @@ struct MainTabView: View {
         }
         .onChange(of: coordinator.currentStep) { _, newStep in
             onStepChanged(to: newStep)
+        }
+        .onChange(of: appearance.mode) { _, _ in
+            configureTabBarAppearance()
         }
         // Welcome screen — shown on first launch.
         // onDismiss fires after the dismiss animation completes, replacing the
@@ -256,6 +262,34 @@ struct MainTabView: View {
                 }
             }
         }
+    }
+
+    private func configureTabBarAppearance() {
+        let appearance = UITabBarAppearance()
+        appearance.configureWithTransparentBackground()
+        appearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterial)
+        appearance.backgroundColor = UIColor(AppTheme.tabBarBackground)
+        appearance.shadowColor = UIColor(AppTheme.tabBarBorder)
+
+        let selectedColor = UIColor(AppTheme.tabBarSelectedItem)
+        let unselectedColor = UIColor(AppTheme.tabBarUnselectedItem)
+            .withAlphaComponent(AppTheme.tabInactiveOpacity)
+
+        let itemAppearance = UITabBarItemAppearance(style: .stacked)
+        itemAppearance.normal.iconColor = unselectedColor
+        itemAppearance.normal.titleTextAttributes = [.foregroundColor: unselectedColor]
+        itemAppearance.selected.iconColor = selectedColor
+        itemAppearance.selected.titleTextAttributes = [.foregroundColor: selectedColor]
+
+        appearance.stackedLayoutAppearance = itemAppearance
+        appearance.inlineLayoutAppearance = itemAppearance
+        appearance.compactInlineLayoutAppearance = itemAppearance
+
+        let proxy = UITabBar.appearance()
+        proxy.standardAppearance = appearance
+        proxy.scrollEdgeAppearance = appearance
+        proxy.tintColor = selectedColor
+        proxy.unselectedItemTintColor = unselectedColor
     }
 }
 

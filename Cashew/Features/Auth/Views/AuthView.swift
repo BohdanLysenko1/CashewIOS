@@ -149,7 +149,7 @@ struct AuthView: View {
                                 Text(error)
                             }
                             .font(.caption)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(AppTheme.negative)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .transition(.opacity.combined(with: .move(edge: .top)))
                         }

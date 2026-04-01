@@ -128,7 +128,7 @@ struct TripDetailView: View {
             VStack(spacing: AppTheme.Space.md) {
                 if let name = trip.ownerName {
                     stagedCard(0) {
-                        sharedByBanner(name: name, color: .orange)
+                        sharedByBanner(name: name, color: AppTheme.warning)
                     }
                 }
 
@@ -161,7 +161,7 @@ struct TripDetailView: View {
                 }
 
                 stagedCard(8) {
-                    PhotosGridCard(attachments: trip.attachments, accentColor: .blue)
+                    PhotosGridCard(attachments: trip.attachments, accentColor: AppTheme.primary)
                 }
 
                 if !trip.notes.isEmpty {
@@ -259,25 +259,25 @@ struct TripDetailView: View {
                     icon: "creditcard.fill",
                     title: "Budget",
                     value: budgetSubtitle(trip),
-                    tint: .green
+                    tint: AppTheme.positive
                 )
                 snapshotTile(
                     icon: "calendar.day.timeline.left",
                     title: "Itinerary",
                     value: "\(trip.activities.count) activities",
-                    tint: .blue
+                    tint: AppTheme.primary
                 )
                 snapshotTile(
                     icon: "bag.fill",
                     title: "Packing",
                     value: packingSubtitle(trip),
-                    tint: .orange
+                    tint: AppTheme.warning
                 )
                 snapshotTile(
                     icon: "checklist",
                     title: "Checklist",
                     value: checklistSubtitle(trip),
-                    tint: .purple
+                    tint: AppTheme.tertiary
                 )
             }
         }
@@ -313,28 +313,28 @@ struct TripDetailView: View {
                     title: "Add Itinerary Activity",
                     subtitle: "Drop the next stop into your timeline",
                     icon: "calendar.badge.plus",
-                    tint: .blue,
+                    tint: AppTheme.primary,
                     route: TripRoute(section: .itinerary, intent: .addActivity)
                 )
                 actionLink(
                     title: "Log New Expense",
                     subtitle: "Keep budget on track in real time",
                     icon: "creditcard.circle",
-                    tint: .green,
+                    tint: AppTheme.positive,
                     route: TripRoute(section: .budget, intent: .addExpense)
                 )
                 actionLink(
                     title: "Review What Is Left to Pack",
                     subtitle: "Focus only on unpacked items",
                     icon: "bag.badge.questionmark",
-                    tint: .orange,
+                    tint: AppTheme.warning,
                     route: TripRoute(section: .packing, intent: .reviewPacking)
                 )
                 actionLink(
                     title: "Handle Priority Checklist Items",
                     subtitle: "Jump to urgent and high-priority tasks",
                     icon: "exclamationmark.circle",
-                    tint: .red,
+                    tint: AppTheme.negative,
                     route: TripRoute(section: .checklist, intent: .reviewChecklist)
                 )
             }
@@ -389,7 +389,7 @@ struct TripDetailView: View {
                         title: "Budget",
                         subtitle: budgetSubtitle(trip),
                         progress: trip.budgetProgress,
-                        color: .green
+                        color: AppTheme.positive
                     )
                 }
                 .buttonStyle(.plain)
@@ -400,7 +400,7 @@ struct TripDetailView: View {
                         title: "Itinerary",
                         subtitle: "\(trip.activities.count) activities",
                         progress: nil,
-                        color: .blue
+                        color: AppTheme.primary
                     )
                 }
                 .buttonStyle(.plain)
@@ -411,7 +411,7 @@ struct TripDetailView: View {
                         title: "Packing",
                         subtitle: packingSubtitle(trip),
                         progress: trip.packingItems.isEmpty ? nil : trip.packingProgress,
-                        color: .orange
+                        color: AppTheme.warning
                     )
                 }
                 .buttonStyle(.plain)
@@ -422,7 +422,7 @@ struct TripDetailView: View {
                         title: "Checklist",
                         subtitle: checklistSubtitle(trip),
                         progress: trip.checklistItems.isEmpty ? nil : trip.checklistProgress,
-                        color: .purple
+                        color: AppTheme.tertiary
                     )
                 }
                 .buttonStyle(.plain)
@@ -442,7 +442,7 @@ struct TripDetailView: View {
                         HStack(spacing: 10) {
                             Image(systemName: "mappin.circle.fill")
                                 .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(.red)
+                                .foregroundStyle(AppTheme.negative)
                                 .frame(width: 24)
                             Text("Destination")
                                 .font(AppTheme.TextStyle.body)
@@ -459,13 +459,13 @@ struct TripDetailView: View {
                     }
                     .buttonStyle(.plain)
                 } else {
-                    detailLine(icon: "mappin.circle.fill", tint: .red, title: "Destination", value: trip.destination)
+                    detailLine(icon: "mappin.circle.fill", tint: AppTheme.negative, title: "Destination", value: trip.destination)
                 }
 
                 HStack {
                     Image(systemName: "flag.circle.fill")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(AppTheme.primary)
                         .frame(width: 24)
                     Text("Status")
                         .font(AppTheme.TextStyle.body)
@@ -482,19 +482,19 @@ struct TripDetailView: View {
             VStack(spacing: 12) {
                 detailLine(
                     icon: "airplane.departure",
-                    tint: .green,
+                    tint: AppTheme.positive,
                     title: "Start",
                     value: trip.startDate.formatted(date: .long, time: .omitted)
                 )
                 detailLine(
                     icon: "airplane.arrival",
-                    tint: .orange,
+                    tint: AppTheme.warning,
                     title: "End",
                     value: trip.endDate.formatted(date: .long, time: .omitted)
                 )
                 detailLine(
                     icon: "clock.fill",
-                    tint: .purple,
+                    tint: AppTheme.tertiary,
                     title: "Duration",
                     value: durationText(from: trip.startDate, to: trip.endDate)
                 )
@@ -508,7 +508,7 @@ struct TripDetailView: View {
                 if !trip.accommodationName.isEmpty {
                     detailLine(
                         icon: "bed.double.fill",
-                        tint: .blue,
+                        tint: AppTheme.primary,
                         title: "Stay",
                         value: trip.accommodationName
                     )
@@ -516,7 +516,7 @@ struct TripDetailView: View {
                 if !trip.transportationType.isEmpty {
                     detailLine(
                         icon: "car.fill",
-                        tint: .indigo,
+                        tint: AppTheme.secondary,
                         title: "Transport",
                         value: trip.transportationType
                     )
@@ -524,7 +524,7 @@ struct TripDetailView: View {
                 if !trip.accommodationConfirmation.isEmpty {
                     detailLine(
                         icon: "number.circle.fill",
-                        tint: .mint,
+                        tint: AppTheme.info,
                         title: "Hotel Confirmation",
                         value: trip.accommodationConfirmation
                     )
@@ -532,7 +532,7 @@ struct TripDetailView: View {
                 if !trip.transportationConfirmation.isEmpty {
                     detailLine(
                         icon: "ticket.fill",
-                        tint: .cyan,
+                        tint: AppTheme.info,
                         title: "Transport Confirmation",
                         value: trip.transportationConfirmation
                     )

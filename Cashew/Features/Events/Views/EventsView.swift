@@ -217,21 +217,10 @@ struct EventsView: View {
     // MARK: - Delete Bar
 
     private var deleteBar: some View {
-        Button(role: .destructive) {
+        DestructiveSelectionBar(
+            title: "Delete \(selectedEvents.count) Event\(selectedEvents.count == 1 ? "" : "s")"
+        ) {
             showDeleteConfirmation = true
-        } label: {
-            HStack {
-                Image(systemName: "trash")
-                Text("Delete \(selectedEvents.count) Event\(selectedEvents.count == 1 ? "" : "s")")
-            }
-            .fontWeight(.semibold)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(Color.red)
-            .foregroundStyle(.white)
-            .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
-            .padding(.horizontal, 24)
-            .padding(.bottom, 8)
         }
         .transition(.move(edge: .bottom).combined(with: .opacity))
     }

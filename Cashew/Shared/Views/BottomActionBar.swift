@@ -11,9 +11,11 @@ struct BottomActionBar<Content: View>: View {
         .padding(.horizontal, 24)
         .padding(.vertical, 12)
         .background(.ultraThinMaterial)
-        .background(AppTheme.surfaceContainerLowest.opacity(0.80))
+        .background(AppTheme.tabBarBackground)
         .clipShape(Capsule())
+        .overlay(Capsule().strokeBorder(AppTheme.tabBarBorder, lineWidth: 0.75))
         .shadow(color: AppTheme.cardShadow, radius: AppTheme.cardShadowRadius, x: 0, y: AppTheme.cardShadowY)
+        .shadow(color: AppTheme.cardAmbientShadow, radius: AppTheme.cardAmbientShadowRadius, x: 0, y: AppTheme.cardAmbientShadowY)
         .padding(.bottom, 8)
     }
 }

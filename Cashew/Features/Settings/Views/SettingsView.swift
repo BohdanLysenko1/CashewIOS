@@ -31,7 +31,7 @@ struct SettingsView: View {
                                 displayName: profileName,
                                 avatarPath: container.authService.currentUser?.avatarPath,
                                 size: 52,
-                                tint: .blue
+                                tint: AppTheme.primary
                             )
 
                             VStack(alignment: .leading, spacing: 3) {
@@ -66,19 +66,19 @@ struct SettingsView: View {
                     Button {
                         onboardingCoordinator.restart()
                     } label: {
-                        settingsRow(icon: "questionmark.circle", color: .purple, label: "Replay Tutorial")
+                        settingsRow(icon: "questionmark.circle", color: AppTheme.tertiary, label: "Replay Tutorial")
                     }
 
                     Button {
                         sendFeedback()
                     } label: {
-                        settingsRow(icon: "envelope", color: .blue, label: "Send Feedback")
+                        settingsRow(icon: "envelope", color: AppTheme.primary, label: "Send Feedback")
                     }
 
                     Button {
                         requestReview()
                     } label: {
-                        settingsRow(icon: "star", color: .yellow, label: "Rate Cashew")
+                        settingsRow(icon: "star", color: AppTheme.warning, label: "Rate Cashew")
                     }
                 }
 
@@ -89,7 +89,7 @@ struct SettingsView: View {
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(.white)
                             .frame(width: 32, height: 32)
-                            .background(Color.gray.gradient)
+                            .background(AppTheme.calendarGradient)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
 
                         Picker("Appearance", selection: Bindable(AppearanceManager.shared).mode) {
@@ -112,7 +112,7 @@ struct SettingsView: View {
                                 .font(.system(size: 16, weight: .semibold))
                                 .foregroundStyle(.white)
                                 .frame(width: 32, height: 32)
-                                .background(Color.indigo.gradient)
+                                .background(AppTheme.primaryGradient)
                                 .clipShape(RoundedRectangle(cornerRadius: 8))
 
                             Text("Notification Preferences")
@@ -131,7 +131,7 @@ struct SettingsView: View {
                         } label: {
                             settingsRow(
                                 icon: container.notificationService.canRequestAuthorization ? "bell.badge" : "gearshape",
-                                color: container.notificationService.canRequestAuthorization ? .indigo : .orange,
+                                color: container.notificationService.canRequestAuthorization ? AppTheme.info : AppTheme.warning,
                                 label: container.notificationService.canRequestAuthorization ? "Enable Notifications" : "Open iOS Notification Settings"
                             )
                         }
@@ -326,7 +326,7 @@ struct SettingsView: View {
         openNotificationSettings()
     }
 
-private func openNotificationSettings() {
+    private func openNotificationSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         UIApplication.shared.open(url)
     }

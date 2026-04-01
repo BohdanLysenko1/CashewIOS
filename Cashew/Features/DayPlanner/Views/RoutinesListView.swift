@@ -255,7 +255,7 @@ private struct RoutineCard: View {
                         Image(systemName: "trash")
                             .font(.system(size: 12, weight: .semibold))
                             .padding(8)
-                            .background(Color.red.opacity(0.14))
+                            .background(AppTheme.negativeBackground)
                             .clipShape(Circle())
                     }
                     .buttonStyle(.plain)

@@ -159,7 +159,7 @@ struct ProfileView: View {
             } label: {
                 HStack(spacing: 10) {
                     Image(systemName: "lock.rotation")
-                        .iconBackground(.indigo)
+                        .iconBackground(AppTheme.info)
                     Text("Change Password")
                         .font(AppTheme.TextStyle.bodyBold)
                         .foregroundStyle(AppTheme.onSurface)
@@ -179,14 +179,14 @@ struct ProfileView: View {
     private func errorCard(message: String) -> some View {
         HStack(spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.red)
+                .foregroundStyle(AppTheme.negative)
             Text(message)
                 .font(AppTheme.TextStyle.secondary)
-                .foregroundStyle(.red)
+                .foregroundStyle(AppTheme.negative)
             Spacer(minLength: 0)
         }
         .padding(AppTheme.Space.md)
-        .background(Color.red.opacity(0.08))
+        .background(AppTheme.negativeBackground)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
@@ -203,7 +203,7 @@ struct ProfileView: View {
                 displayName: profileName,
                 avatarPath: effectiveAvatarPath,
                 size: size,
-                tint: .blue
+                tint: AppTheme.primary
             )
         }
     }

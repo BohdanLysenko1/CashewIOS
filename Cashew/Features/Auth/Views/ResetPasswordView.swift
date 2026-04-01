@@ -30,11 +30,11 @@ struct ResetPasswordView: View {
                 // Icon
                 ZStack {
                     Circle()
-                        .fill(Color.blue.opacity(0.12))
+                        .fill(AppTheme.primary.opacity(0.14))
                         .frame(width: 88, height: 88)
                     Image(systemName: "lock.rotation")
                         .font(.system(size: 38, weight: .semibold))
-                        .foregroundStyle(Color.blue)
+                        .foregroundStyle(AppTheme.primary)
                 }
 
                 Spacer().frame(height: 24)
@@ -112,13 +112,15 @@ struct ResetPasswordView: View {
                                 .foregroundStyle(.white)
                                 .background(
                                     LinearGradient(
-                                        colors: isValid ? [Color.blue, Color.indigo] : [Color.gray, Color.gray],
+                                        colors: isValid
+                                            ? [AppTheme.primary, AppTheme.primaryDim]
+                                            : [AppTheme.surfaceContainerHigh, AppTheme.surfaceContainerHigh],
                                         startPoint: .leading,
                                         endPoint: .trailing
                                     )
                                 )
                                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                                .shadow(color: isValid ? Color.blue.opacity(0.3) : .clear, radius: 8, x: 0, y: 4)
+                                .shadow(color: isValid ? AppTheme.primary.opacity(AppTheme.accentGlowOpacity) : .clear, radius: 8, x: 0, y: 4)
                         }
                         .buttonStyle(.plain)
                         .disabled(!isValid)

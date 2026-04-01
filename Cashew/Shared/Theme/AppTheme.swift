@@ -13,17 +13,17 @@ enum AppTheme {
     // Primary
     static var primary: Color {
         isDark
-            ? Color(red: 0.48, green: 0.52, blue: 1.00)   // #7B85FF
+            ? Color(red: 0.56, green: 0.60, blue: 1.00)   // #8F99FF
             : Color(red: 0.21, green: 0.26, blue: 0.91)   // #3642E9
     }
     static var primaryDim: Color {
         isDark
-            ? Color(red: 0.35, green: 0.32, blue: 0.88)   // #5A52E0
+            ? Color(red: 0.43, green: 0.38, blue: 0.95)   // #6E60F2
             : Color(red: 0.20, green: 0.18, blue: 0.78)   // #332DC7
     }
     static var primaryContainer: Color {
         isDark
-            ? Color(red: 0.23, green: 0.26, blue: 0.63)   // #3A42A0
+            ? Color(red: 0.30, green: 0.34, blue: 0.79)   // #4D56C9
             : Color(red: 0.56, green: 0.59, blue: 1.00)   // #8F97FF
     }
     static let onPrimary = Color.white
@@ -31,75 +31,92 @@ enum AppTheme {
     // Secondary — used to distinguish "Trips"
     static var secondary: Color {
         isDark
-            ? Color(red: 0.69, green: 0.48, blue: 1.00)   // #B07AFF
+            ? Color(red: 0.78, green: 0.56, blue: 1.00)   // #C68FFF
             : Color(red: 0.45, green: 0.21, blue: 0.80)   // #7335CC
     }
     static var secondaryContainer: Color {
         isDark
-            ? Color(red: 0.29, green: 0.18, blue: 0.50)   // #4A2D80
+            ? Color(red: 0.40, green: 0.24, blue: 0.68)   // #663DAD
             : Color(red: 0.60, green: 0.40, blue: 0.90)
     }
 
     // Tertiary — used to distinguish "Events", rewards, streaks, XP
     static var tertiary: Color {
         isDark
-            ? Color(red: 0.82, green: 0.42, blue: 0.69)   // #D06AAF
+            ? Color(red: 0.95, green: 0.49, blue: 0.77)   // #F37CC4
             : Color(red: 0.58, green: 0.22, blue: 0.48)   // #95377A
     }
     static var tertiaryContainer: Color {
         isDark
-            ? Color(red: 0.42, green: 0.18, blue: 0.33)   // #6B2D55
+            ? Color(red: 0.56, green: 0.26, blue: 0.47)   // #8F4277
             : Color(red: 0.75, green: 0.40, blue: 0.62)
     }
 
     // Neutral / Surface hierarchy  ("layers of fine paper")
     static var background: Color {
         isDark
-            ? Color(red: 0.07, green: 0.07, blue: 0.08)   // #121214
+            ? Color(red: 0.04, green: 0.05, blue: 0.08)   // #0A0C14
             : Color(red: 0.96, green: 0.96, blue: 0.97)   // #F5F6F7
     }
     static var surface: Color {
         isDark
-            ? Color(red: 0.10, green: 0.10, blue: 0.12)   // #1A1A1E
+            ? Color(red: 0.08, green: 0.09, blue: 0.13)   // #141621
             : Color(red: 0.97, green: 0.97, blue: 0.98)
     }
     static var surfaceContainerLow: Color {
         isDark
-            ? Color(red: 0.12, green: 0.12, blue: 0.13)   // #1E1E22
+            ? Color(red: 0.11, green: 0.12, blue: 0.17)   // #1C1E2B
             : Color(red: 0.95, green: 0.95, blue: 0.96)
     }
     static var surfaceContainer: Color {
         isDark
-            ? Color(red: 0.14, green: 0.14, blue: 0.16)   // #242428
+            ? Color(red: 0.13, green: 0.14, blue: 0.20)   // #212433
             : Color(red: 0.93, green: 0.93, blue: 0.95)
     }
     static var surfaceContainerHigh: Color {
         isDark
-            ? Color(red: 0.17, green: 0.17, blue: 0.20)   // #2C2C32
+            ? Color(red: 0.18, green: 0.20, blue: 0.28)   // #2E3247
             : Color(red: 0.90, green: 0.90, blue: 0.92)
     }
     static var surfaceContainerLowest: Color {
         isDark
-            ? Color(red: 0.06, green: 0.06, blue: 0.07)   // #0F0F12
+            ? Color(red: 0.07, green: 0.08, blue: 0.12)   // #11141F
             : Color.white
     }
 
     // On-surface text  (never use pure #000000)
     static var onSurface: Color {
         isDark
-            ? Color(red: 0.89, green: 0.89, blue: 0.91)   // #E4E4E8
+            ? Color(red: 0.95, green: 0.95, blue: 0.98)   // #F2F2FA
             : Color(red: 0.17, green: 0.18, blue: 0.19)   // #2C2F30
     }
     static var onSurfaceVariant: Color {
         isDark
-            ? Color(red: 0.63, green: 0.64, blue: 0.67)   // #A0A4AA
+            ? Color(red: 0.75, green: 0.77, blue: 0.83)   // #BFC4D4
             : Color(red: 0.40, green: 0.42, blue: 0.44)
     }
     static var outlineVariant: Color {
         isDark
-            ? onSurface.opacity(0.12)
+            ? onSurface.opacity(0.18)
             : onSurface.opacity(0.10)
     }
+
+    // Semantic status
+    static var positive: Color {
+        isDark ? Color(red: 0.36, green: 0.93, blue: 0.65) : Color(red: 0.13, green: 0.70, blue: 0.38)
+    }
+    static var warning: Color {
+        isDark ? Color(red: 1.00, green: 0.76, blue: 0.34) : Color(red: 0.90, green: 0.55, blue: 0.14)
+    }
+    static var negative: Color {
+        isDark ? Color(red: 1.00, green: 0.46, blue: 0.56) : Color(red: 0.85, green: 0.23, blue: 0.31)
+    }
+    static var info: Color {
+        isDark ? Color(red: 0.45, green: 0.75, blue: 1.00) : Color(red: 0.22, green: 0.44, blue: 0.92)
+    }
+    static var positiveBackground: Color { positive.opacity(isDark ? 0.18 : 0.12) }
+    static var warningBackground: Color { warning.opacity(isDark ? 0.18 : 0.12) }
+    static var negativeBackground: Color { negative.opacity(isDark ? 0.18 : 0.12) }
 
     // ─────────────────────────────────────────────
     // MARK: - Gradients
@@ -161,11 +178,19 @@ enum AppTheme {
     // Signature "Mission / Hero" card fill
     static var heroGradient: LinearGradient {
         LinearGradient(
-            colors: [primary, secondary],
+            colors: isDark ? [primaryContainer, secondary] : [primary, secondary],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
     }
+
+    static var heroShine: Color { Color.white.opacity(isDark ? 0.16 : 0.10) }
+    static var heroChipBackground: Color { Color.white.opacity(isDark ? 0.23 : 0.16) }
+    static var heroChipBorder: Color { Color.white.opacity(isDark ? 0.32 : 0.24) }
+    static var heroTextSecondary: Color { Color.white.opacity(isDark ? 0.84 : 0.75) }
+    static var heroTextMuted: Color { Color.white.opacity(isDark ? 0.74 : 0.68) }
+    static var heroRingTrack: Color { Color.white.opacity(isDark ? 0.28 : 0.20) }
+    static var heroRingProgress: Color { isDark ? Color.white.opacity(0.95) : .white }
 
     /// Deep navy/indigo — shared by the onboarding welcome and completion screens.
     static let onboardingBackground = LinearGradient(
@@ -182,8 +207,8 @@ enum AppTheme {
     // MARK: - Surface Shortcuts (backward-compatible)
     // ─────────────────────────────────────────────
 
-    static var cardBackground: Color { surfaceContainerLowest }
-    static var secondaryBackground: Color { surfaceContainerLow }
+    static var cardBackground: Color { isDark ? surfaceContainer : surfaceContainerLowest }
+    static var secondaryBackground: Color { isDark ? surfaceContainerHigh : surfaceContainerLow }
 
     // ─────────────────────────────────────────────
     // MARK: - Elevation & Shadows
@@ -191,11 +216,27 @@ enum AppTheme {
     //   Signature Glow: on_surface 6%, blur 32-48, y 8
     // ─────────────────────────────────────────────
 
-    static var cardShadow: Color {
-        isDark ? Color.clear : onSurface.opacity(0.06)
-    }
-    static let cardShadowRadius: CGFloat = 32
-    static let cardShadowY: CGFloat = 8
+    static var cardShadow: Color { isDark ? Color.black.opacity(0.42) : onSurface.opacity(0.06) }
+    static var cardShadowRadius: CGFloat { isDark ? 20 : 32 }
+    static var cardShadowY: CGFloat { isDark ? 10 : 8 }
+    static var cardAmbientShadow: Color { isDark ? primary.opacity(0.16) : Color.clear }
+    static var cardAmbientShadowRadius: CGFloat { isDark ? 22 : 0 }
+    static var cardAmbientShadowY: CGFloat { isDark ? 2 : 0 }
+    static var elevatedCardBorderOpacity: Double { isDark ? 0.22 : 0.08 }
+    static var accentGlowColor: Color { isDark ? primary : primaryDim }
+    static var accentGlowOpacity: Double { isDark ? 0.34 : 0.24 }
+    static var accentGlowRadius: CGFloat { isDark ? 18 : 12 }
+    static var heroGlowOpacity: Double { isDark ? 0.40 : 0.25 }
+
+    // Tab state
+    static var tabBarBackground: Color { isDark ? surfaceContainerLowest.opacity(0.98) : surfaceContainerLowest }
+    static var tabBarBorder: Color { isDark ? onSurface.opacity(0.10) : onSurface.opacity(0.06) }
+    static var tabBarSelectedItem: Color { primary }
+    static var tabBarUnselectedItem: Color { onSurfaceVariant.opacity(isDark ? 0.92 : 0.82) }
+    static var tabActiveBackground: Color { isDark ? surfaceContainerHigh.opacity(0.95) : surfaceContainerHigh }
+    static var tabInactiveOpacity: Double { isDark ? 0.72 : 0.82 }
+    static var glassBackgroundOpacity: Double { isDark ? 0.72 : 0.80 }
+    static var glassBorderOpacity: Double { isDark ? 0.16 : 0.08 }
 
     // ─────────────────────────────────────────────
     // MARK: - Corner Radii
@@ -303,23 +344,25 @@ enum AppTheme {
 // MARK: - View Modifiers
 
 struct CardStyle: ViewModifier {
-    @Environment(\.colorScheme) private var colorScheme
-
     func body(content: Content) -> some View {
         content
             .background(AppTheme.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
             .overlay(
-                colorScheme == .dark
-                    ? AnyShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
-                        .stroke(AppTheme.onSurface.opacity(0.08), lineWidth: 0.5)
-                    : nil
+                RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous)
+                    .stroke(AppTheme.onSurface.opacity(AppTheme.elevatedCardBorderOpacity), lineWidth: 0.75)
             )
             .shadow(
                 color: AppTheme.cardShadow,
                 radius: AppTheme.cardShadowRadius,
                 x: 0,
                 y: AppTheme.cardShadowY
+            )
+            .shadow(
+                color: AppTheme.cardAmbientShadow,
+                radius: AppTheme.cardAmbientShadowRadius,
+                x: 0,
+                y: AppTheme.cardAmbientShadowY
             )
     }
 }
@@ -330,13 +373,23 @@ struct GlassStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(.ultraThinMaterial)
-            .background(AppTheme.surfaceContainerLowest.opacity(0.80))
+            .background(AppTheme.surfaceContainerLowest.opacity(AppTheme.glassBackgroundOpacity))
             .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous)
+                    .stroke(AppTheme.onSurface.opacity(AppTheme.glassBorderOpacity), lineWidth: 0.75)
+            )
             .shadow(
                 color: AppTheme.cardShadow,
                 radius: AppTheme.cardShadowRadius,
                 x: 0,
                 y: AppTheme.cardShadowY
+            )
+            .shadow(
+                color: AppTheme.cardAmbientShadow,
+                radius: AppTheme.cardAmbientShadowRadius,
+                x: 0,
+                y: AppTheme.cardAmbientShadowY
             )
     }
 }
@@ -450,5 +503,90 @@ struct AppProgressBar: View {
             }
         }
         .frame(height: AppTheme.progressBarHeight)
+    }
+}
+
+/// Reusable hero-style gradient action card used across dashboard surfaces.
+struct GradientActionCard: View {
+    let title: String
+    let subtitle: String
+    let icon: String
+    let gradient: LinearGradient
+    let glowColor: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                gradient
+                LinearGradient(
+                    colors: [AppTheme.heroShine, .clear],
+                    startPoint: .top,
+                    endPoint: .center
+                )
+
+                HStack(spacing: 16) {
+                    ZStack {
+                        Circle()
+                            .fill(AppTheme.heroChipBackground)
+                            .frame(width: 52, height: 52)
+                        Image(systemName: icon)
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(title)
+                            .font(.title3)
+                            .fontWeight(.bold)
+                            .foregroundStyle(.white)
+                        Text(subtitle)
+                            .font(.subheadline)
+                            .foregroundStyle(AppTheme.heroTextSecondary)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(AppTheme.heroTextSecondary)
+                        .padding(10)
+                        .background(AppTheme.heroChipBackground)
+                        .clipShape(Circle())
+                }
+                .padding(.horizontal, AppTheme.cardPadding)
+                .padding(.vertical, 18)
+            }
+        }
+        .buttonStyle(.plain)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous)
+                .strokeBorder(AppTheme.heroChipBorder.opacity(0.6), lineWidth: 0.75)
+        )
+        .shadow(color: glowColor.opacity(AppTheme.heroGlowOpacity), radius: 14, x: 0, y: 7)
+    }
+}
+
+/// Reusable bottom destructive action for multi-select flows.
+struct DestructiveSelectionBar: View {
+    let title: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(role: .destructive, action: action) {
+            HStack {
+                Image(systemName: "trash")
+                Text(title)
+            }
+            .fontWeight(.semibold)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(AppTheme.negative)
+            .foregroundStyle(.white)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .padding(.horizontal, 24)
+            .padding(.bottom, 8)
+        }
     }
 }

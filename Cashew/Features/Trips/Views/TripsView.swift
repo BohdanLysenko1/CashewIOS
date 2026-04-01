@@ -217,21 +217,10 @@ struct TripsView: View {
     // MARK: - Delete Bar
 
     private var deleteBar: some View {
-        Button(role: .destructive) {
+        DestructiveSelectionBar(
+            title: "Delete \(selectedTrips.count) Trip\(selectedTrips.count == 1 ? "" : "s")"
+        ) {
             showDeleteConfirmation = true
-        } label: {
-            HStack {
-                Image(systemName: "trash")
-                Text("Delete \(selectedTrips.count) Trip\(selectedTrips.count == 1 ? "" : "s")")
-            }
-            .fontWeight(.semibold)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(Color.red)
-            .foregroundStyle(.white)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .padding(.horizontal, 24)
-            .padding(.bottom, 8)
         }
         .transition(.move(edge: .bottom).combined(with: .opacity))
     }
@@ -282,9 +271,9 @@ struct TripsView: View {
             let completed = filteredTrips.filter { $0.computedStatus == .completed }.count
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: AppTheme.Space.sm) {
-                overviewTile(title: "Upcoming", value: "\(upcoming)", tint: .blue, icon: "calendar.badge.plus")
-                overviewTile(title: "Active", value: "\(active)", tint: .green, icon: "location.north.line")
-                overviewTile(title: "Completed", value: "\(completed)", tint: .gray, icon: "checkmark.circle")
+                overviewTile(title: "Upcoming", value: "\(upcoming)", tint: AppTheme.primary, icon: "calendar.badge.plus")
+                overviewTile(title: "Active", value: "\(active)", tint: AppTheme.positive, icon: "location.north.line")
+                overviewTile(title: "Completed", value: "\(completed)", tint: AppTheme.onSurfaceVariant, icon: "checkmark.circle")
             }
         }
         .padding(AppTheme.Space.lg)
@@ -348,7 +337,7 @@ struct TripsView: View {
             } label: {
                 HStack {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.gray)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
                     Text("Completed")
                         .font(.subheadline)
                         .fontWeight(.semibold)
@@ -383,7 +372,7 @@ struct TripsView: View {
         HStack(spacing: 12) {
             Image(systemName: selectedTrips.contains(trip.id) ? "checkmark.circle.fill" : "circle")
                 .font(.system(size: 24))
-                .foregroundStyle(selectedTrips.contains(trip.id) ? .blue : .secondary)
+                .foregroundStyle(selectedTrips.contains(trip.id) ? AppTheme.primary : AppTheme.onSurfaceVariant)
 
             liveHighlightedTripRow(trip.id) {
                 TripCard(trip: trip)
@@ -527,8 +516,8 @@ struct TripsView: View {
                     .strokeBorder(
                         LinearGradient(
                             colors: [
-                                Color.orange.opacity(isHighlighted ? 0.92 : 0),
-                                Color.orange.opacity(isHighlighted ? 0.35 : 0)
+                                AppTheme.warning.opacity(isHighlighted ? 0.92 : 0),
+                                AppTheme.warning.opacity(isHighlighted ? 0.35 : 0)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -536,7 +525,7 @@ struct TripsView: View {
                         lineWidth: isHighlighted ? 2 : 0
                     )
             )
-            .shadow(color: Color.orange.opacity(isHighlighted ? 0.30 : 0), radius: isHighlighted ? 16 : 0, x: 0, y: isHighlighted ? 8 : 0)
+            .shadow(color: AppTheme.warning.opacity(isHighlighted ? 0.30 : 0), radius: isHighlighted ? 16 : 0, x: 0, y: isHighlighted ? 8 : 0)
             .animation(.spring(response: 0.44, dampingFraction: 0.82), value: isHighlighted)
     }
 

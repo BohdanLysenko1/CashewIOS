@@ -42,7 +42,7 @@ struct AppFilterSection<Content: View>: View {
                 if activeCount > 0, let onClear {
                     Button("Clear", action: onClear)
                         .font(AppTheme.TextStyle.captionBold)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(AppTheme.negative)
                 }
             }
 

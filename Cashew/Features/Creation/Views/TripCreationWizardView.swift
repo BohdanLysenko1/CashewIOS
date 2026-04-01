@@ -143,7 +143,7 @@ struct TripCreationWizardView: View {
                     Text("End date must be after start date")
                         .font(AppTheme.TextStyle.caption)
                 }
-                .foregroundStyle(.red)
+                .foregroundStyle(AppTheme.negative)
                 .padding(.horizontal, AppTheme.Space.xs)
             }
         }

@@ -619,21 +619,10 @@ struct DayPlannerView: View {
     // MARK: - Delete Bar
 
     private var deleteBar: some View {
-        Button(role: .destructive) {
+        DestructiveSelectionBar(
+            title: "Delete \(selectedTasks.count) Task\(selectedTasks.count == 1 ? "" : "s")"
+        ) {
             showDeleteConfirmation = true
-        } label: {
-            HStack {
-                Image(systemName: "trash")
-                Text("Delete \(selectedTasks.count) Task\(selectedTasks.count == 1 ? "" : "s")")
-            }
-            .fontWeight(.semibold)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(Color.red)
-            .foregroundStyle(.white)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .padding(.horizontal, 24)
-            .padding(.bottom, 8)
         }
         .transition(.move(edge: .bottom).combined(with: .opacity))
     }

@@ -371,7 +371,7 @@ struct EventDetailView: View {
                             HStack(spacing: 10) {
                                 Image(systemName: "mappin.circle.fill")
                                     .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(.red)
+                                    .foregroundStyle(AppTheme.negative)
                                     .frame(width: 24)
 
                                 Text("Location")
@@ -392,12 +392,12 @@ struct EventDetailView: View {
                         }
                         .buttonStyle(.plain)
                     } else {
-                        detailLine(icon: "mappin.circle.fill", tint: .red, title: "Location", value: event.location)
+                        detailLine(icon: "mappin.circle.fill", tint: AppTheme.negative, title: "Location", value: event.location)
                     }
                 }
 
                 if !event.address.isEmpty {
-                    detailLine(icon: "map.fill", tint: .orange, title: "Address", value: event.address)
+                    detailLine(icon: "map.fill", tint: AppTheme.warning, title: "Address", value: event.address)
                 }
 
                 if let tripId = event.tripId, let tripName = container.tripService.trip(by: tripId)?.name {
@@ -714,15 +714,15 @@ struct EventDetailView: View {
         HStack(spacing: AppTheme.Space.sm) {
             Image(systemName: "person.fill.checkmark")
                 .font(.caption)
-                .foregroundStyle(.pink)
+                .foregroundStyle(AppTheme.tertiary)
             Text("Shared by \(name)")
                 .font(AppTheme.TextStyle.captionBold)
-                .foregroundStyle(.pink)
+                .foregroundStyle(AppTheme.tertiary)
             Spacer()
         }
         .padding(.horizontal, AppTheme.Space.md)
         .padding(.vertical, AppTheme.Space.sm)
-        .background(Color.pink.opacity(0.10))
+        .background(AppTheme.tertiary.opacity(0.14))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 

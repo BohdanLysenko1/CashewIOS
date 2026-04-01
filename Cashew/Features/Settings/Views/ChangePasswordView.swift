@@ -30,7 +30,7 @@ struct ChangePasswordView: View {
                 } footer: {
                     if !confirmPassword.isEmpty && !passwordsMatch {
                         Text("Passwords don't match.")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(AppTheme.negative)
                     } else {
                         Text("At least 6 characters.")
                     }
@@ -39,7 +39,7 @@ struct ChangePasswordView: View {
                 if let errorMessage {
                     Section {
                         Text(errorMessage)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(AppTheme.negative)
                             .font(.caption)
                     }
                 }

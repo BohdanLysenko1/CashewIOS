@@ -15,7 +15,7 @@ struct LevelUpBannerView: View {
                 Circle()
                     .fill(AppTheme.gamificationGradient)
                     .frame(width: 72, height: 72)
-                    .shadow(color: AppTheme.tertiary.opacity(0.4), radius: 12, x: 0, y: 6)
+                    .shadow(color: AppTheme.tertiary.opacity(AppTheme.heroGlowOpacity), radius: 14, x: 0, y: 7)
 
                 Image(systemName: "star.fill")
                     .font(.system(size: 34, weight: .bold))
@@ -54,7 +54,12 @@ struct LevelUpBannerView: View {
         .padding(28)
         .background(AppTheme.surfaceContainerLowest)
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous)
+                .strokeBorder(AppTheme.onSurface.opacity(AppTheme.elevatedCardBorderOpacity), lineWidth: 0.75)
+        )
         .shadow(color: AppTheme.cardShadow, radius: AppTheme.cardShadowRadius, x: 0, y: AppTheme.cardShadowY)
+        .shadow(color: AppTheme.cardAmbientShadow, radius: AppTheme.cardAmbientShadowRadius, x: 0, y: AppTheme.cardAmbientShadowY)
         .padding(.horizontal, 32)
         .scaleEffect(appeared ? 1.0 : 0.85)
         .opacity(appeared ? 1.0 : 0)

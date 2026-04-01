@@ -96,7 +96,13 @@ struct NotificationPreferencesView: View {
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(.white)
                             .frame(width: 32, height: 32)
-                            .background(Color.green.gradient)
+                            .background(
+                                LinearGradient(
+                                    colors: [AppTheme.positive, AppTheme.positive.opacity(0.72)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
                             .clipShape(RoundedRectangle(cornerRadius: 8))
 
                         Text("Send Test Notification (5s)")
@@ -112,7 +118,7 @@ struct NotificationPreferencesView: View {
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(.white)
                             .frame(width: 32, height: 32)
-                            .background(Color.blue.gradient)
+                            .background(AppTheme.primaryGradient)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
 
                         Text("Resync All Notifications")
@@ -125,7 +131,7 @@ struct NotificationPreferencesView: View {
                         .foregroundStyle(AppTheme.onSurface)
                     Spacer()
                     Text(container.notificationService.authorizationStatusDescription)
-                        .foregroundStyle(container.notificationService.isAuthorized ? .green : .orange)
+                        .foregroundStyle(container.notificationService.isAuthorized ? AppTheme.positive : AppTheme.warning)
                 }
             }
         }

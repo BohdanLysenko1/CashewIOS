@@ -51,7 +51,12 @@ struct TodaysMissionView: View {
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous)
+                .strokeBorder(AppTheme.heroChipBorder.opacity(0.55), lineWidth: 0.75)
+        )
         .shadow(color: AppTheme.cardShadow, radius: AppTheme.cardShadowRadius, x: 0, y: AppTheme.cardShadowY)
+        .shadow(color: AppTheme.cardAmbientShadow, radius: AppTheme.cardAmbientShadowRadius, x: 0, y: AppTheme.cardAmbientShadowY)
     }
 
     // MARK: - Hero Header
@@ -64,7 +69,7 @@ struct TodaysMissionView: View {
                     .font(.caption2)
                     .fontWeight(.bold)
                     .tracking(1.5)
-                    .foregroundStyle(.white.opacity(0.7))
+                    .foregroundStyle(AppTheme.heroTextMuted)
 
                 Spacer()
 
@@ -81,9 +86,9 @@ struct TodaysMissionView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(.white.opacity(0.18))
+                    .background(AppTheme.heroChipBackground)
                     .clipShape(Capsule())
-                    .overlay(Capsule().stroke(.white.opacity(0.25), lineWidth: 1))
+                    .overlay(Capsule().stroke(AppTheme.heroChipBorder, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
             }
@@ -100,7 +105,7 @@ struct TodaysMissionView: View {
 
                     Text(subtitleText)
                         .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.75))
+                        .foregroundStyle(AppTheme.heroTextSecondary)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -117,7 +122,7 @@ struct TodaysMissionView: View {
             AppTheme.heroGradient
             // Subtle highlight
             LinearGradient(
-                colors: [.white.opacity(0.1), .clear],
+                colors: [AppTheme.heroShine, .clear],
                 startPoint: .top,
                 endPoint: .center
             )
@@ -130,13 +135,13 @@ struct TodaysMissionView: View {
         ZStack {
             // Track
             Circle()
-                .stroke(.white.opacity(0.2), lineWidth: 7)
+                .stroke(AppTheme.heroRingTrack, lineWidth: 7)
 
             // Arc
             Circle()
                 .trim(from: 0, to: progress)
                 .stroke(
-                    isAllDone ? Color.green : Color.white,
+                    isAllDone ? AppTheme.positive : AppTheme.heroRingProgress,
                     style: StrokeStyle(lineWidth: 7, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))
@@ -146,7 +151,7 @@ struct TodaysMissionView: View {
             if tasks.isEmpty {
                 Image(systemName: "sparkles")
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.8))
+                    .foregroundStyle(AppTheme.heroTextSecondary)
             } else {
                 VStack(spacing: 0) {
                     Text("\(completedCount)")
@@ -156,7 +161,7 @@ struct TodaysMissionView: View {
                         .monospacedDigit()
                     Text("of \(tasks.count)")
                         .font(.system(size: 9, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.65))
+                        .foregroundStyle(AppTheme.heroTextMuted)
                 }
             }
         }
@@ -203,7 +208,7 @@ struct TodaysMissionView: View {
         HStack(spacing: 12) {
             // Category dot
             Circle()
-                .fill(task.isCompleted ? Color(red: 0.20, green: 0.72, blue: 0.45) : task.category.color)
+                .fill(task.isCompleted ? AppTheme.positive : task.category.color)
                 .frame(width: 8, height: 8)
 
             VStack(alignment: .leading, spacing: 2) {

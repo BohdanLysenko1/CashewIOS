@@ -68,7 +68,7 @@ struct CollaboratorsView: View {
                     Section {
                         Text(error)
                             .font(.caption)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(AppTheme.negative)
                     }
                 }
             }
@@ -91,7 +91,7 @@ struct CollaboratorsView: View {
                 displayName: ownerDisplayName,
                 avatarPath: ownerAvatarPath,
                 size: 36,
-                tint: .blue
+                tint: AppTheme.primary
             )
 
             VStack(alignment: .leading, spacing: 2) {
@@ -105,7 +105,7 @@ struct CollaboratorsView: View {
                         .foregroundStyle(.white)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Color.blue)
+                        .background(AppTheme.primary)
                         .clipShape(Capsule())
                 }
                 if isOwner {
@@ -174,7 +174,7 @@ struct CollaboratorsView: View {
                         Task { await removeCollaborator(user) }
                     } label: {
                         Image(systemName: "minus.circle.fill")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(AppTheme.negative)
                             .font(.system(size: 20))
                     }
                     .buttonStyle(.plain)

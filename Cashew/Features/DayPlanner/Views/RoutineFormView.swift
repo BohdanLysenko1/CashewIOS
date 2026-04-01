@@ -141,7 +141,7 @@ struct RoutineFormView: View {
         } footer: {
             if repeatPattern == .custom && selectedDays.isEmpty {
                 Text("Select at least one day")
-                    .foregroundStyle(.red)
+                    .foregroundStyle(AppTheme.negative)
             }
         }
     }

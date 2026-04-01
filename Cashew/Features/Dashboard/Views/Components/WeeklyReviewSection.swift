@@ -206,7 +206,7 @@ struct WeeklyReviewSection: View {
         .foregroundStyle(.white)
         .padding(.horizontal, 6)
         .padding(.vertical, 3)
-        .background(trend > 0 ? Color.green : Color.red)
+        .background(trend > 0 ? AppTheme.positive : AppTheme.negative)
         .clipShape(Capsule())
     }
 }

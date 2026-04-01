@@ -176,7 +176,7 @@ struct TripEventCreationWizardView: View {
             .padding(AppTheme.cardPadding)
             .background(gradient)
             .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
-            .shadow(color: (type == .trip ? AppTheme.secondary : Color.orange).opacity(0.28), radius: 14, x: 0, y: 7)
+            .shadow(color: (type == .trip ? AppTheme.secondary : AppTheme.warning).opacity(0.28), radius: 14, x: 0, y: 7)
         }
         .buttonStyle(.plain)
     }

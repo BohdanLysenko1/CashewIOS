@@ -181,7 +181,7 @@ struct CalendarFilterSheet: View {
                         Button("Reset") {
                             onReset()
                         }
-                        .foregroundStyle(.red)
+                        .foregroundStyle(AppTheme.negative)
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {

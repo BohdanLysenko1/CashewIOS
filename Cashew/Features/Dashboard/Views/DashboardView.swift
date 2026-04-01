@@ -353,14 +353,14 @@ struct DashboardView: View {
                 if let error {
                     HStack(spacing: 10) {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(AppTheme.negative)
                         Text(error)
                             .font(AppTheme.TextStyle.secondary)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(AppTheme.negative)
                         Spacer(minLength: 0)
                     }
                     .padding(AppTheme.Space.md)
-                    .background(Color.red.opacity(0.08))
+                    .background(AppTheme.negativeBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
             }
@@ -379,7 +379,7 @@ struct DashboardView: View {
                     displayName: dashboardDisplayName,
                     avatarPath: container.authService.currentUser?.avatarPath,
                     size: 52,
-                    tint: .blue
+                    tint: AppTheme.primary
                 )
             }
             .buttonStyle(.plain)
@@ -415,69 +415,30 @@ struct DashboardView: View {
     }
 
     private var planMyDayCard: some View {
-        Button { showDayPlanner = true } label: {
-            ZStack {
-                // Background gradient
-                AppTheme.dayPlannerGradient
-                // Highlight overlay
-                LinearGradient(
-                    colors: [.white.opacity(0.08), .clear],
-                    startPoint: .top,
-                    endPoint: .center
-                )
-
-                HStack(spacing: 16) {
-                    // Icon
-                    ZStack {
-                        Circle()
-                            .fill(.white.opacity(0.15))
-                            .frame(width: 52, height: 52)
-                        Image(systemName: "calendar.badge.clock")
-                            .font(.system(size: 22, weight: .semibold))
-                            .foregroundStyle(.white)
-                    }
-
-                    // Text
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Plan My Day")
-                            .font(.title3)
-                            .fontWeight(.bold)
-                            .foregroundStyle(.white)
-                        Text({
-                            let remaining = todaysTasks.count - completedTasksCount
-                            if todaysTasks.isEmpty { return "Start fresh — add your first task" }
-                            if remaining == 0 { return "All done — review your day" }
-                            return "\(remaining) task\(remaining == 1 ? "" : "s") left to complete"
-                        }())
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.75))
-                    }
-
-                    Spacer()
-
-                    // Arrow
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.8))
-                        .padding(10)
-                        .background(.white.opacity(0.15))
-                        .clipShape(Circle())
-                }
-                .padding(.horizontal, AppTheme.cardPadding)
-                .padding(.vertical, 18)
-            }
-            .onGeometryChange(for: CGRect.self) { proxy in
-                proxy.frame(in: .global)
-            } action: { frame in
-                onboardingCoordinator.registerFrame(
-                    id: "anchor_dashboard_planmyday",
-                    frame: frame
-                )
-            }
+        GradientActionCard(
+            title: "Plan My Day",
+            subtitle: planMyDaySubtitle,
+            icon: "calendar.badge.clock",
+            gradient: AppTheme.dayPlannerGradient,
+            glowColor: AppTheme.primary
+        ) {
+            showDayPlanner = true
         }
-        .buttonStyle(.plain)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
-        .shadow(color: AppTheme.primary.opacity(0.25), radius: 12, x: 0, y: 6)
+        .onGeometryChange(for: CGRect.self) { proxy in
+            proxy.frame(in: .global)
+        } action: { frame in
+            onboardingCoordinator.registerFrame(
+                id: "anchor_dashboard_planmyday",
+                frame: frame
+            )
+        }
+    }
+
+    private var planMyDaySubtitle: String {
+        let remaining = todaysTasks.count - completedTasksCount
+        if todaysTasks.isEmpty { return "Start fresh — add your first task" }
+        if remaining == 0 { return "All done — review your day" }
+        return "\(remaining) task\(remaining == 1 ? "" : "s") left to complete"
     }
 
     private var addTaskRow: some View {
@@ -501,54 +462,16 @@ struct DashboardView: View {
     }
 
     private var createCreationRow: some View {
-        Button {
+        GradientActionCard(
+            title: "Create",
+            subtitle: "Trip, event, or task",
+            icon: "globe.americas.fill",
+            gradient: AppTheme.tripGradient,
+            glowColor: AppTheme.secondary
+        ) {
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             showCreationWizard = true
-        } label: {
-            ZStack {
-                AppTheme.tripGradient
-                LinearGradient(
-                    colors: [.white.opacity(0.08), .clear],
-                    startPoint: .top,
-                    endPoint: .center
-                )
-
-                HStack(spacing: 16) {
-                    ZStack {
-                        Circle()
-                            .fill(.white.opacity(0.15))
-                            .frame(width: 52, height: 52)
-                        Image(systemName: "globe.americas.fill")
-                            .font(.system(size: 22, weight: .semibold))
-                            .foregroundStyle(.white)
-                    }
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Create")
-                            .font(.title3)
-                            .fontWeight(.bold)
-                            .foregroundStyle(.white)
-                        Text("Trip, event, or task")
-                            .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.75))
-                    }
-
-                    Spacer()
-
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.8))
-                        .padding(10)
-                        .background(.white.opacity(0.15))
-                        .clipShape(Circle())
-                }
-                .padding(.horizontal, AppTheme.cardPadding)
-                .padding(.vertical, 18)
-            }
         }
-        .buttonStyle(.plain)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
-        .shadow(color: AppTheme.secondary.opacity(0.25), radius: 12, x: 0, y: 6)
     }
 
     // MARK: - Progress
@@ -589,9 +512,7 @@ struct DashboardView: View {
             xpProgressBar
         }
         .padding(AppTheme.cardPadding)
-        .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
-        .shadow(color: AppTheme.cardShadow, radius: AppTheme.cardShadowRadius, x: 0, y: AppTheme.cardShadowY)
+        .cardStyle()
     }
 
     private func progressStatTile(value: String, unit: String, label: String, icon: String, color: Color) -> some View {

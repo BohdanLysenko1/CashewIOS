@@ -351,7 +351,7 @@ struct CreationInlineError: View {
                 Text(text)
                     .font(AppTheme.TextStyle.caption)
             }
-            .foregroundStyle(.red)
+            .foregroundStyle(AppTheme.negative)
         }
     }
 }

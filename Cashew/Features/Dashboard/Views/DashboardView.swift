@@ -610,10 +610,13 @@ struct DashboardView: View {
     // MARK: - Load Data
 
     private func loadData() async {
+        error = nil
         do {
             try await tripService.loadTrips()
             try await eventService.loadEvents()
             try await dayPlannerService.loadData()
+        } catch is CancellationError {
+            // Task cancellation is expected during view lifecycle changes.
         } catch {
             self.error = error.localizedDescription
         }

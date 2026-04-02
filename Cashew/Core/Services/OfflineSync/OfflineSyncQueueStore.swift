@@ -117,6 +117,7 @@ actor OfflineSyncQueueStore {
             isLoaded = true
         } catch {
             // Corrupted queue shouldn't block the app from operating locally.
+            print("[OfflineSyncQueueStore] Queue file corrupted, resetting: \(error)")
             operations = []
             isLoaded = true
         }
@@ -124,6 +125,6 @@ actor OfflineSyncQueueStore {
 
     private func persist() async throws {
         let data = try JSONEncoder().encode(operations)
-        try data.write(to: fileURL, options: .atomic)
+        try data.write(to: fileURL, options: [.atomic, .completeFileProtection])
     }
 }

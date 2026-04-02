@@ -48,6 +48,7 @@ final class OfflineSyncCoordinator: OfflineSyncCoordinatorProtocol {
     private var observerToken: UUID?
     private var retryTask: Task<Void, Never>?
     private var statusObservers: [UUID: (OfflineSyncStatusSnapshot) -> Void] = [:]
+    private let recentUpsertConflictBypassWindow: TimeInterval = 30
 
     private(set) var isOnline: Bool {
         didSet { notifyStatusObservers() }
@@ -291,9 +292,11 @@ final class OfflineSyncCoordinator: OfflineSyncCoordinatorProtocol {
         switch operation.kind {
         case .upsert:
             guard let payload = operation.payload else { return }
+            let shouldBypassConflictCheck = shouldBypassRemoteConflictCheck(for: operation)
             switch payload {
             case .trip(let trip):
-                if let remote = try? await remoteTripRepo.fetch(by: trip.id),
+                if !shouldBypassConflictCheck,
+                   let remote = try? await remoteTripRepo.fetch(by: trip.id),
                    OfflineConflictResolver.shouldPreferRemote(remoteUpdatedAt: remote.updatedAt, localUpdatedAt: trip.updatedAt) {
                     _ = try await localTripRepo.saveFromSync(remote)
                     return
@@ -301,7 +304,8 @@ final class OfflineSyncCoordinator: OfflineSyncCoordinatorProtocol {
                 let synced = try await remoteTripRepo.save(trip)
                 _ = try await localTripRepo.saveFromSync(synced)
             case .event(let event):
-                if let remote = try? await remoteEventRepo.fetch(by: event.id),
+                if !shouldBypassConflictCheck,
+                   let remote = try? await remoteEventRepo.fetch(by: event.id),
                    OfflineConflictResolver.shouldPreferRemote(remoteUpdatedAt: remote.updatedAt, localUpdatedAt: event.updatedAt) {
                     _ = try await localEventRepo.saveFromSync(remote)
                     return
@@ -309,7 +313,8 @@ final class OfflineSyncCoordinator: OfflineSyncCoordinatorProtocol {
                 let synced = try await remoteEventRepo.save(event)
                 _ = try await localEventRepo.saveFromSync(synced)
             case .dailyTask(let task):
-                if let remote = try? await remoteTaskRepo.fetch(by: task.id),
+                if !shouldBypassConflictCheck,
+                   let remote = try? await remoteTaskRepo.fetch(by: task.id),
                    OfflineConflictResolver.shouldPreferRemote(remoteUpdatedAt: remote.updatedAt, localUpdatedAt: task.updatedAt) {
                     _ = try await localTaskRepo.saveFromSync(remote)
                     return
@@ -317,7 +322,8 @@ final class OfflineSyncCoordinator: OfflineSyncCoordinatorProtocol {
                 let synced = try await remoteTaskRepo.save(task)
                 _ = try await localTaskRepo.saveFromSync(synced)
             case .dailyRoutine(let routine):
-                if let remote = try? await remoteRoutineRepo.fetch(by: routine.id),
+                if !shouldBypassConflictCheck,
+                   let remote = try? await remoteRoutineRepo.fetch(by: routine.id),
                    OfflineConflictResolver.shouldPreferRemote(remoteUpdatedAt: remote.updatedAt, localUpdatedAt: routine.updatedAt) {
                     _ = try await localRoutineRepo.saveFromSync(remote)
                     return
@@ -327,30 +333,35 @@ final class OfflineSyncCoordinator: OfflineSyncCoordinatorProtocol {
             }
 
         case .delete:
+            let shouldBypassDeleteConflictCheck = shouldBypassRemoteConflictCheck(for: operation)
             switch operation.entityType {
             case .trip:
-                if let remote = try? await remoteTripRepo.fetch(by: operation.entityID),
+                if !shouldBypassDeleteConflictCheck,
+                   let remote = try? await remoteTripRepo.fetch(by: operation.entityID),
                    OfflineConflictResolver.shouldSkipDelete(deleteOccurredAt: operation.occurredAt, remoteUpdatedAt: remote.updatedAt) {
                     _ = try await localTripRepo.saveFromSync(remote)
                     return
                 }
                 try await remoteTripRepo.delete(by: operation.entityID)
             case .event:
-                if let remote = try? await remoteEventRepo.fetch(by: operation.entityID),
+                if !shouldBypassDeleteConflictCheck,
+                   let remote = try? await remoteEventRepo.fetch(by: operation.entityID),
                    OfflineConflictResolver.shouldSkipDelete(deleteOccurredAt: operation.occurredAt, remoteUpdatedAt: remote.updatedAt) {
                     _ = try await localEventRepo.saveFromSync(remote)
                     return
                 }
                 try await remoteEventRepo.delete(by: operation.entityID)
             case .dailyTask:
-                if let remote = try? await remoteTaskRepo.fetch(by: operation.entityID),
+                if !shouldBypassDeleteConflictCheck,
+                   let remote = try? await remoteTaskRepo.fetch(by: operation.entityID),
                    OfflineConflictResolver.shouldSkipDelete(deleteOccurredAt: operation.occurredAt, remoteUpdatedAt: remote.updatedAt) {
                     _ = try await localTaskRepo.saveFromSync(remote)
                     return
                 }
                 try await remoteTaskRepo.delete(by: operation.entityID)
             case .dailyRoutine:
-                if let remote = try? await remoteRoutineRepo.fetch(by: operation.entityID),
+                if !shouldBypassDeleteConflictCheck,
+                   let remote = try? await remoteRoutineRepo.fetch(by: operation.entityID),
                    OfflineConflictResolver.shouldSkipDelete(deleteOccurredAt: operation.occurredAt, remoteUpdatedAt: remote.updatedAt) {
                     _ = try await localRoutineRepo.saveFromSync(remote)
                     return
@@ -358,5 +369,9 @@ final class OfflineSyncCoordinator: OfflineSyncCoordinatorProtocol {
                 try await remoteRoutineRepo.delete(by: operation.entityID)
             }
         }
+    }
+
+    private func shouldBypassRemoteConflictCheck(for operation: SyncOperation) -> Bool {
+        Date().timeIntervalSince(operation.occurredAt) < recentUpsertConflictBypassWindow
     }
 }

@@ -17,8 +17,14 @@ final class TripService: TripServiceProtocol {
     // Realtime
     private var syncTask: Task<Void, Never>?
     private var syncChannel: RealtimeChannelV2?
-    private var recentLocalMutations: [UUID: Date] = [:]
-    private let localMutationSuppressionWindow: TimeInterval = 4
+    private struct LocalMutation {
+        let observedAt: Date
+        let savedUpdatedAt: Date?
+    }
+
+    private var recentLocalMutations: [UUID: LocalMutation] = [:]
+    private let localMutationSuppressionWindow: TimeInterval = 120
+    private let localMutationTimestampTolerance: TimeInterval = 2
 
     init(repository: TripRepositoryProtocol, notificationScheduler: NotificationScheduler? = nil) {
         self.repository = repository
@@ -38,7 +44,9 @@ final class TripService: TripServiceProtocol {
             if trips[i].status != computed {
                 trips[i].status = computed
                 do {
-                    _ = try await repository.save(trips[i])
+                    let saved = try await repository.save(trips[i])
+                    registerLocalMutation(saved.id, updatedAt: saved.updatedAt)
+                    trips[i] = saved
                 } catch {
                     print("[TripService] Status sync failed for '\(trips[i].name)': \(error)")
                 }
@@ -50,20 +58,50 @@ final class TripService: TripServiceProtocol {
 
     func createTrip(_ trip: Trip) async throws {
         let saved = try await repository.save(trip)
-        registerLocalMutation(saved.id)
+        registerLocalMutation(saved.id, updatedAt: saved.updatedAt)
         trips.append(saved)
         sortTrips()
         await notificationScheduler?.rescheduleTripNotifications(trips: trips)
     }
 
     func updateTrip(_ trip: Trip) async throws {
-        let saved = try await repository.save(trip)
-        registerLocalMutation(saved.id)
-        if let index = trips.firstIndex(where: { $0.id == trip.id }) {
-            trips[index] = saved
-            sortTrips()
+        let existingIndex = trips.firstIndex(where: { $0.id == trip.id })
+        let previousTrip = existingIndex.map { trips[$0] }
+
+        // Optimistic update so section edits appear immediately.
+        if let index = existingIndex {
+            trips[index] = trip
+        } else {
+            trips.append(trip)
         }
-        await notificationScheduler?.rescheduleTripNotifications(trips: trips)
+        sortTrips()
+
+        do {
+            let saved = try await repository.save(trip)
+            registerLocalMutation(saved.id, updatedAt: saved.updatedAt)
+
+            if let index = trips.firstIndex(where: { $0.id == trip.id }) {
+                trips[index] = saved
+            } else {
+                trips.append(saved)
+            }
+            sortTrips()
+
+            await notificationScheduler?.rescheduleTripNotifications(trips: trips)
+        } catch {
+            // Roll back optimistic state on persistence failure.
+            if let previousTrip {
+                if let index = trips.firstIndex(where: { $0.id == previousTrip.id }) {
+                    trips[index] = previousTrip
+                } else {
+                    trips.append(previousTrip)
+                }
+            } else {
+                trips.removeAll { $0.id == trip.id }
+            }
+            sortTrips()
+            throw error
+        }
     }
 
     func deleteTrip(by id: UUID) async throws {
@@ -147,7 +185,7 @@ final class TripService: TripServiceProtocol {
                 trips.append(trip)
             }
             sortTrips()
-            if shouldAnnounceRemoteMutation(for: id) {
+            if shouldAnnounceRemoteMutation(for: id, remoteUpdatedAt: trip.updatedAt) {
                 announceRealtimeChange("Trip updated by collaborator", changedId: id)
             }
         } catch {
@@ -168,24 +206,40 @@ final class TripService: TripServiceProtocol {
         return UUID(uuidString: str)
     }
 
-    private func registerLocalMutation(_ id: UUID) {
+    private func registerLocalMutation(_ id: UUID, updatedAt: Date? = nil) {
         pruneLocalMutations()
-        recentLocalMutations[id] = Date()
+        recentLocalMutations[id] = LocalMutation(
+            observedAt: Date(),
+            savedUpdatedAt: updatedAt
+        )
     }
 
-    private func shouldAnnounceRemoteMutation(for id: UUID) -> Bool {
+    private func shouldAnnounceRemoteMutation(for id: UUID, remoteUpdatedAt: Date? = nil) -> Bool {
         pruneLocalMutations()
-        guard let timestamp = recentLocalMutations[id] else { return true }
-        if Date().timeIntervalSince(timestamp) < localMutationSuppressionWindow {
+        guard let mutation = recentLocalMutations[id] else { return true }
+
+        if let remoteUpdatedAt, let localUpdatedAt = mutation.savedUpdatedAt {
+            if abs(remoteUpdatedAt.timeIntervalSince(localUpdatedAt)) <= localMutationTimestampTolerance {
+                recentLocalMutations.removeValue(forKey: id)
+                return false
+            }
+
+            // A newer/different update for the same entity arrived.
+            recentLocalMutations.removeValue(forKey: id)
+            return true
+        }
+
+        if Date().timeIntervalSince(mutation.observedAt) < localMutationSuppressionWindow {
             recentLocalMutations.removeValue(forKey: id)
             return false
         }
+        recentLocalMutations.removeValue(forKey: id)
         return true
     }
 
     private func pruneLocalMutations() {
         let cutoff = Date().addingTimeInterval(-localMutationSuppressionWindow)
-        recentLocalMutations = recentLocalMutations.filter { $0.value > cutoff }
+        recentLocalMutations = recentLocalMutations.filter { $0.value.observedAt > cutoff }
     }
 
     private func announceRealtimeChange(_ message: String, changedId: UUID?) {

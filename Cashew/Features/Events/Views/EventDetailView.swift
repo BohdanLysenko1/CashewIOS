@@ -21,6 +21,20 @@ struct EventDetailView: View {
         container.eventService.event(by: eventId)
     }
 
+    private var isOwner: Bool {
+        guard let event else { return false }
+        guard let ownerId = event.ownerId else { return true }
+        return ownerId == container.authService.currentUser?.id
+    }
+
+    private func shouldShowSharedByBanner(for event: Event) -> Bool {
+        guard let ownerName = event.ownerName, !ownerName.isEmpty else { return false }
+        guard let ownerId = event.ownerId, let currentUserId = container.authService.currentUser?.id else {
+            return true
+        }
+        return ownerId != currentUserId
+    }
+
     var body: some View {
         Group {
             if let event {
@@ -39,21 +53,23 @@ struct EventDetailView: View {
             if event != nil {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
-                        Button {
-                            showEditSheet = true
-                        } label: {
-                            Label("Edit", systemImage: "pencil")
-                        }
+                        if isOwner {
+                            Button {
+                                showEditSheet = true
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
 
-                        Button {
-                            Task { await generateShareLink() }
-                        } label: {
-                            Label(
-                                isGeneratingShare ? "Generating…" : "Share Event",
-                                systemImage: "square.and.arrow.up"
-                            )
+                            Button {
+                                Task { await generateShareLink() }
+                            } label: {
+                                Label(
+                                    isGeneratingShare ? "Generating…" : "Share Event",
+                                    systemImage: "square.and.arrow.up"
+                                )
+                            }
+                            .disabled(isGeneratingShare)
                         }
-                        .disabled(isGeneratingShare)
 
                         Button {
                             showCollaborators = true
@@ -61,12 +77,14 @@ struct EventDetailView: View {
                             Label("Manage Access", systemImage: "person.2")
                         }
 
-                        Divider()
+                        if isOwner {
+                            Divider()
 
-                        Button(role: .destructive) {
-                            showDeleteConfirmation = true
-                        } label: {
-                            Label("Delete", systemImage: "trash")
+                            Button(role: .destructive) {
+                                showDeleteConfirmation = true
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
                         }
                     } label: {
                         Image(systemName: "ellipsis.circle")
@@ -126,7 +144,7 @@ struct EventDetailView: View {
     private func eventContent(_ event: Event) -> some View {
         ScrollView {
             VStack(spacing: AppTheme.Space.md) {
-                if let name = event.ownerName {
+                if shouldShowSharedByBanner(for: event), let name = event.ownerName {
                     stagedCard(0) {
                         sharedByBanner(name: name)
                     }

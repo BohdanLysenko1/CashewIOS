@@ -79,7 +79,7 @@ actor LocalEventRepository: EventRepositoryProtocol {
         do {
             let events = Array(cache.values)
             let data = try JSONEncoder().encode(events)
-            try data.write(to: fileURL, options: .atomic)
+            try data.write(to: fileURL, options: [.atomic, .completeFileProtection])
         } catch {
             throw RepositoryError.saveFailed(underlying: error)
         }

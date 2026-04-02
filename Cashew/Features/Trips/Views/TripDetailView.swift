@@ -21,6 +21,20 @@ struct TripDetailView: View {
         container.tripService.trip(by: tripId)
     }
 
+    private var isOwner: Bool {
+        guard let trip else { return false }
+        guard let ownerId = trip.ownerId else { return true }
+        return ownerId == container.authService.currentUser?.id
+    }
+
+    private func shouldShowSharedByBanner(for trip: Trip) -> Bool {
+        guard let ownerName = trip.ownerName, !ownerName.isEmpty else { return false }
+        guard let ownerId = trip.ownerId, let currentUserId = container.authService.currentUser?.id else {
+            return true
+        }
+        return ownerId != currentUserId
+    }
+
     var body: some View {
         Group {
             if let trip {
@@ -39,21 +53,23 @@ struct TripDetailView: View {
             if trip != nil {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
-                        Button {
-                            showEditSheet = true
-                        } label: {
-                            Label("Edit", systemImage: "pencil")
-                        }
+                        if isOwner {
+                            Button {
+                                showEditSheet = true
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
 
-                        Button {
-                            Task { await generateShareLink() }
-                        } label: {
-                            Label(
-                                isGeneratingShare ? "Generating…" : "Share Trip",
-                                systemImage: "square.and.arrow.up"
-                            )
+                            Button {
+                                Task { await generateShareLink() }
+                            } label: {
+                                Label(
+                                    isGeneratingShare ? "Generating…" : "Share Trip",
+                                    systemImage: "square.and.arrow.up"
+                                )
+                            }
+                            .disabled(isGeneratingShare)
                         }
-                        .disabled(isGeneratingShare)
 
                         Button {
                             showCollaborators = true
@@ -61,12 +77,14 @@ struct TripDetailView: View {
                             Label("Manage Access", systemImage: "person.2")
                         }
 
-                        Divider()
+                        if isOwner {
+                            Divider()
 
-                        Button(role: .destructive) {
-                            showDeleteConfirmation = true
-                        } label: {
-                            Label("Delete", systemImage: "trash")
+                            Button(role: .destructive) {
+                                showDeleteConfirmation = true
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
                         }
                     } label: {
                         Image(systemName: "ellipsis.circle")
@@ -126,7 +144,7 @@ struct TripDetailView: View {
     private func tripContent(_ trip: Trip) -> some View {
         ScrollView {
             VStack(spacing: AppTheme.Space.md) {
-                if let name = trip.ownerName {
+                if shouldShowSharedByBanner(for: trip), let name = trip.ownerName {
                     stagedCard(0) {
                         sharedByBanner(name: name, color: AppTheme.warning)
                     }
@@ -628,7 +646,12 @@ struct TripDetailView: View {
             get: { container.tripService.trip(by: tripId) ?? trip },
             set: { newTrip in
                 Task {
-                    try? await container.tripService.updateTrip(newTrip)
+                    do {
+                        try await container.tripService.updateTrip(newTrip)
+                    } catch {
+                        self.error = error.localizedDescription
+                        showError = true
+                    }
                 }
             }
         )

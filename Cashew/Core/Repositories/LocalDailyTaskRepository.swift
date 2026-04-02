@@ -146,7 +146,7 @@ actor LocalDailyTaskRepository: DailyTaskRepositoryProtocol {
         do {
             let tasks = Array(cache.values)
             let data = try JSONEncoder().encode(tasks)
-            try data.write(to: fileURL, options: .atomic)
+            try data.write(to: fileURL, options: [.atomic, .completeFileProtection])
         } catch {
             throw RepositoryError.saveFailed(underlying: error)
         }

@@ -17,8 +17,14 @@ final class EventService: EventServiceProtocol {
     // Realtime
     private var syncTask: Task<Void, Never>?
     private var syncChannel: RealtimeChannelV2?
-    private var recentLocalMutations: [UUID: Date] = [:]
-    private let localMutationSuppressionWindow: TimeInterval = 4
+    private struct LocalMutation {
+        let observedAt: Date
+        let savedUpdatedAt: Date?
+    }
+
+    private var recentLocalMutations: [UUID: LocalMutation] = [:]
+    private let localMutationSuppressionWindow: TimeInterval = 120
+    private let localMutationTimestampTolerance: TimeInterval = 2
 
     init(repository: EventRepositoryProtocol, notificationService: NotificationServiceProtocol? = nil) {
         self.repository = repository
@@ -37,7 +43,7 @@ final class EventService: EventServiceProtocol {
 
     func createEvent(_ event: Event) async throws {
         let saved = try await repository.save(event)
-        registerLocalMutation(saved.id)
+        registerLocalMutation(saved.id, updatedAt: saved.updatedAt)
         events.append(saved)
         sortEvents()
         if !saved.reminders.isEmpty {
@@ -47,11 +53,13 @@ final class EventService: EventServiceProtocol {
 
     func updateEvent(_ event: Event) async throws {
         let saved = try await repository.save(event)
-        registerLocalMutation(saved.id)
+        registerLocalMutation(saved.id, updatedAt: saved.updatedAt)
         if let index = events.firstIndex(where: { $0.id == event.id }) {
             events[index] = saved
-            sortEvents()
+        } else {
+            events.append(saved)
         }
+        sortEvents()
         await notificationService?.updateNotifications(for: saved)
     }
 
@@ -162,7 +170,7 @@ final class EventService: EventServiceProtocol {
             }
             sortEvents()
             await notificationService?.updateNotifications(for: event)
-            if shouldAnnounceRemoteMutation(for: id) {
+            if shouldAnnounceRemoteMutation(for: id, remoteUpdatedAt: event.updatedAt) {
                 announceRealtimeChange("Event updated by collaborator", changedId: id)
             }
         } catch {
@@ -184,24 +192,39 @@ final class EventService: EventServiceProtocol {
         return UUID(uuidString: str)
     }
 
-    private func registerLocalMutation(_ id: UUID) {
+    private func registerLocalMutation(_ id: UUID, updatedAt: Date? = nil) {
         pruneLocalMutations()
-        recentLocalMutations[id] = Date()
+        recentLocalMutations[id] = LocalMutation(
+            observedAt: Date(),
+            savedUpdatedAt: updatedAt
+        )
     }
 
-    private func shouldAnnounceRemoteMutation(for id: UUID) -> Bool {
+    private func shouldAnnounceRemoteMutation(for id: UUID, remoteUpdatedAt: Date? = nil) -> Bool {
         pruneLocalMutations()
-        guard let timestamp = recentLocalMutations[id] else { return true }
-        if Date().timeIntervalSince(timestamp) < localMutationSuppressionWindow {
+        guard let mutation = recentLocalMutations[id] else { return true }
+
+        if let remoteUpdatedAt, let localUpdatedAt = mutation.savedUpdatedAt {
+            if abs(remoteUpdatedAt.timeIntervalSince(localUpdatedAt)) <= localMutationTimestampTolerance {
+                recentLocalMutations.removeValue(forKey: id)
+                return false
+            }
+
+            recentLocalMutations.removeValue(forKey: id)
+            return true
+        }
+
+        if Date().timeIntervalSince(mutation.observedAt) < localMutationSuppressionWindow {
             recentLocalMutations.removeValue(forKey: id)
             return false
         }
+        recentLocalMutations.removeValue(forKey: id)
         return true
     }
 
     private func pruneLocalMutations() {
         let cutoff = Date().addingTimeInterval(-localMutationSuppressionWindow)
-        recentLocalMutations = recentLocalMutations.filter { $0.value > cutoff }
+        recentLocalMutations = recentLocalMutations.filter { $0.value.observedAt > cutoff }
     }
 
     private func announceRealtimeChange(_ message: String, changedId: UUID?) {

@@ -25,9 +25,14 @@ struct EventDTO: Codable {
     let tripId: UUID?
     let reminders: [Reminder]
     let recurrenceRule: RecurrenceRule?
+    let exceptionDates: [Date]?
+    let timezoneIdentifier: String?
     let attachments: [Attachment]
-    let createdAt: Date
-    let updatedAt: Date
+    let heroMode: String?
+    let heroColorToken: String?
+    let heroPhotoAttachmentId: UUID?
+    let createdAt: Date?
+    let updatedAt: Date?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -44,7 +49,12 @@ struct EventDTO: Codable {
         case tripId               = "trip_id"
         case reminders
         case recurrenceRule       = "recurrence_rule"
+        case exceptionDates       = "exception_dates"
+        case timezoneIdentifier   = "timezone_identifier"
         case attachments
+        case heroMode             = "hero_mode"
+        case heroColorToken       = "hero_color_token"
+        case heroPhotoAttachmentId = "hero_photo_attachment_id"
         case createdAt            = "created_at"
         case updatedAt            = "updated_at"
     }
@@ -63,16 +73,23 @@ struct EventDTO: Codable {
             category: EventCategory(rawValue: category) ?? .general,
             customCategoryName: customCategoryName,
             isAllDay: isAllDay,
+            createdAt: createdAt ?? Date(),
+            updatedAt: updatedAt ?? createdAt ?? Date(),
             priority: EventPriority(rawValue: priority) ?? .medium,
             reminders: reminders,
             recurrenceRule: recurrenceRule,
+            exceptionDates: exceptionDates ?? [],
+            timezoneIdentifier: timezoneIdentifier,
             attachments: attachments,
             url: url.flatMap { URL(string: $0) },
             cost: cost.map { Decimal($0) },
             currency: currency ?? "USD",
             tripId: tripId,
             ownerId: ownerId,
-            ownerName: owner?.displayName
+            ownerName: owner?.displayName,
+            heroMode: heroMode,
+            heroColorToken: heroColorToken,
+            heroPhotoAttachmentId: heroPhotoAttachmentId
         )
     }
 }
@@ -100,7 +117,12 @@ private struct EventPayload: Encodable {
     let tripId: UUID?
     let reminders: [Reminder]
     let recurrenceRule: RecurrenceRule?
+    let exceptionDates: [Date]
+    let timezoneIdentifier: String?
     let attachments: [Attachment]
+    let heroMode: String?
+    let heroColorToken: String?
+    let heroPhotoAttachmentId: UUID?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -113,6 +135,11 @@ private struct EventPayload: Encodable {
         case customCategoryName = "custom_category_name"
         case tripId             = "trip_id"
         case recurrenceRule     = "recurrence_rule"
+        case exceptionDates     = "exception_dates"
+        case timezoneIdentifier = "timezone_identifier"
+        case heroMode           = "hero_mode"
+        case heroColorToken     = "hero_color_token"
+        case heroPhotoAttachmentId = "hero_photo_attachment_id"
     }
 
     init(event: Event, ownerId: UUID) {
@@ -136,7 +163,12 @@ private struct EventPayload: Encodable {
         self.tripId = event.tripId
         self.reminders = event.reminders
         self.recurrenceRule = event.recurrenceRule
+        self.exceptionDates = event.exceptionDates
+        self.timezoneIdentifier = event.timezoneIdentifier
         self.attachments = event.attachments
+        self.heroMode = event.heroMode
+        self.heroColorToken = event.heroColorToken
+        self.heroPhotoAttachmentId = event.heroPhotoAttachmentId
     }
 }
 

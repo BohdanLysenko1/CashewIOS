@@ -23,6 +23,8 @@ struct Event: Identifiable, Codable, Equatable, Sendable {
 
     // Recurrence
     var recurrenceRule: RecurrenceRule?
+    var exceptionDates: [Date]
+    var timezoneIdentifier: String?
     var isRecurring: Bool { recurrenceRule != nil }
 
     // Attachments
@@ -44,6 +46,9 @@ struct Event: Identifiable, Codable, Equatable, Sendable {
     // Sharing
     var ownerId: UUID?      // nil for locally-created events
     var ownerName: String?  // populated on shared events
+    var heroMode: String?
+    var heroColorToken: String?
+    var heroPhotoAttachmentId: UUID?
 
     nonisolated init(
         id: UUID = UUID(),
@@ -63,13 +68,18 @@ struct Event: Identifiable, Codable, Equatable, Sendable {
         priority: EventPriority = .medium,
         reminders: [Reminder] = [],
         recurrenceRule: RecurrenceRule? = nil,
+        exceptionDates: [Date] = [],
+        timezoneIdentifier: String? = nil,
         attachments: [Attachment] = [],
         url: URL? = nil,
         cost: Decimal? = nil,
         currency: String = "USD",
         tripId: UUID? = nil,
         ownerId: UUID? = nil,
-        ownerName: String? = nil
+        ownerName: String? = nil,
+        heroMode: String? = nil,
+        heroColorToken: String? = nil,
+        heroPhotoAttachmentId: UUID? = nil
     ) {
         self.id = id
         self.title = title
@@ -88,6 +98,8 @@ struct Event: Identifiable, Codable, Equatable, Sendable {
         self.priority = priority
         self.reminders = reminders
         self.recurrenceRule = recurrenceRule
+        self.exceptionDates = exceptionDates
+        self.timezoneIdentifier = timezoneIdentifier
         self.attachments = attachments
         self.url = url
         self.cost = cost
@@ -95,6 +107,9 @@ struct Event: Identifiable, Codable, Equatable, Sendable {
         self.tripId = tripId
         self.ownerId = ownerId
         self.ownerName = ownerName
+        self.heroMode = heroMode
+        self.heroColorToken = heroColorToken
+        self.heroPhotoAttachmentId = heroPhotoAttachmentId
     }
 
     // MARK: - Codable (backward compatible)
@@ -103,8 +118,10 @@ struct Event: Identifiable, Codable, Equatable, Sendable {
         case id, title, date, endDate, location, locationLatitude, locationLongitude
         case address, notes, category, customCategoryName
         case isAllDay, createdAt, updatedAt, priority, reminders
-        case recurrenceRule, attachments, url, cost, currency, tripId
+        case recurrenceRule, exceptionDates, timezoneIdentifier
+        case attachments, url, cost, currency, tripId
         case ownerId, ownerName
+        case heroMode, heroColorToken, heroPhotoAttachmentId
     }
 
     init(from decoder: Decoder) throws {
@@ -131,6 +148,8 @@ struct Event: Identifiable, Codable, Equatable, Sendable {
         priority = try container.decodeIfPresent(EventPriority.self, forKey: .priority) ?? .medium
         reminders = try container.decodeIfPresent([Reminder].self, forKey: .reminders) ?? []
         recurrenceRule = try container.decodeIfPresent(RecurrenceRule.self, forKey: .recurrenceRule)
+        exceptionDates = try container.decodeIfPresent([Date].self, forKey: .exceptionDates) ?? []
+        timezoneIdentifier = try container.decodeIfPresent(String.self, forKey: .timezoneIdentifier)
         attachments = try container.decodeIfPresent([Attachment].self, forKey: .attachments) ?? []
         url = try container.decodeIfPresent(URL.self, forKey: .url)
         cost = try container.decodeIfPresent(Decimal.self, forKey: .cost)
@@ -138,6 +157,9 @@ struct Event: Identifiable, Codable, Equatable, Sendable {
         tripId = try container.decodeIfPresent(UUID.self, forKey: .tripId)
         ownerId = try container.decodeIfPresent(UUID.self, forKey: .ownerId)
         ownerName = try container.decodeIfPresent(String.self, forKey: .ownerName)
+        heroMode = try container.decodeIfPresent(String.self, forKey: .heroMode)
+        heroColorToken = try container.decodeIfPresent(String.self, forKey: .heroColorToken)
+        heroPhotoAttachmentId = try container.decodeIfPresent(UUID.self, forKey: .heroPhotoAttachmentId)
     }
 
     // MARK: - Computed Properties

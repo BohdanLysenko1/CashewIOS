@@ -41,8 +41,11 @@ struct TripDTO: Codable {
     let packingItems: [PackingItem]
     let checklistItems: [ChecklistItem]
     let attachments: [Attachment]
-    let createdAt: Date
-    let updatedAt: Date
+    let heroMode: String?
+    let heroColorToken: String?
+    let heroPhotoAttachmentId: UUID?
+    let createdAt: Date?
+    let updatedAt: Date?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -66,6 +69,9 @@ struct TripDTO: Codable {
         case packingItems   = "packing_items"
         case checklistItems = "checklist_items"
         case attachments
+        case heroMode = "hero_mode"
+        case heroColorToken = "hero_color_token"
+        case heroPhotoAttachmentId = "hero_photo_attachment_id"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
     }
@@ -84,6 +90,8 @@ struct TripDTO: Codable {
             notes: notes ?? "",
             coverImageURL: coverImageUrl.flatMap { URL(string: $0) },
             status: TripStatus(rawValue: status) ?? .planning,
+            createdAt: createdAt ?? Date(),
+            updatedAt: updatedAt ?? createdAt ?? Date(),
             budget: budget.map { Decimal($0) },
             currency: currency,
             expenses: expenses,
@@ -91,6 +99,9 @@ struct TripDTO: Codable {
             packingItems: packingItems,
             checklistItems: checklistItems,
             attachments: attachments,
+            heroMode: heroMode,
+            heroColorToken: heroColorToken,
+            heroPhotoAttachmentId: heroPhotoAttachmentId,
             accommodationName: accommodationName ?? "",
             accommodationAddress: accommodationAddress ?? "",
             accommodationCheckIn: accommodationCheckIn,
@@ -132,6 +143,9 @@ private struct TripPayload: Encodable {
     let packingItems: [PackingItem]
     let checklistItems: [ChecklistItem]
     let attachments: [Attachment]
+    let heroMode: String?
+    let heroColorToken: String?
+    let heroPhotoAttachmentId: UUID?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -154,6 +168,9 @@ private struct TripPayload: Encodable {
         case packingItems   = "packing_items"
         case checklistItems = "checklist_items"
         case attachments
+        case heroMode = "hero_mode"
+        case heroColorToken = "hero_color_token"
+        case heroPhotoAttachmentId = "hero_photo_attachment_id"
     }
 
     init(trip: Trip, ownerId: UUID) {
@@ -183,6 +200,9 @@ private struct TripPayload: Encodable {
         self.packingItems = trip.packingItems
         self.checklistItems = trip.checklistItems
         self.attachments = trip.attachments
+        self.heroMode = trip.heroMode
+        self.heroColorToken = trip.heroColorToken
+        self.heroPhotoAttachmentId = trip.heroPhotoAttachmentId
     }
 }
 
@@ -260,4 +280,3 @@ final class SupabaseTripRepository: TripRepositoryProtocol {
             .execute()
     }
 }
-

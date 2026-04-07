@@ -13,6 +13,8 @@ enum SupabaseSchema {
         static let inviteLinks    = "invite_links"
         static let dailyTasks     = "daily_tasks"
         static let dailyRoutines  = "daily_routines"
+        static let devicePushTokens = "device_push_tokens"
+        static let tripActivityLog = "trip_activity_log"
     }
 
     enum Select {

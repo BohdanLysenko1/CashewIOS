@@ -94,23 +94,13 @@ final class SupabaseAuthService: AuthServiceProtocol {
            let family = fullName.familyName {
             let name = "\(given) \(family)".trimmingCharacters(in: .whitespaces)
             do {
-                do {
-                    _ = try await client
-                        .from(SupabaseSchema.Table.users)
-                        .update(DisplayNameUpdatePayload(displayName: name, username: name))
-                        .eq("id", value: session.user.id.uuidString)
-                        .select()
-                        .single()
-                        .execute()
-                } catch {
-                    _ = try await client
-                        .from(SupabaseSchema.Table.users)
-                        .update(["display_name": name])
-                        .eq("id", value: session.user.id.uuidString)
-                        .select()
-                        .single()
-                        .execute()
-                }
+                _ = try await client
+                    .from(SupabaseSchema.Table.users)
+                    .update(DisplayNameUpdatePayload(displayName: name))
+                    .eq("id", value: session.user.id.uuidString)
+                    .select()
+                    .single()
+                    .execute()
             } catch {
                 print("[SupabaseAuthService] Failed to update display name: \(error)")
             }
@@ -135,23 +125,11 @@ final class SupabaseAuthService: AuthServiceProtocol {
                     .upsert([
                         "id": session.user.id.uuidString,
                         "email": email,
-                        "display_name": baseName,
-                        "username": baseName
+                        "display_name": baseName
                     ])
                     .execute()
             } catch {
-                do {
-                    _ = try await client
-                        .from(SupabaseSchema.Table.users)
-                        .upsert([
-                            "id": session.user.id.uuidString,
-                            "email": email,
-                            "display_name": baseName
-                        ])
-                        .execute()
-                } catch {
-                    print("[SupabaseAuthService] Failed to create profile on first sign-in: \(error)")
-                }
+                print("[SupabaseAuthService] Failed to create profile on first sign-in: \(error)")
             }
             await fetchCurrentUser(id: session.user.id)
         }
@@ -162,8 +140,7 @@ final class SupabaseAuthService: AuthServiceProtocol {
             email: email,
             password: password,
             data: [
-                "display_name": .string(displayName),
-                "username": .string(displayName)
+                "display_name": .string(displayName)
             ],
             redirectTo: URL(string: "cashew://login-callback")
         )
@@ -206,28 +183,15 @@ final class SupabaseAuthService: AuthServiceProtocol {
 
     func updateDisplayName(_ name: String) async throws {
         guard let userId = currentUser?.id else { return }
-        do {
-            let updated: AppUser = try await client
-                .from(SupabaseSchema.Table.users)
-                .update(DisplayNameUpdatePayload(displayName: name, username: name))
-                .eq("id", value: userId.uuidString)
-                .select()
-                .single()
-                .execute()
-                .value
-            currentUser = updated
-        } catch {
-            // Backward compatibility if `username` column is absent in older schemas.
-            let updated: AppUser = try await client
-                .from(SupabaseSchema.Table.users)
-                .update(["display_name": name])
-                .eq("id", value: userId.uuidString)
-                .select()
-                .single()
-                .execute()
-                .value
-            currentUser = updated
-        }
+        let updated: AppUser = try await client
+            .from(SupabaseSchema.Table.users)
+            .update(DisplayNameUpdatePayload(displayName: name))
+            .eq("id", value: userId.uuidString)
+            .select()
+            .single()
+            .execute()
+            .value
+        currentUser = updated
     }
 
     func updateAvatarImage(data: Data, contentType: String) async throws {
@@ -393,11 +357,9 @@ private struct AvatarPathUpdatePayload: Encodable {
 
 private struct DisplayNameUpdatePayload: Encodable {
     let displayName: String
-    let username: String
 
     enum CodingKeys: String, CodingKey {
         case displayName = "display_name"
-        case username
     }
 }
 

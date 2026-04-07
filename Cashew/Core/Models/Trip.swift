@@ -32,6 +32,9 @@ struct Trip: Identifiable, Codable, Equatable, Sendable {
 
     // Photos
     var attachments: [Attachment]
+    var heroMode: String?
+    var heroColorToken: String?
+    var heroPhotoAttachmentId: UUID?
 
     // Accommodation & Transport
     var accommodationName: String
@@ -65,6 +68,9 @@ struct Trip: Identifiable, Codable, Equatable, Sendable {
         packingItems: [PackingItem] = [],
         checklistItems: [ChecklistItem] = [],
         attachments: [Attachment] = [],
+        heroMode: String? = nil,
+        heroColorToken: String? = nil,
+        heroPhotoAttachmentId: UUID? = nil,
         accommodationName: String = "",
         accommodationAddress: String = "",
         accommodationCheckIn: Date? = nil,
@@ -95,6 +101,9 @@ struct Trip: Identifiable, Codable, Equatable, Sendable {
         self.packingItems = packingItems
         self.checklistItems = checklistItems
         self.attachments = attachments
+        self.heroMode = heroMode
+        self.heroColorToken = heroColorToken
+        self.heroPhotoAttachmentId = heroPhotoAttachmentId
         self.accommodationName = accommodationName
         self.accommodationAddress = accommodationAddress
         self.accommodationCheckIn = accommodationCheckIn
@@ -112,6 +121,7 @@ struct Trip: Identifiable, Codable, Equatable, Sendable {
         case startDate, endDate, notes, coverImageURL, status
         case createdAt, updatedAt, budget, currency, expenses, activities
         case packingItems, checklistItems, attachments
+        case heroMode, heroColorToken, heroPhotoAttachmentId
         case accommodationName, accommodationAddress, accommodationCheckIn
         case accommodationCheckOut, accommodationConfirmation
         case transportationType, transportationDetails, transportationConfirmation
@@ -144,6 +154,9 @@ struct Trip: Identifiable, Codable, Equatable, Sendable {
         packingItems = try container.decodeIfPresent([PackingItem].self, forKey: .packingItems) ?? []
         checklistItems = try container.decodeIfPresent([ChecklistItem].self, forKey: .checklistItems) ?? []
         attachments = try container.decodeIfPresent([Attachment].self, forKey: .attachments) ?? []
+        heroMode = try container.decodeIfPresent(String.self, forKey: .heroMode)
+        heroColorToken = try container.decodeIfPresent(String.self, forKey: .heroColorToken)
+        heroPhotoAttachmentId = try container.decodeIfPresent(UUID.self, forKey: .heroPhotoAttachmentId)
         accommodationName = try container.decodeIfPresent(String.self, forKey: .accommodationName) ?? ""
         accommodationAddress = try container.decodeIfPresent(String.self, forKey: .accommodationAddress) ?? ""
         accommodationCheckIn = try container.decodeIfPresent(Date.self, forKey: .accommodationCheckIn)

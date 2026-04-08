@@ -271,7 +271,9 @@ final class SupabaseAuthService: AuthServiceProtocol {
                     email: authEmail,
                     displayName: user.displayName,
                     avatarPath: user.avatarPath,
-                    createdAt: user.createdAt
+                    createdAt: user.createdAt,
+                    totalXP: user.totalXP,
+                    xpUpdatedAt: user.xpUpdatedAt
                 )
             } else {
                 currentUser = user

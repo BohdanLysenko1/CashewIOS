@@ -22,6 +22,9 @@ struct RootView: View {
         }
         .animation(.easeInOut, value: container.authService.isAuthenticated)
         .animation(.easeInOut, value: container.authService.isRecoveringPassword)
+        .task(id: container.authService.currentUser?.id) {
+            await container.gamificationService.refreshForCurrentUser()
+        }
     }
 
     @ViewBuilder

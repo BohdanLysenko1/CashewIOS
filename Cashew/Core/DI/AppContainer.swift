@@ -39,10 +39,6 @@ final class AppContainer {
         self.notificationService = notifService
         self.notificationScheduler = NotificationScheduler(notificationService: notifService)
 
-        // Gamification
-        let gam = GamificationService()
-        self.gamificationService = gam
-
         // Concrete Supabase repositories (shared across DataSyncService + switchable repos)
         let supabaseTripRepo = SupabaseTripRepository()
         let supabaseEventRepo = SupabaseEventRepository()
@@ -67,6 +63,10 @@ final class AppContainer {
             localRoutineRepo: localRoutineRepo
         )
         self.dataSyncService = dataSync
+
+        // Gamification (local-first with optional cloud sync to user profile)
+        let gam = GamificationService(authService: auth, dataSyncService: dataSync)
+        self.gamificationService = gam
 
         // Offline queue + flush orchestrator for eventual cloud sync
         let offlineSync = OfflineSyncCoordinator(

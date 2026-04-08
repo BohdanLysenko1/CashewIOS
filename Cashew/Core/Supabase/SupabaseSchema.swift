@@ -21,5 +21,6 @@ enum SupabaseSchema {
         static let tripWithOwner   = "*, owner:users!owner_id(display_name)"
         static let eventWithOwner  = "*, owner:users!owner_id(display_name)"
         static let collaboratorRow = "user:users!user_id(*)"
+        static let userGamification = "total_xp, xp_updated_at"
     }
 }

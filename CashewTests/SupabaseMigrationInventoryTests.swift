@@ -23,7 +23,8 @@ final class SupabaseMigrationInventoryTests: XCTestCase {
                 "20260406_trip_photos_storage.sql",
                 "20260407_fix_rls_policies.sql",
                 "20260408_db_hardening.sql",
-                "20260409_rls_performance_tuning.sql"
+                "20260409_rls_performance_tuning.sql",
+                "20260410_gamification_xp.sql"
             ]
         )
     }

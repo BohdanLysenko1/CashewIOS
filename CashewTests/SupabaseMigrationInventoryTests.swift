@@ -4,9 +4,11 @@ import XCTest
 final class SupabaseMigrationInventoryTests: XCTestCase {
 
     func testSupabaseMigrationsMatchExpectedInventory() throws {
-        let testsDirectory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-        let repoRoot = testsDirectory.deletingLastPathComponent()
-        let migrationsDirectory = repoRoot.appendingPathComponent("supabase/migrations")
+        guard let migrationsDirectory = findAccessibleMigrationsDirectory() else {
+            throw XCTSkip(
+                "supabase/migrations is not accessible from this test runtime (likely iOS simulator sandbox)."
+            )
+        }
 
         let migrationFiles = try FileManager.default.contentsOfDirectory(atPath: migrationsDirectory.path)
             .filter { $0.hasSuffix(".sql") }
@@ -27,5 +29,32 @@ final class SupabaseMigrationInventoryTests: XCTestCase {
                 "20260410_gamification_xp.sql"
             ]
         )
+    }
+
+    private func findAccessibleMigrationsDirectory() -> URL? {
+        let fileManager = FileManager.default
+
+        // Works for host-side execution where source paths are directly readable.
+        let testsDirectory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        let repoRoot = testsDirectory.deletingLastPathComponent()
+        let sourcePathCandidate = repoRoot.appendingPathComponent("supabase/migrations", isDirectory: true)
+        if fileManager.fileExists(atPath: sourcePathCandidate.path) {
+            return sourcePathCandidate
+        }
+
+        // Supports future packaging of migrations as bundle resources.
+        let bundle = Bundle(for: Self.self)
+        let bundleCandidates: [URL?] = [
+            bundle.resourceURL?.appendingPathComponent("supabase/migrations", isDirectory: true),
+            bundle.resourceURL?.appendingPathComponent("migrations", isDirectory: true)
+        ]
+
+        for candidate in bundleCandidates.compactMap({ $0 }) {
+            if fileManager.fileExists(atPath: candidate.path) {
+                return candidate
+            }
+        }
+
+        return nil
     }
 }

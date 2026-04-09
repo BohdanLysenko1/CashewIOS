@@ -16,6 +16,9 @@ struct TripDetailView: View {
     @State private var isGeneratingShare = false
     @State private var showCollaborators = false
     @State private var revealContent = false
+    @State private var weatherInfo: WeatherInfo?
+    @State private var weatherLoading = false
+    private let weatherService = TripWeatherService()
 
     private var trip: Trip? {
         container.tripService.trip(by: tripId)
@@ -154,45 +157,51 @@ struct TripDetailView: View {
                     tripHero(trip)
                 }
 
-                stagedCard(2) {
-                    snapshotCard(trip)
+                if trip.destinationLatitude != nil {
+                    stagedCard(2) {
+                        TripWeatherCard(info: weatherInfo, isLoading: weatherLoading)
+                    }
                 }
 
                 stagedCard(3) {
-                    nextActionsCard
+                    snapshotCard(trip)
                 }
 
                 stagedCard(4) {
-                    quickActionsGrid(trip)
+                    nextActionsCard
                 }
 
                 stagedCard(5) {
-                    detailsCard(trip)
+                    quickActionsGrid(trip)
                 }
 
                 stagedCard(6) {
-                    datesCard(trip)
+                    detailsCard(trip)
                 }
 
                 stagedCard(7) {
-                    resourcesCard(trip)
+                    datesCard(trip)
                 }
 
                 stagedCard(8) {
+                    resourcesCard(trip)
+                }
+
+                stagedCard(9) {
                     PhotosGridCard(attachments: trip.attachments, accentColor: AppTheme.primary)
                 }
 
                 if !trip.notes.isEmpty {
-                    stagedCard(9) {
+                    stagedCard(10) {
                         notesCard(trip)
                     }
                 }
 
-                stagedCard(10) {
+                stagedCard(11) {
                     linkedTasksCard(tripId: trip.id)
                 }
 
-                stagedCard(11) {
+                stagedCard(12) {
                     infoCard(trip)
                 }
             }
@@ -205,6 +214,13 @@ struct TripDetailView: View {
             }
         }
         .background(AppTheme.background)
+        .task(id: trip.id) {
+            guard let lat = trip.destinationLatitude,
+                  let lon = trip.destinationLongitude else { return }
+            weatherLoading = true
+            weatherInfo = try? await weatherService.fetch(latitude: lat, longitude: lon)
+            weatherLoading = false
+        }
         .navigationDestination(for: TripRoute.self) { route in
             tripSectionView(route, trip: trip)
         }

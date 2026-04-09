@@ -5,32 +5,27 @@ import Observation
 @MainActor
 final class TaskCreationWizardViewModel {
 
-    static let regularFlowSteps = 5
-    static let routineFlowSteps = 4
-
-    private(set) var currentStep = 0
-
-    // MARK: - Step 0: Basics
+    // MARK: - Basics
     var title: String = ""
     var date: Date
 
-    // MARK: - Step 1: Schedule
+    // MARK: - Schedule
     var hasTime = false
     var startTime: Date
     var hasEndTime = false
     var endTime: Date
 
-    // MARK: - Step 2: Category & Links
+    // MARK: - Category & Links
     var category: TaskCategory = .personal
     var customCategoryName: String = ""
     var selectedTripId: UUID?
     var selectedEventId: UUID?
 
-    // MARK: - Step 3: Subtasks
+    // MARK: - Subtasks
     var subtasks: [Subtask] = []
     var newSubtaskTitle: String = ""
 
-    // MARK: - Step 4: Notes
+    // MARK: - Notes / Routine
     var notes: String = ""
     var createAsRoutine = false {
         didSet {
@@ -42,9 +37,6 @@ final class TaskCreationWizardViewModel {
                     category = .personal
                     customCategoryName = ""
                 }
-            }
-            if currentStep >= totalSteps {
-                currentStep = max(0, totalSteps - 1)
             }
         }
     }
@@ -61,15 +53,21 @@ final class TaskCreationWizardViewModel {
     private let tripService: TripServiceProtocol
     private let eventService: EventServiceProtocol
 
-    var totalSteps: Int {
-        createAsRoutine ? Self.routineFlowSteps : Self.regularFlowSteps
-    }
-
     var availableCategories: [TaskCategory] {
         if createAsRoutine {
             return TaskCategory.allCases.filter { $0 != .custom }
         }
         return TaskCategory.allCases
+    }
+
+    var isFormValid: Bool {
+        guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+        if hasTime && hasEndTime && endTime < startTime { return false }
+        if createAsRoutine && repeatPattern == .custom && selectedRepeatDays.isEmpty { return false }
+        if !createAsRoutine && category == .custom {
+            return !customCategoryName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        return true
     }
 
     init(
@@ -88,77 +86,6 @@ final class TaskCreationWizardViewModel {
         let defaultStart = calendar.date(bySettingHour: hour + 1, minute: 0, second: 0, of: Date()) ?? Date()
         self.startTime = defaultStart
         self.endTime = defaultStart.addingTimeInterval(3600)
-    }
-
-    var isCurrentStepValid: Bool {
-        switch currentStep {
-        case 0:
-            return !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        case 1:
-            let hasValidTimeRange = !hasTime || !hasEndTime || endTime >= startTime
-            let hasValidRepeatDays = !createAsRoutine || repeatPattern != .custom || !selectedRepeatDays.isEmpty
-            return hasValidTimeRange && hasValidRepeatDays
-        case 2:
-            if createAsRoutine {
-                return true
-            }
-            if category != .custom { return true }
-            return !customCategoryName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        default:
-            return true
-        }
-    }
-
-    var stepTitle: String {
-        if createAsRoutine {
-            switch currentStep {
-            case 0: return "What routine do you want to build?"
-            case 1: return "When should it repeat?"
-            case 2: return "Choose a category"
-            case 3: return "Final Notes"
-            default: return ""
-            }
-        }
-
-        switch currentStep {
-        case 0: return "What needs to get done?"
-        case 1: return "When should it happen?"
-        case 2: return "Context & Category"
-        case 3: return "Break It Down"
-        case 4: return "Final Notes"
-        default: return ""
-        }
-    }
-
-    var stepSubtitle: String {
-        if createAsRoutine {
-            switch currentStep {
-            case 0: return "Set a name, date, and enable routine mode"
-            case 1: return "Pick repeat days and optional time"
-            case 2: return "Classify this routine"
-            case 3: return "Optional details before creating"
-            default: return ""
-            }
-        }
-
-        switch currentStep {
-        case 0: return "Set the task name and date"
-        case 1: return "Optional timing for your schedule"
-        case 2: return "Classify and link this task"
-        case 3: return "Optional subtasks for clarity"
-        case 4: return "Optional details before creating"
-        default: return ""
-        }
-    }
-
-    func goNext() {
-        guard currentStep < totalSteps - 1 else { return }
-        currentStep += 1
-    }
-
-    func goBack() {
-        guard currentStep > 0 else { return }
-        currentStep -= 1
     }
 
     func loadLinkedDataIfNeeded() async {
@@ -182,7 +109,7 @@ final class TaskCreationWizardViewModel {
     }
 
     func save() async {
-        guard isCurrentStepValid else { return }
+        guard isFormValid else { return }
         isSaving = true
         error = nil
 
@@ -218,8 +145,6 @@ final class TaskCreationWizardViewModel {
                 try await service.createRoutine(routine)
                 routineId = id
 
-                // Remove any task auto-generated for a different day so the routine
-                // starts from the date chosen in the wizard.
                 let offDateTasks = service.allTasks.filter {
                     $0.routineId == id &&
                     !calendar.isDate($0.date, inSameDayAs: date)
@@ -242,8 +167,6 @@ final class TaskCreationWizardViewModel {
             }
 
             if var existingRoutineTask {
-                // If a task was auto-generated for this date when creating the routine,
-                // update it with the values from the wizard instead of creating a duplicate.
                 existingRoutineTask.title = trimmedTitle
                 existingRoutineTask.date = date
                 existingRoutineTask.startTime = hasTime ? startTime : nil

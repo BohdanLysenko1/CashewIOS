@@ -392,49 +392,84 @@ struct PackingItemFormView: View {
     @State private var name: String = ""
     @State private var quantity: Int = 1
     @State private var category: PackingCategory = .other
+    @FocusState private var nameFieldFocused: Bool
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    TextField("Item Name", text: $name)
+        VStack(spacing: 0) {
+            CreationTopBar(
+                title: item == nil ? "Add Item" : "Edit Item",
+                subtitle: nil,
+                onClose: { dismiss() }
+            )
 
-                    Stepper("Quantity: \(quantity)", value: $quantity, in: 1...99)
-                }
+            ScrollView {
+                VStack(spacing: AppTheme.Space.md) {
+                    CreationSectionCard(title: "Item", icon: "bag") {
+                        VStack(spacing: AppTheme.Space.sm) {
+                            TextField("Item Name", text: $name)
+                                .focused($nameFieldFocused)
+                                .designField(isFocused: nameFieldFocused)
 
-                Section {
-                    Picker("Category", selection: $category) {
-                        ForEach(PackingCategory.allCases, id: \.self) { cat in
-                            Label(cat.displayName, systemImage: cat.icon)
-                                .tag(cat)
+                            HStack {
+                                Text("Quantity")
+                                    .font(AppTheme.TextStyle.body)
+                                    .foregroundStyle(AppTheme.onSurface)
+                                Spacer()
+                                Stepper("\(quantity)", value: $quantity, in: 1...99)
+                                    .fixedSize()
+                            }
+                            .padding(.horizontal, AppTheme.Space.md)
+                            .padding(.vertical, AppTheme.Space.sm)
+                            .background(AppTheme.surfaceContainer)
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                         }
                     }
+
+                    CreationSectionCard(title: "Category", icon: "tag") {
+                        HStack {
+                            Text("Category")
+                                .font(AppTheme.TextStyle.body)
+                                .foregroundStyle(AppTheme.onSurface)
+                            Spacer()
+                            Picker("Category", selection: $category) {
+                                ForEach(PackingCategory.allCases, id: \.self) { cat in
+                                    Label(cat.displayName, systemImage: cat.icon).tag(cat)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .tint(AppTheme.secondary)
+                        }
+                        .padding(.horizontal, AppTheme.Space.md)
+                        .padding(.vertical, AppTheme.Space.sm)
+                        .background(AppTheme.surfaceContainer)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    }
                 }
+                .padding(.horizontal, AppTheme.Space.lg)
+                .padding(.bottom, AppTheme.Space.xxxl)
             }
             .scrollDismissesKeyboard(.interactively)
-            .navigationTitle(item == nil ? "Add Item" : "Edit Item")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        saveItem()
-                        dismiss()
-                    }
-                    .disabled(name.isEmpty)
-                }
-            }
-            .onAppear {
-                if let item {
-                    name = item.name
-                    quantity = item.quantity
-                    category = item.category
-                }
+        }
+        .safeAreaInset(edge: .bottom) {
+            CreationBottomActionBar(
+                cancelTitle: "Cancel",
+                confirmTitle: item == nil ? "Add Item" : "Save Item",
+                gradient: AppTheme.tripGradient,
+                canConfirm: !name.isEmpty,
+                isLoading: false,
+                onCancel: { dismiss() },
+                onConfirm: { saveItem(); dismiss() }
+            )
+        }
+        .background(CreationScreenBackground(gradient: AppTheme.tripGradient))
+        .presentationDetents([.medium])
+        .onAppear {
+            if let item {
+                name = item.name
+                quantity = item.quantity
+                category = item.category
             }
         }
-        .presentationDetents([.medium])
     }
 
     private func saveItem() {

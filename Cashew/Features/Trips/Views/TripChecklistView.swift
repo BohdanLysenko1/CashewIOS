@@ -417,60 +417,106 @@ struct ChecklistItemFormView: View {
     @State private var hasDueDate = false
     @State private var dueDate: Date = Date()
     @State private var notes: String = ""
+    @FocusState private var focusedField: Field?
+
+    private enum Field { case title, notes }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    TextField("Task", text: $title)
-                }
+        VStack(spacing: 0) {
+            CreationTopBar(
+                title: item == nil ? "Add Task" : "Edit Task",
+                subtitle: nil,
+                onClose: { dismiss() }
+            )
 
-                Section {
-                    Picker("Priority", selection: $priority) {
-                        ForEach(ChecklistPriority.allCases, id: \.self) { p in
-                            Label(p.displayName, systemImage: p.icon)
-                                .tag(p)
+            ScrollView {
+                VStack(spacing: AppTheme.Space.md) {
+                    CreationSectionCard(title: "Task", icon: "checklist") {
+                        TextField("Task", text: $title)
+                            .focused($focusedField, equals: .title)
+                            .designField(isFocused: focusedField == .title)
+                    }
+
+                    CreationSectionCard(title: "Details", icon: "slider.horizontal.3") {
+                        VStack(spacing: AppTheme.Space.sm) {
+                            HStack {
+                                Text("Priority")
+                                    .font(AppTheme.TextStyle.body)
+                                    .foregroundStyle(AppTheme.onSurface)
+                                Spacer()
+                                Picker("Priority", selection: $priority) {
+                                    ForEach(ChecklistPriority.allCases, id: \.self) { p in
+                                        Label(p.displayName, systemImage: p.icon).tag(p)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .tint(AppTheme.secondary)
+                            }
+                            .padding(.horizontal, AppTheme.Space.md)
+                            .padding(.vertical, AppTheme.Space.sm)
+                            .background(AppTheme.surfaceContainer)
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                            Toggle("Due Date", isOn: $hasDueDate)
+                                .font(AppTheme.TextStyle.body)
+                                .tint(AppTheme.secondary)
+                                .padding(.horizontal, AppTheme.Space.md)
+                                .padding(.vertical, AppTheme.Space.sm)
+                                .background(AppTheme.surfaceContainer)
+                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                            if hasDueDate {
+                                HStack {
+                                    Text("Due Date")
+                                        .font(AppTheme.TextStyle.body)
+                                        .foregroundStyle(AppTheme.onSurface)
+                                    Spacer()
+                                    DatePicker("", selection: $dueDate, displayedComponents: .date)
+                                        .labelsHidden()
+                                        .tint(AppTheme.secondary)
+                                }
+                                .padding(.horizontal, AppTheme.Space.md)
+                                .padding(.vertical, AppTheme.Space.sm)
+                                .background(AppTheme.surfaceContainer)
+                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            }
                         }
                     }
 
-                    Toggle("Due Date", isOn: $hasDueDate)
-
-                    if hasDueDate {
-                        DatePicker("Due", selection: $dueDate, displayedComponents: .date)
+                    CreationSectionCard(title: "Notes", icon: "note.text") {
+                        TextField("Notes (optional)", text: $notes, axis: .vertical)
+                            .lineLimit(3...6)
+                            .focused($focusedField, equals: .notes)
+                            .designField(isFocused: focusedField == .notes)
                     }
                 }
-
-                Section("Notes") {
-                    TextField("Notes (optional)", text: $notes, axis: .vertical)
-                        .lineLimit(3...6)
-                }
+                .padding(.horizontal, AppTheme.Space.lg)
+                .padding(.bottom, AppTheme.Space.xxxl)
             }
             .scrollDismissesKeyboard(.interactively)
-            .navigationTitle(item == nil ? "Add Task" : "Edit Task")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        saveItem()
-                        dismiss()
-                    }
-                    .disabled(title.isEmpty)
-                }
-            }
-            .onAppear {
-                if let item {
-                    title = item.title
-                    priority = item.priority
-                    hasDueDate = item.dueDate != nil
-                    dueDate = item.dueDate ?? Date()
-                    notes = item.notes
-                }
+        }
+        .safeAreaInset(edge: .bottom) {
+            CreationBottomActionBar(
+                cancelTitle: "Cancel",
+                confirmTitle: item == nil ? "Add Task" : "Save Task",
+                gradient: AppTheme.tripGradient,
+                canConfirm: !title.isEmpty,
+                isLoading: false,
+                onCancel: { dismiss() },
+                onConfirm: { saveItem(); dismiss() }
+            )
+        }
+        .background(CreationScreenBackground(gradient: AppTheme.tripGradient))
+        .presentationDetents([.medium])
+        .onAppear {
+            if let item {
+                title = item.title
+                priority = item.priority
+                hasDueDate = item.dueDate != nil
+                dueDate = item.dueDate ?? Date()
+                notes = item.notes
             }
         }
-        .presentationDetents([.medium])
     }
 
     private func saveItem() {

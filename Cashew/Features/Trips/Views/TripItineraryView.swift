@@ -370,97 +370,208 @@ struct ActivityFormView: View {
     @State private var costString: String = ""
     @State private var isBooked = false
     @State private var confirmationNumber: String = ""
+    @FocusState private var focusedField: Field?
+
+    private enum Field { case title, location, address, confirmation, cost, notes }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    TextField("Activity Name", text: $title)
+        VStack(spacing: 0) {
+            CreationTopBar(
+                title: activity == nil ? "Add Activity" : "Edit Activity",
+                subtitle: nil,
+                onClose: { dismiss() }
+            )
 
-                    Picker("Type", selection: $category) {
-                        ForEach(ActivityCategory.allCases, id: \.self) { cat in
-                            Label(cat.displayName, systemImage: cat.icon)
-                                .tag(cat)
+            ScrollView {
+                VStack(spacing: AppTheme.Space.md) {
+                    // Activity details
+                    CreationSectionCard(title: "Activity", icon: "star") {
+                        VStack(spacing: AppTheme.Space.sm) {
+                            TextField("Activity Name", text: $title)
+                                .focused($focusedField, equals: .title)
+                                .designField(isFocused: focusedField == .title)
+
+                            HStack {
+                                Text("Type")
+                                    .font(AppTheme.TextStyle.body)
+                                    .foregroundStyle(AppTheme.onSurface)
+                                Spacer()
+                                Picker("Type", selection: $category) {
+                                    ForEach(ActivityCategory.allCases, id: \.self) { cat in
+                                        Label(cat.displayName, systemImage: cat.icon).tag(cat)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .tint(AppTheme.secondary)
+                            }
+                            .padding(.horizontal, AppTheme.Space.md)
+                            .padding(.vertical, AppTheme.Space.sm)
+                            .background(AppTheme.surfaceContainer)
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                         }
                     }
-                }
 
-                Section("When") {
-                    DatePicker("Date", selection: $date, displayedComponents: .date)
+                    // When
+                    CreationSectionCard(title: "When", icon: "calendar") {
+                        VStack(spacing: AppTheme.Space.sm) {
+                            HStack {
+                                Text("Date")
+                                    .font(AppTheme.TextStyle.body)
+                                    .foregroundStyle(AppTheme.onSurface)
+                                Spacer()
+                                DatePicker("", selection: $date, displayedComponents: .date)
+                                    .labelsHidden()
+                                    .tint(AppTheme.secondary)
+                            }
+                            .padding(.horizontal, AppTheme.Space.md)
+                            .padding(.vertical, AppTheme.Space.sm)
+                            .background(AppTheme.surfaceContainer)
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
-                    Toggle("Set Time", isOn: $hasTime)
+                            Toggle("Set Time", isOn: $hasTime)
+                                .font(AppTheme.TextStyle.body)
+                                .tint(AppTheme.secondary)
+                                .padding(.horizontal, AppTheme.Space.md)
+                                .padding(.vertical, AppTheme.Space.sm)
+                                .background(AppTheme.surfaceContainer)
+                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
-                    if hasTime {
-                        DatePicker("Start Time", selection: $startTime, displayedComponents: .hourAndMinute)
+                            if hasTime {
+                                HStack {
+                                    Text("Start Time")
+                                        .font(AppTheme.TextStyle.body)
+                                        .foregroundStyle(AppTheme.onSurface)
+                                    Spacer()
+                                    DatePicker("", selection: $startTime, displayedComponents: .hourAndMinute)
+                                        .labelsHidden()
+                                        .tint(AppTheme.secondary)
+                                }
+                                .padding(.horizontal, AppTheme.Space.md)
+                                .padding(.vertical, AppTheme.Space.sm)
+                                .background(AppTheme.surfaceContainer)
+                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
-                        Toggle("End Time", isOn: $hasEndTime)
+                                Toggle("End Time", isOn: $hasEndTime)
+                                    .font(AppTheme.TextStyle.body)
+                                    .tint(AppTheme.secondary)
+                                    .padding(.horizontal, AppTheme.Space.md)
+                                    .padding(.vertical, AppTheme.Space.sm)
+                                    .background(AppTheme.surfaceContainer)
+                                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
-                        if hasEndTime {
-                            DatePicker("End Time", selection: $endTime, displayedComponents: .hourAndMinute)
+                                if hasEndTime {
+                                    HStack {
+                                        Text("End Time")
+                                            .font(AppTheme.TextStyle.body)
+                                            .foregroundStyle(AppTheme.onSurface)
+                                        Spacer()
+                                        DatePicker("", selection: $endTime, displayedComponents: .hourAndMinute)
+                                            .labelsHidden()
+                                            .tint(AppTheme.secondary)
+                                    }
+                                    .padding(.horizontal, AppTheme.Space.md)
+                                    .padding(.vertical, AppTheme.Space.sm)
+                                    .background(AppTheme.surfaceContainer)
+                                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                }
+                            }
                         }
                     }
-                }
 
-                Section("Location") {
-                    TextField("Place Name", text: $location)
-                    TextField("Address", text: $address)
-                }
+                    // Location
+                    CreationSectionCard(title: "Location", icon: "mappin") {
+                        VStack(spacing: AppTheme.Space.sm) {
+                            TextField("Place Name", text: $location)
+                                .focused($focusedField, equals: .location)
+                                .designField(isFocused: focusedField == .location)
 
-                Section("Booking") {
-                    Toggle("Booked", isOn: $isBooked)
-
-                    if isBooked {
-                        TextField("Confirmation #", text: $confirmationNumber)
+                            TextField("Address", text: $address)
+                                .focused($focusedField, equals: .address)
+                                .designField(isFocused: focusedField == .address)
+                        }
                     }
 
-                    HStack {
-                        Text(trip.currency)
-                            .foregroundStyle(AppTheme.onSurfaceVariant)
-                        TextField("Cost (optional)", text: $costString)
-                            .keyboardType(.decimalPad)
+                    // Booking
+                    CreationSectionCard(title: "Booking", icon: "checkmark.seal") {
+                        VStack(spacing: AppTheme.Space.sm) {
+                            Toggle("Booked", isOn: $isBooked)
+                                .font(AppTheme.TextStyle.body)
+                                .tint(AppTheme.secondary)
+                                .padding(.horizontal, AppTheme.Space.md)
+                                .padding(.vertical, AppTheme.Space.sm)
+                                .background(AppTheme.surfaceContainer)
+                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                            if isBooked {
+                                TextField("Confirmation #", text: $confirmationNumber)
+                                    .focused($focusedField, equals: .confirmation)
+                                    .designField(isFocused: focusedField == .confirmation)
+                            }
+
+                            HStack(spacing: AppTheme.Space.sm) {
+                                Text(trip.currency)
+                                    .font(AppTheme.TextStyle.body)
+                                    .foregroundStyle(AppTheme.onSurfaceVariant)
+                                    .padding(.leading, 14)
+                                TextField("Cost (optional)", text: $costString)
+                                    .keyboardType(.decimalPad)
+                                    .focused($focusedField, equals: .cost)
+                            }
+                            .padding(.vertical, 14)
+                            .background(focusedField == .cost ? AppTheme.surfaceContainerLowest : AppTheme.surfaceContainer)
+                            .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous)
+                                    .stroke(focusedField == .cost ? AppTheme.primary.opacity(0.20) : .clear, lineWidth: 1)
+                            )
+                            .animation(.easeInOut(duration: 0.2), value: focusedField == .cost)
+                        }
+                    }
+
+                    // Notes
+                    CreationSectionCard(title: "Notes", icon: "note.text") {
+                        TextField("Notes", text: $notes, axis: .vertical)
+                            .lineLimit(3...6)
+                            .focused($focusedField, equals: .notes)
+                            .designField(isFocused: focusedField == .notes)
                     }
                 }
-
-                Section("Notes") {
-                    TextField("Notes", text: $notes, axis: .vertical)
-                        .lineLimit(3...6)
-                }
+                .padding(.horizontal, AppTheme.Space.lg)
+                .padding(.bottom, AppTheme.Space.xxxl)
             }
             .scrollDismissesKeyboard(.interactively)
-            .navigationTitle(activity == nil ? "Add Activity" : "Edit Activity")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+        }
+        .safeAreaInset(edge: .bottom) {
+            CreationBottomActionBar(
+                cancelTitle: "Cancel",
+                confirmTitle: activity == nil ? "Add Activity" : "Save Activity",
+                gradient: AppTheme.tripGradient,
+                canConfirm: !title.isEmpty,
+                isLoading: false,
+                onCancel: { dismiss() },
+                onConfirm: { saveActivity(); dismiss() }
+            )
+        }
+        .background(CreationScreenBackground(gradient: AppTheme.tripGradient))
+        .onAppear {
+            if let activity {
+                title = activity.title
+                date = activity.date
+                hasTime = activity.startTime != nil
+                startTime = activity.startTime ?? Date()
+                hasEndTime = activity.endTime != nil
+                endTime = activity.endTime ?? Date()
+                location = activity.location
+                address = activity.address
+                category = activity.category
+                notes = activity.notes
+                isBooked = activity.isBooked
+                confirmationNumber = activity.confirmationNumber
+                if let cost = activity.cost {
+                    costString = "\(cost)"
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        saveActivity()
-                        dismiss()
-                    }
-                    .disabled(title.isEmpty)
-                }
-            }
-            .onAppear {
-                if let activity {
-                    title = activity.title
-                    date = activity.date
-                    hasTime = activity.startTime != nil
-                    startTime = activity.startTime ?? Date()
-                    hasEndTime = activity.endTime != nil
-                    endTime = activity.endTime ?? Date()
-                    location = activity.location
-                    address = activity.address
-                    category = activity.category
-                    notes = activity.notes
-                    isBooked = activity.isBooked
-                    confirmationNumber = activity.confirmationNumber
-                    if let cost = activity.cost {
-                        costString = "\(cost)"
-                    }
-                } else {
-                    date = defaultDate
-                }
+            } else {
+                date = defaultDate
             }
         }
     }

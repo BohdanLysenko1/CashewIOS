@@ -302,49 +302,75 @@ struct BudgetEditorView: View {
     @Binding var currency: String
 
     @State private var budgetString: String = ""
+    @FocusState private var amountFocused: Bool
 
     private let currencies = ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "CNY", "INR", "MXN"]
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section("Budget Amount") {
-                    TextField("Amount", text: $budgetString)
-                        .keyboardType(.decimalPad)
-                }
+        VStack(spacing: 0) {
+            CreationTopBar(
+                title: "Set Budget",
+                subtitle: "Define your spending target",
+                onClose: { dismiss() }
+            )
 
-                Section("Currency") {
-                    Picker("Currency", selection: $currency) {
-                        ForEach(currencies, id: \.self) { code in
-                            Text(code).tag(code)
+            ScrollView {
+                VStack(spacing: AppTheme.Space.md) {
+                    CreationSectionCard(title: "Budget", icon: "creditcard") {
+                        VStack(spacing: AppTheme.Space.sm) {
+                            TextField("Amount", text: $budgetString)
+                                .keyboardType(.decimalPad)
+                                .focused($amountFocused)
+                                .designField(isFocused: amountFocused)
+
+                            HStack {
+                                Text("Currency")
+                                    .font(AppTheme.TextStyle.body)
+                                    .foregroundStyle(AppTheme.onSurface)
+                                Spacer()
+                                Picker("Currency", selection: $currency) {
+                                    ForEach(currencies, id: \.self) { code in
+                                        Text(code).tag(code)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .tint(AppTheme.secondary)
+                            }
+                            .padding(.horizontal, AppTheme.Space.md)
+                            .padding(.vertical, AppTheme.Space.sm)
+                            .background(AppTheme.surfaceContainer)
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                         }
                     }
-                    .pickerStyle(.menu)
                 }
+                .padding(.horizontal, AppTheme.Space.lg)
+                .padding(.bottom, AppTheme.Space.xxxl)
             }
             .scrollDismissesKeyboard(.interactively)
-            .navigationTitle("Set Budget")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        if let value = Decimal(string: budgetString) {
-                            budget = value
-                        }
-                        dismiss()
+        }
+        .safeAreaInset(edge: .bottom) {
+            CreationBottomActionBar(
+                cancelTitle: "Cancel",
+                confirmTitle: "Save Budget",
+                gradient: AppTheme.tripGradient,
+                canConfirm: !budgetString.isEmpty,
+                isLoading: false,
+                onCancel: { dismiss() },
+                onConfirm: {
+                    if let value = Decimal(string: budgetString) {
+                        budget = value
                     }
+                    dismiss()
                 }
-            }
-            .onAppear {
-                if let budget {
-                    budgetString = "\(budget)"
-                }
+            )
+        }
+        .background(CreationScreenBackground(gradient: AppTheme.tripGradient))
+        .presentationDetents([.medium])
+        .onAppear {
+            if let budget {
+                budgetString = "\(budget)"
             }
         }
-        .presentationDetents([.medium])
     }
 }
 
@@ -361,60 +387,115 @@ struct ExpenseFormView: View {
     @State private var category: ExpenseCategory = .other
     @State private var date: Date = Date()
     @State private var notes: String = ""
+    @FocusState private var focusedField: Field?
+
+    private enum Field { case title, amount, notes }
+
+    private var canSave: Bool { !title.isEmpty && !amountString.isEmpty }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    TextField("Title", text: $title)
+        VStack(spacing: 0) {
+            CreationTopBar(
+                title: expense == nil ? "Add Expense" : "Edit Expense",
+                subtitle: nil,
+                onClose: { dismiss() }
+            )
 
-                    HStack {
-                        Text(trip.currency)
-                            .foregroundStyle(AppTheme.onSurfaceVariant)
-                        TextField("Amount", text: $amountString)
-                            .keyboardType(.decimalPad)
-                    }
-                }
+            ScrollView {
+                VStack(spacing: AppTheme.Space.md) {
+                    CreationSectionCard(title: "Expense", icon: "creditcard") {
+                        VStack(spacing: AppTheme.Space.sm) {
+                            TextField("Title", text: $title)
+                                .focused($focusedField, equals: .title)
+                                .designField(isFocused: focusedField == .title)
 
-                Section {
-                    Picker("Category", selection: $category) {
-                        ForEach(ExpenseCategory.allCases, id: \.self) { cat in
-                            Label(cat.displayName, systemImage: cat.icon)
-                                .tag(cat)
+                            HStack(spacing: AppTheme.Space.sm) {
+                                Text(trip.currency)
+                                    .font(AppTheme.TextStyle.body)
+                                    .foregroundStyle(AppTheme.onSurfaceVariant)
+                                    .padding(.leading, 14)
+                                TextField("Amount", text: $amountString)
+                                    .keyboardType(.decimalPad)
+                                    .focused($focusedField, equals: .amount)
+                            }
+                            .padding(.vertical, 14)
+                            .background(focusedField == .amount ? AppTheme.surfaceContainerLowest : AppTheme.surfaceContainer)
+                            .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous)
+                                    .stroke(focusedField == .amount ? AppTheme.primary.opacity(0.20) : .clear, lineWidth: 1)
+                            )
+                            .animation(.easeInOut(duration: 0.2), value: focusedField == .amount)
                         }
                     }
 
-                    DatePicker("Date", selection: $date, displayedComponents: .date)
-                }
+                    CreationSectionCard(title: "Details", icon: "slider.horizontal.3") {
+                        VStack(spacing: AppTheme.Space.sm) {
+                            HStack {
+                                Text("Category")
+                                    .font(AppTheme.TextStyle.body)
+                                    .foregroundStyle(AppTheme.onSurface)
+                                Spacer()
+                                Picker("Category", selection: $category) {
+                                    ForEach(ExpenseCategory.allCases, id: \.self) { cat in
+                                        Label(cat.displayName, systemImage: cat.icon).tag(cat)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .tint(AppTheme.secondary)
+                            }
+                            .padding(.horizontal, AppTheme.Space.md)
+                            .padding(.vertical, AppTheme.Space.sm)
+                            .background(AppTheme.surfaceContainer)
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
-                Section("Notes") {
-                    TextField("Notes (optional)", text: $notes, axis: .vertical)
-                        .lineLimit(3...6)
+                            HStack {
+                                Text("Date")
+                                    .font(AppTheme.TextStyle.body)
+                                    .foregroundStyle(AppTheme.onSurface)
+                                Spacer()
+                                DatePicker("", selection: $date, displayedComponents: .date)
+                                    .labelsHidden()
+                                    .tint(AppTheme.secondary)
+                            }
+                            .padding(.horizontal, AppTheme.Space.md)
+                            .padding(.vertical, AppTheme.Space.sm)
+                            .background(AppTheme.surfaceContainer)
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        }
+                    }
+
+                    CreationSectionCard(title: "Notes", icon: "note.text") {
+                        TextField("Notes (optional)", text: $notes, axis: .vertical)
+                            .lineLimit(3...6)
+                            .focused($focusedField, equals: .notes)
+                            .designField(isFocused: focusedField == .notes)
+                    }
                 }
+                .padding(.horizontal, AppTheme.Space.lg)
+                .padding(.bottom, AppTheme.Space.xxxl)
             }
             .scrollDismissesKeyboard(.interactively)
-            .navigationTitle(expense == nil ? "Add Expense" : "Edit Expense")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        saveExpense()
-                        dismiss()
-                    }
-                    .disabled(title.isEmpty || amountString.isEmpty)
-                }
-            }
-            .onAppear {
-                if let expense {
-                    title = expense.title
-                    amountString = "\(expense.amount)"
-                    category = expense.category
-                    date = expense.date
-                    notes = expense.notes
-                }
+        }
+        .safeAreaInset(edge: .bottom) {
+            CreationBottomActionBar(
+                cancelTitle: "Cancel",
+                confirmTitle: expense == nil ? "Add Expense" : "Save Expense",
+                gradient: AppTheme.tripGradient,
+                canConfirm: canSave,
+                isLoading: false,
+                onCancel: { dismiss() },
+                onConfirm: { saveExpense(); dismiss() }
+            )
+        }
+        .background(CreationScreenBackground(gradient: AppTheme.tripGradient))
+        .onAppear {
+            if let expense {
+                title = expense.title
+                amountString = "\(expense.amount)"
+                category = expense.category
+                date = expense.date
+                notes = expense.notes
             }
         }
     }
@@ -423,7 +504,6 @@ struct ExpenseFormView: View {
         guard let amount = Decimal(string: amountString) else { return }
 
         if let expense {
-            // Update existing
             if let index = trip.expenses.firstIndex(where: { $0.id == expense.id }) {
                 trip.expenses[index].title = title
                 trip.expenses[index].amount = amount
@@ -432,7 +512,6 @@ struct ExpenseFormView: View {
                 trip.expenses[index].notes = notes
             }
         } else {
-            // Create new
             let newExpense = Expense(
                 title: title,
                 amount: amount,

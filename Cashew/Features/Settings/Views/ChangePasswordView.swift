@@ -16,50 +16,63 @@ struct ChangePasswordView: View {
     private var passwordsMatch: Bool { newPassword == confirmPassword }
     private var isValid: Bool { newPassword.count >= 6 && passwordsMatch }
 
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    SecureField("New password", text: $newPassword)
-                        .textContentType(.newPassword)
-                        .focused($focusedField, equals: .new)
-
-                    SecureField("Confirm new password", text: $confirmPassword)
-                        .textContentType(.newPassword)
-                        .focused($focusedField, equals: .confirm)
-                } footer: {
-                    if !confirmPassword.isEmpty && !passwordsMatch {
-                        Text("Passwords don't match.")
-                            .foregroundStyle(AppTheme.negative)
-                    } else {
-                        Text("At least 6 characters.")
-                    }
-                }
-
-                if let errorMessage {
-                    Section {
-                        Text(errorMessage)
-                            .foregroundStyle(AppTheme.negative)
-                            .font(.caption)
-                    }
-                }
-            }
-            .navigationTitle("Change Password")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    if isSaving {
-                        ProgressView()
-                    } else {
-                        Button("Save") { save() }
-                            .disabled(!isValid)
-                    }
-                }
-            }
+    private var validationError: String? {
+        if !confirmPassword.isEmpty && !passwordsMatch {
+            return "Passwords don't match."
         }
+        if !newPassword.isEmpty && newPassword.count < 6 {
+            return "Password must be at least 6 characters."
+        }
+        return nil
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            CreationTopBar(
+                title: "Change Password",
+                subtitle: "Set a new password for your account",
+                onClose: { dismiss() }
+            )
+
+            ScrollView {
+                VStack(spacing: AppTheme.Space.md) {
+                    CreationSectionCard(title: "New Password", icon: "lock") {
+                        VStack(spacing: AppTheme.Space.sm) {
+                            SecureField("New password", text: $newPassword)
+                                .textContentType(.newPassword)
+                                .focused($focusedField, equals: .new)
+                                .designField(isFocused: focusedField == .new)
+
+                            SecureField("Confirm new password", text: $confirmPassword)
+                                .textContentType(.newPassword)
+                                .focused($focusedField, equals: .confirm)
+                                .designField(isFocused: focusedField == .confirm)
+
+                            CreationInlineError(text: validationError)
+
+                            if let errorMessage {
+                                CreationInlineError(text: errorMessage)
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, AppTheme.Space.lg)
+                .padding(.bottom, AppTheme.Space.xxxl)
+            }
+            .scrollDismissesKeyboard(.interactively)
+        }
+        .safeAreaInset(edge: .bottom) {
+            CreationBottomActionBar(
+                cancelTitle: "Cancel",
+                confirmTitle: "Save Password",
+                gradient: AppTheme.dayPlannerGradient,
+                canConfirm: isValid && !isSaving,
+                isLoading: isSaving,
+                onCancel: { dismiss() },
+                onConfirm: { save() }
+            )
+        }
+        .background(CreationScreenBackground(gradient: AppTheme.dayPlannerGradient))
     }
 
     private func save() {

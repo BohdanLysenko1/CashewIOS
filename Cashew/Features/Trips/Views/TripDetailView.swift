@@ -18,6 +18,7 @@ struct TripDetailView: View {
     @State private var revealContent = false
     @State private var weatherInfo: WeatherInfo?
     @State private var weatherLoading = false
+    @State private var hasCollaborators = false
     private let weatherService = TripWeatherService()
 
     private var trip: Trip? {
@@ -28,6 +29,10 @@ struct TripDetailView: View {
         guard let trip else { return false }
         guard let ownerId = trip.ownerId else { return true }
         return ownerId == container.authService.currentUser?.id
+    }
+
+    private var canEdit: Bool {
+        trip != nil
     }
 
     private func shouldShowSharedByBanner(for trip: Trip) -> Bool {
@@ -54,24 +59,29 @@ struct TripDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if trip != nil {
+                if canEdit {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            Task { await generateShareLink() }
+                        } label: {
+                            if isGeneratingShare {
+                                ProgressView()
+                            } else {
+                                Image(systemName: "square.and.arrow.up")
+                            }
+                        }
+                        .disabled(isGeneratingShare)
+                    }
+                }
+
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
-                        if isOwner {
+                        if canEdit {
                             Button {
                                 showEditSheet = true
                             } label: {
                                 Label("Edit", systemImage: "pencil")
                             }
-
-                            Button {
-                                Task { await generateShareLink() }
-                            } label: {
-                                Label(
-                                    isGeneratingShare ? "Generating…" : "Share Trip",
-                                    systemImage: "square.and.arrow.up"
-                                )
-                            }
-                            .disabled(isGeneratingShare)
                         }
 
                         Button {
@@ -111,7 +121,8 @@ struct TripDetailView: View {
             set: { if !$0 { shareURL = nil } }
         )) {
             if let url = shareURL {
-                ShareSheet(items: [url])
+                let tripName = trip?.name ?? "a trip"
+                ShareSheet(items: ["Join me on \(tripName) in Cashew — plan together in real time!", url])
                     .presentationDetents([.medium])
             }
         }
@@ -140,6 +151,11 @@ struct TripDetailView: View {
                 Text(error)
             }
         }
+        .task(id: tripId) {
+            guard isOwner, let trip else { return }
+            let collaborators = (try? await container.shareService.fetchCollaborators(for: .trip(trip))) ?? []
+            hasCollaborators = !collaborators.isEmpty
+        }
     }
 
     // MARK: - Content
@@ -147,7 +163,11 @@ struct TripDetailView: View {
     private func tripContent(_ trip: Trip) -> some View {
         ScrollView {
             VStack(spacing: AppTheme.Space.md) {
-                if shouldShowSharedByBanner(for: trip), let name = trip.ownerName {
+                if isOwner && hasCollaborators {
+                    stagedCard(0) {
+                        sharingActiveOwnerBanner
+                    }
+                } else if shouldShowSharedByBanner(for: trip), let name = trip.ownerName {
                     stagedCard(0) {
                         sharedByBanner(name: name, color: AppTheme.warning)
                     }
@@ -249,7 +269,7 @@ struct TripDetailView: View {
                 }
 
                 Spacer(minLength: 0)
-                StatusBadge(status: trip.computedStatus, style: .prominent)
+                StatusBadge(status: trip.computedStatus, style: .onGradient)
             }
 
             HStack(spacing: 8) {
@@ -762,6 +782,22 @@ struct TripDetailView: View {
         }
         let done = trip.checklistItems.filter { $0.isCompleted }.count
         return "\(done)/\(trip.checklistItems.count) done"
+    }
+
+    private var sharingActiveOwnerBanner: some View {
+        HStack(spacing: AppTheme.Space.sm) {
+            Image(systemName: "person.2.fill")
+                .font(.caption)
+                .foregroundStyle(AppTheme.primary)
+            Text("You're sharing this trip")
+                .font(AppTheme.TextStyle.captionBold)
+                .foregroundStyle(AppTheme.primary)
+            Spacer()
+        }
+        .padding(.horizontal, AppTheme.Space.md)
+        .padding(.vertical, AppTheme.Space.sm)
+        .background(AppTheme.primary.opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private func sharedByBanner(name: String, color: Color) -> some View {

@@ -7,22 +7,23 @@ struct StatusBadge: View {
     enum BadgeStyle {
         case `default`
         case prominent
+        case onGradient
     }
 
     var body: some View {
         HStack(spacing: 4) {
-            if style == .prominent {
+            if style == .prominent || style == .onGradient {
                 Circle()
-                    .fill(status.color)
+                    .fill(style == .onGradient ? Color.white : status.color)
                     .frame(width: 6, height: 6)
             }
             Text(status.displayName)
                 .font(AppTheme.TextStyle.captionBold)
         }
-        .padding(.horizontal, style == .prominent ? 10 : 8)
-        .padding(.vertical, style == .prominent ? 5 : 4)
-        .background(status.color.opacity(0.15))
-        .foregroundStyle(status.color)
+        .padding(.horizontal, style == .default ? 8 : 10)
+        .padding(.vertical, style == .default ? 4 : 5)
+        .background(style == .onGradient ? Color.white.opacity(0.20) : status.color.opacity(0.15))
+        .foregroundStyle(style == .onGradient ? Color.white : status.color)
         .clipShape(Capsule())
     }
 }

@@ -129,6 +129,11 @@ final class ShareService {
         }
     }
 
+    func fetchSharedTripIds() async throws -> Set<UUID> {
+        let userId = try currentUserIdOrThrow()
+        return try await dataStore.fetchSharedByMeTripIds(userId: userId)
+    }
+
     func fetchUser(id: UUID) async throws -> AppUser {
         try await dataStore.fetchUser(id: id)
     }

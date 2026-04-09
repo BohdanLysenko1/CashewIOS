@@ -106,14 +106,15 @@ final class EventService: EventServiceProtocol {
 
     // MARK: - Realtime Sync
 
-    func startRealtimeSync() {
+    func startRealtimeSync(ownerID: UUID) {
         guard syncTask == nil else { return }
 
+        let filter = "owner_id=eq.\(ownerID.uuidString)"
         let channel = SupabaseManager.client.channel("events-sync")
-        // Register postgres changes synchronously before subscribing
-        let inserts = channel.postgresChange(InsertAction.self, schema: "public", table: "events")
-        let updates = channel.postgresChange(UpdateAction.self, schema: "public", table: "events")
-        let deletes = channel.postgresChange(DeleteAction.self, schema: "public", table: "events")
+        // Register postgres changes synchronously before subscribing, filtered to this user's rows
+        let inserts = channel.postgresChange(InsertAction.self, schema: "public", table: "events", filter: filter)
+        let updates = channel.postgresChange(UpdateAction.self, schema: "public", table: "events", filter: filter)
+        let deletes = channel.postgresChange(DeleteAction.self, schema: "public", table: "events", filter: filter)
         syncChannel = channel
 
         syncTask = Task {

@@ -13,9 +13,11 @@ struct TripsView: View {
     @State private var isSelectMode = false
     @State private var selectedTrips: Set<UUID> = []
     @State private var showDeleteConfirmation = false
+    @State private var tripToDelete: Trip?
     @State private var showCompleted = false
     @State private var highlightedTripIds: Set<UUID> = []
     @State private var highlightDismissTasks: [UUID: Task<Void, Never>] = [:]
+    @State private var sharedByMeTripIds: Set<UUID> = []
 
     private var tripService: TripServiceProtocol {
         container.tripService
@@ -134,6 +136,23 @@ struct TripsView: View {
                 }
             } message: {
                 Text("This action cannot be undone.")
+            }
+            .confirmationDialog(
+                "Delete Trip?",
+                isPresented: Binding(
+                    get: { tripToDelete != nil },
+                    set: { if !$0 { tripToDelete = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    if let trip = tripToDelete {
+                        deleteTrip(trip)
+                        tripToDelete = nil
+                    }
+                }
+            } message: {
+                Text("Are you sure you want to delete \"\(tripToDelete?.name ?? "this trip")\"? This action cannot be undone.")
             }
         }
         .task {
@@ -308,7 +327,11 @@ struct TripsView: View {
         } else {
             liveHighlightedTripRow(trip.id) {
                 NavigationLink(value: trip.id) {
-                    TripCard(trip: trip)
+                    TripCard(
+                        trip: trip,
+                        currentUserId: container.authService.currentUser?.id,
+                        isSharedByMe: sharedByMeTripIds.contains(trip.id)
+                    )
                 }
                 .buttonStyle(.plain)
                 .contextMenu {
@@ -319,7 +342,7 @@ struct TripsView: View {
                     }
 
                     Button(role: .destructive) {
-                        deleteTrip(trip)
+                        tripToDelete = trip
                     } label: {
                         Label("Delete", systemImage: "trash")
                     }
@@ -375,7 +398,11 @@ struct TripsView: View {
                 .foregroundStyle(selectedTrips.contains(trip.id) ? AppTheme.primary : AppTheme.onSurfaceVariant)
 
             liveHighlightedTripRow(trip.id) {
-                TripCard(trip: trip)
+                TripCard(
+                    trip: trip,
+                    currentUserId: container.authService.currentUser?.id,
+                    isSharedByMe: sharedByMeTripIds.contains(trip.id)
+                )
             }
         }
         .contentShape(Rectangle())
@@ -473,6 +500,9 @@ struct TripsView: View {
         error = nil
         do {
             try await tripService.loadTrips()
+            if let ids = try? await container.shareService.fetchSharedTripIds() {
+                sharedByMeTripIds = ids
+            }
         } catch {
             self.error = error
         }

@@ -3,10 +3,29 @@ import SwiftUI
 struct TripCard: View {
     let trip: Trip
     var style: CardStyle = .full
+    var currentUserId: UUID? = nil
+    var isSharedByMe: Bool = false
 
     enum CardStyle {
         case full
         case compact
+    }
+
+    private enum SharingState: Equatable {
+        case none
+        case sharedByMe
+        case sharedToMe(ownerName: String)
+    }
+
+    private var sharingState: SharingState {
+        if let ownerId = trip.ownerId,
+           let currentUserId,
+           ownerId != currentUserId,
+           let name = trip.ownerName {
+            return .sharedToMe(ownerName: name)
+        }
+        if isSharedByMe { return .sharedByMe }
+        return .none
     }
 
     private static let dateFormatter: DateFormatter = {
@@ -57,6 +76,10 @@ struct TripCard: View {
                 dateItem(label: "End", date: trip.endDate, icon: "calendar.badge.checkmark")
                 Spacer()
                 daysRemaining
+            }
+
+            if sharingState != .none {
+                sharingPill
             }
         }
         .padding(AppTheme.cardPadding)
@@ -151,7 +174,33 @@ struct TripCard: View {
     private var compactSubtitle: String {
         let start = Self.dateFormatter.string(from: trip.startDate)
         let end = Self.dateFormatter.string(from: trip.endDate)
-        return "\(start) – \(end) · \(trip.computedStatus.displayName)"
+        var text = "\(start) – \(end) · \(trip.computedStatus.displayName)"
+        if sharingState != .none { text += " · \(sharingLabel)" }
+        return text
+    }
+
+    // MARK: - Sharing Indicator
+
+    private var sharingPill: some View {
+        HStack(spacing: 4) {
+            Image(systemName: sharingState == .sharedByMe ? "person.2.fill" : "person.fill.checkmark")
+                .font(.system(size: 10, weight: .medium))
+            Text(sharingLabel)
+                .font(AppTheme.TextStyle.micro)
+        }
+        .foregroundStyle(AppTheme.onSurfaceVariant)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(AppTheme.onSurfaceVariant.opacity(0.10))
+        .clipShape(Capsule())
+    }
+
+    private var sharingLabel: String {
+        switch sharingState {
+        case .none:                    return ""
+        case .sharedByMe:              return "Shared by you"
+        case .sharedToMe(let name):    return "Shared by \(name)"
+        }
     }
 
     private var compactAccessibilityLabel: String {

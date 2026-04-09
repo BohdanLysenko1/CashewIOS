@@ -130,6 +130,18 @@ final class SupabaseSharingDataStore: SharingDataStoreProtocol {
         return rows.map(\.user)
     }
 
+    func fetchSharedByMeTripIds(userId: UUID) async throws -> Set<UUID> {
+        struct Row: Decodable { let trip_id: UUID }
+        let rows: [Row] = try await client
+            .from(SupabaseSchema.Table.tripShares)
+            .select("trip_id")
+            .eq("invited_by", value: userId.uuidString)
+            .not("accepted_at", operator: .is, value: "null")
+            .execute()
+            .value
+        return Set(rows.map(\.trip_id))
+    }
+
     func fetchUser(id: UUID) async throws -> AppUser {
         try await client
             .from(SupabaseSchema.Table.users)

@@ -121,14 +121,15 @@ final class TripService: TripServiceProtocol {
 
     // MARK: - Realtime Sync
 
-    func startRealtimeSync() {
+    func startRealtimeSync(ownerID: UUID) {
         guard syncTask == nil else { return }
 
+        let filter = "owner_id=eq.\(ownerID.uuidString)"
         let channel = SupabaseManager.client.channel("trips-sync")
-        // Register postgres changes synchronously before subscribing
-        let inserts = channel.postgresChange(InsertAction.self, schema: "public", table: "trips")
-        let updates = channel.postgresChange(UpdateAction.self, schema: "public", table: "trips")
-        let deletes = channel.postgresChange(DeleteAction.self, schema: "public", table: "trips")
+        // Register postgres changes synchronously before subscribing, filtered to this user's rows
+        let inserts = channel.postgresChange(InsertAction.self, schema: "public", table: "trips", filter: filter)
+        let updates = channel.postgresChange(UpdateAction.self, schema: "public", table: "trips", filter: filter)
+        let deletes = channel.postgresChange(DeleteAction.self, schema: "public", table: "trips", filter: filter)
         syncChannel = channel
 
         syncTask = Task {

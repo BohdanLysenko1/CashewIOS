@@ -24,5 +24,7 @@ protocol SharingDataStoreProtocol: AnyObject {
     func fetchTripCollaborators(tripId: UUID) async throws -> [AppUser]
     func fetchEventCollaborators(eventId: UUID) async throws -> [AppUser]
 
+    func fetchSharedByMeTripIds(userId: UUID) async throws -> Set<UUID>
+
     func fetchUser(id: UUID) async throws -> AppUser
 }

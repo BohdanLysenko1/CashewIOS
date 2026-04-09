@@ -16,6 +16,7 @@ struct EventDetailView: View {
     @State private var isGeneratingShare = false
     @State private var showCollaborators = false
     @State private var revealContent = false
+    @State private var hasCollaborators = false
 
     private var event: Event? {
         container.eventService.event(by: eventId)
@@ -25,6 +26,10 @@ struct EventDetailView: View {
         guard let event else { return false }
         guard let ownerId = event.ownerId else { return true }
         return ownerId == container.authService.currentUser?.id
+    }
+
+    private var canEdit: Bool {
+        event != nil
     }
 
     private func shouldShowSharedByBanner(for event: Event) -> Bool {
@@ -51,24 +56,29 @@ struct EventDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if event != nil {
+                if canEdit {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            Task { await generateShareLink() }
+                        } label: {
+                            if isGeneratingShare {
+                                ProgressView()
+                            } else {
+                                Image(systemName: "square.and.arrow.up")
+                            }
+                        }
+                        .disabled(isGeneratingShare)
+                    }
+                }
+
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
-                        if isOwner {
+                        if canEdit {
                             Button {
                                 showEditSheet = true
                             } label: {
                                 Label("Edit", systemImage: "pencil")
                             }
-
-                            Button {
-                                Task { await generateShareLink() }
-                            } label: {
-                                Label(
-                                    isGeneratingShare ? "Generating…" : "Share Event",
-                                    systemImage: "square.and.arrow.up"
-                                )
-                            }
-                            .disabled(isGeneratingShare)
                         }
 
                         Button {
@@ -108,7 +118,8 @@ struct EventDetailView: View {
             set: { if !$0 { shareURL = nil } }
         )) {
             if let url = shareURL {
-                ShareSheet(items: [url])
+                let eventTitle = event?.title ?? "an event"
+                ShareSheet(items: ["Join me for \(eventTitle) in Cashew — plan together in real time!", url])
                     .presentationDetents([.medium])
             }
         }
@@ -137,6 +148,11 @@ struct EventDetailView: View {
                 Text(error)
             }
         }
+        .task(id: eventId) {
+            guard isOwner, let event else { return }
+            let collaborators = (try? await container.shareService.fetchCollaborators(for: .event(event))) ?? []
+            hasCollaborators = !collaborators.isEmpty
+        }
     }
 
     // MARK: - Content
@@ -144,7 +160,11 @@ struct EventDetailView: View {
     private func eventContent(_ event: Event) -> some View {
         ScrollView {
             VStack(spacing: AppTheme.Space.md) {
-                if shouldShowSharedByBanner(for: event), let name = event.ownerName {
+                if isOwner && hasCollaborators {
+                    stagedCard(0) {
+                        sharingActiveOwnerBanner
+                    }
+                } else if shouldShowSharedByBanner(for: event), let name = event.ownerName {
                     stagedCard(0) {
                         sharedByBanner(name: name)
                     }
@@ -726,6 +746,22 @@ struct EventDetailView: View {
             showError = true
         }
         isGeneratingShare = false
+    }
+
+    private var sharingActiveOwnerBanner: some View {
+        HStack(spacing: AppTheme.Space.sm) {
+            Image(systemName: "person.2.fill")
+                .font(.caption)
+                .foregroundStyle(AppTheme.primary)
+            Text("You're sharing this event")
+                .font(AppTheme.TextStyle.captionBold)
+                .foregroundStyle(AppTheme.primary)
+            Spacer()
+        }
+        .padding(.horizontal, AppTheme.Space.md)
+        .padding(.vertical, AppTheme.Space.sm)
+        .background(AppTheme.primary.opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private func sharedByBanner(name: String) -> some View {

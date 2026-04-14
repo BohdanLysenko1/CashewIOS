@@ -1,10 +1,13 @@
 import SwiftUI
+import MapKit
 
 struct TripItineraryView: View {
     @Binding var trip: Trip
     let initialIntent: TripSectionIntent
     @State private var selectedDate: Date
     @State private var showAddActivity = false
+    @State private var showAIGenerator = false
+    @State private var showBudgetFromAI = false
     @State private var editingActivity: Activity?
     @State private var showBookedOnly = false
     @State private var didApplyInitialIntent = false
@@ -27,12 +30,23 @@ struct TripItineraryView: View {
         return dates
     }
 
+    private var mappableActivities: [Activity] {
+        displayedActivities.filter { $0.latitude != nil && $0.longitude != nil }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             dateSelector
 
             ScrollView {
                 VStack(spacing: AppTheme.Space.md) {
+                    if !mappableActivities.isEmpty {
+                        ItineraryMapView(activities: mappableActivities)
+                            .frame(height: 220)
+                            .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
+                            .padding(.horizontal, AppTheme.Space.lg)
+                    }
+
                     summaryCard
 
                     let activities = displayedActivities
@@ -49,7 +63,12 @@ struct TripItineraryView: View {
         }
         .navigationTitle("Itinerary")
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button {
+                    showAIGenerator = true
+                } label: {
+                    Image(systemName: "sparkles")
+                }
                 Button {
                     showAddActivity = true
                 } label: {
@@ -62,6 +81,14 @@ struct TripItineraryView: View {
         }
         .sheet(item: $editingActivity) { activity in
             ActivityFormView(trip: $trip, activity: activity, defaultDate: selectedDate)
+        }
+        .sheet(isPresented: $showAIGenerator) {
+            AIItineraryView(trip: $trip) {
+                showBudgetFromAI = true
+            }
+        }
+        .sheet(isPresented: $showBudgetFromAI) {
+            TripBudgetView(trip: $trip, initialIntent: .addExpense)
         }
         .onAppear {
             applyInitialIntentIfNeeded()
@@ -142,13 +169,24 @@ struct TripItineraryView: View {
                     .foregroundStyle(AppTheme.onSurfaceVariant)
             }
 
-            Button {
-                showAddActivity = true
-            } label: {
-                Label("Add Activity", systemImage: "plus")
-                    .fontWeight(.medium)
+            HStack(spacing: AppTheme.Space.sm) {
+                Button {
+                    showAddActivity = true
+                } label: {
+                    Label("Add Activity", systemImage: "plus")
+                        .fontWeight(.medium)
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button {
+                    showAIGenerator = true
+                } label: {
+                    Label("Generate with AI", systemImage: "sparkles")
+                        .fontWeight(.medium)
+                }
+                .buttonStyle(.bordered)
+                .tint(AppTheme.secondary)
             }
-            .buttonStyle(.borderedProminent)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 60)
@@ -610,6 +648,68 @@ struct ActivityFormView: View {
             )
             trip.activities.append(newActivity)
         }
+    }
+}
+
+// MARK: - Itinerary Map View
+
+private struct ItineraryMapView: View {
+    let activities: [Activity]
+
+    private var cameraPosition: MapCameraPosition {
+        let coords = activities.compactMap { a -> CLLocationCoordinate2D? in
+            guard let lat = a.latitude, let lon = a.longitude else { return nil }
+            return CLLocationCoordinate2D(latitude: lat, longitude: lon)
+        }
+        guard !coords.isEmpty else { return .automatic }
+
+        let lats = coords.map(\.latitude)
+        let lons = coords.map(\.longitude)
+        let centerLat = (lats.max()! + lats.min()!) / 2
+        let centerLon = (lons.max()! + lons.min()!) / 2
+        let spanLat = max((lats.max()! - lats.min()!) * 1.5, 0.02)
+        let spanLon = max((lons.max()! - lons.min()!) * 1.5, 0.02)
+
+        return .region(MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon),
+            span: MKCoordinateSpan(latitudeDelta: spanLat, longitudeDelta: spanLon)
+        ))
+    }
+
+    private var polylineCoords: [CLLocationCoordinate2D] {
+        activities.compactMap { a in
+            guard let lat = a.latitude, let lon = a.longitude else { return nil }
+            return CLLocationCoordinate2D(latitude: lat, longitude: lon)
+        }
+    }
+
+    var body: some View {
+        Map(position: .constant(cameraPosition)) {
+            if polylineCoords.count > 1 {
+                MapPolyline(coordinates: polylineCoords)
+                    .stroke(AppTheme.secondary.opacity(0.75), lineWidth: 2.5)
+            }
+            ForEach(Array(activities.enumerated()), id: \.element.id) { index, activity in
+                if let lat = activity.latitude, let lon = activity.longitude {
+                    Annotation(
+                        activity.title,
+                        coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon)
+                    ) {
+                        ZStack {
+                            Circle()
+                                .fill(AppTheme.tripGradient)
+                                .frame(width: 28, height: 28)
+                                .shadow(color: AppTheme.secondary.opacity(0.4), radius: 4, x: 0, y: 2)
+                            Text("\(index + 1)")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+                    }
+                }
+            }
+        }
+        .mapStyle(.standard(elevation: .flat))
+        .animation(.easeInOut(duration: 0.3), value: activities.map(\.id))
     }
 }
 

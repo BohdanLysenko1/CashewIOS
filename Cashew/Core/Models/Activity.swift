@@ -15,6 +15,8 @@ struct Activity: Identifiable, Codable, Equatable, Sendable {
     var isBooked: Bool
     var confirmationNumber: String
     var link: URL?
+    var latitude: Double?
+    var longitude: Double?
 
     init(
         id: UUID = UUID(),
@@ -30,7 +32,9 @@ struct Activity: Identifiable, Codable, Equatable, Sendable {
         currency: String = "USD",
         isBooked: Bool = false,
         confirmationNumber: String = "",
-        link: URL? = nil
+        link: URL? = nil,
+        latitude: Double? = nil,
+        longitude: Double? = nil
     ) {
         self.id = id
         self.title = title
@@ -46,6 +50,8 @@ struct Activity: Identifiable, Codable, Equatable, Sendable {
         self.isBooked = isBooked
         self.confirmationNumber = confirmationNumber
         self.link = link
+        self.latitude = latitude
+        self.longitude = longitude
     }
 }
 

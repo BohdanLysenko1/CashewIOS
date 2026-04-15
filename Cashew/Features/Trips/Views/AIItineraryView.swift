@@ -474,29 +474,80 @@ struct AIItineraryMapView: View {
         Map(position: .constant(cameraPosition)) {
             if polylineCoords.count > 1 {
                 MapPolyline(coordinates: polylineCoords)
-                    .stroke(AppTheme.secondary.opacity(0.75), lineWidth: 2.5)
+                    .stroke(
+                        AppTheme.secondary.opacity(0.18),
+                        style: StrokeStyle(lineWidth: 10, lineCap: .round, lineJoin: .round)
+                    )
+                MapPolyline(coordinates: polylineCoords)
+                    .stroke(
+                        AppTheme.tripGradient,
+                        style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round)
+                    )
             }
-            ForEach(Array(activities.enumerated()), id: \.element.id) { index, activity in
+            ForEach(activities, id: \.id) { activity in
                 if let lat = activity.latitude, let lon = activity.longitude {
                     Annotation(
                         activity.title,
-                        coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon)
+                        coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
+                        anchor: .bottom
                     ) {
-                        ZStack {
-                            Circle()
-                                .fill(AppTheme.tripGradient)
-                                .frame(width: 28, height: 28)
-                                .shadow(color: AppTheme.secondary.opacity(0.4), radius: 4, x: 0, y: 2)
-                            Text("\(index + 1)")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(.white)
-                        }
+                        Image("MapPinCashew")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 34, height: 44)
+                            .shadow(color: AppTheme.secondary.opacity(0.35), radius: 4, x: 0, y: 2)
+                            .accessibilityLabel(activity.title)
                     }
                 }
             }
         }
-        .mapStyle(.standard(elevation: .flat))
-        .animation(.easeInOut(duration: 0.3), value: activities.map(\.id))
+        .mapStyle(
+            .standard(
+                elevation: .realistic,
+                pointsOfInterest: .excludingAll,
+                showsTraffic: false
+            )
+        )
+        .overlay {
+            LinearGradient(
+                colors: [
+                    AppTheme.secondary.opacity(0.22),
+                    .clear,
+                    AppTheme.primary.opacity(0.18)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .blendMode(.softLight)
+            .allowsHitTesting(false)
+        }
+        .overlay(alignment: .topLeading) {
+            HStack(spacing: 6) {
+                Image(systemName: "wand.and.stars")
+                Text("AI Route")
+            }
+            .font(.caption2.weight(.bold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                Capsule()
+                    .fill(.black.opacity(0.38))
+            )
+            .padding(12)
+        }
+        .overlay(alignment: .bottomTrailing) {
+            Text("\(activities.count) places")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule()
+                        .fill(AppTheme.secondary.opacity(0.85))
+                )
+                .padding(12)
+        }
     }
 }
 

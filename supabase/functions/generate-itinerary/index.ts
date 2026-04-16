@@ -27,18 +27,24 @@ serve(async (req: Request) => {
       budgetAllocation,
       interests,
       existingActivityTitles,
+      targetDate,
     } = await req.json();
 
-    // Build a list of all trip dates
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const dates: string[] = [];
-    for (
-      const d = new Date(start);
-      d <= end;
-      d.setDate(d.getDate() + 1)
-    ) {
-      dates.push(d.toISOString().split("T")[0]);
+    // Build a list of trip dates (or just the target date)
+    let dates: string[];
+    if (targetDate) {
+      dates = [targetDate];
+    } else {
+      dates = [];
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      for (
+        const d = new Date(start);
+        d <= end;
+        d.setDate(d.getDate() + 1)
+      ) {
+        dates.push(d.toISOString().split("T")[0]);
+      }
     }
 
     const validCategories = [
@@ -70,11 +76,19 @@ serve(async (req: Request) => {
         ? existingActivityTitles.join(", ")
         : "none";
 
+    const dayContext = targetDate
+      ? `Generate activities for a SINGLE day (${targetDate}) of a trip to ${destination}${coordInfo}. This is a regeneration — create fresh, different suggestions.`
+      : `Generate a detailed day-by-day itinerary for a trip to ${destination}${coordInfo}.`;
+
+    const budgetContext = targetDate
+      ? `Budget for this day: ${Math.round(budgetAllocation / dates.length)} ${tripCurrency} (from total ${budgetAllocation} ${tripCurrency})`
+      : `Total budget allocation: ${budgetAllocation} ${tripCurrency}`;
+
     const prompt =
-      `You are an expert travel itinerary planner. Generate a detailed day-by-day itinerary for a trip to ${destination}${coordInfo}.
+      `You are an expert travel itinerary planner. ${dayContext}
 
 Trip dates: ${dates.join(", ")}
-Total budget allocation: ${budgetAllocation} ${tripCurrency}
+${budgetContext}
 Traveler interests: ${(interests as string[]).join(", ")}
 Activities already planned — do NOT duplicate these: ${alreadyPlanned}
 

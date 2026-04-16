@@ -227,6 +227,9 @@ struct Trip: Identifiable, Codable, Equatable, Sendable {
     func activitiesForDate(_ date: Date) -> [Activity] {
         let calendar = Calendar.current
         return activities.filter { calendar.isDate($0.date, inSameDayAs: date) }
-            .sorted { ($0.startTime ?? $0.date) < ($1.startTime ?? $1.date) }
+            .sorted {
+                if $0.sortOrder != $1.sortOrder { return $0.sortOrder < $1.sortOrder }
+                return ($0.startTime ?? $0.date) < ($1.startTime ?? $1.date)
+            }
     }
 }

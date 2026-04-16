@@ -17,6 +17,7 @@ struct Activity: Identifiable, Codable, Equatable, Sendable {
     var link: URL?
     var latitude: Double?
     var longitude: Double?
+    var sortOrder: Int
 
     init(
         id: UUID = UUID(),
@@ -34,7 +35,8 @@ struct Activity: Identifiable, Codable, Equatable, Sendable {
         confirmationNumber: String = "",
         link: URL? = nil,
         latitude: Double? = nil,
-        longitude: Double? = nil
+        longitude: Double? = nil,
+        sortOrder: Int = 0
     ) {
         self.id = id
         self.title = title
@@ -52,6 +54,34 @@ struct Activity: Identifiable, Codable, Equatable, Sendable {
         self.link = link
         self.latitude = latitude
         self.longitude = longitude
+        self.sortOrder = sortOrder
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, date, startTime, endTime, location, address
+        case notes, category, cost, currency, isBooked, confirmationNumber
+        case link, latitude, longitude, sortOrder
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        title = try container.decode(String.self, forKey: .title)
+        date = try container.decode(Date.self, forKey: .date)
+        startTime = try container.decodeIfPresent(Date.self, forKey: .startTime)
+        endTime = try container.decodeIfPresent(Date.self, forKey: .endTime)
+        location = try container.decode(String.self, forKey: .location)
+        address = try container.decode(String.self, forKey: .address)
+        notes = try container.decode(String.self, forKey: .notes)
+        category = try container.decode(ActivityCategory.self, forKey: .category)
+        cost = try container.decodeIfPresent(Decimal.self, forKey: .cost)
+        currency = try container.decode(String.self, forKey: .currency)
+        isBooked = try container.decode(Bool.self, forKey: .isBooked)
+        confirmationNumber = try container.decode(String.self, forKey: .confirmationNumber)
+        link = try container.decodeIfPresent(URL.self, forKey: .link)
+        latitude = try container.decodeIfPresent(Double.self, forKey: .latitude)
+        longitude = try container.decodeIfPresent(Double.self, forKey: .longitude)
+        sortOrder = try container.decodeIfPresent(Int.self, forKey: .sortOrder) ?? 0
     }
 }
 

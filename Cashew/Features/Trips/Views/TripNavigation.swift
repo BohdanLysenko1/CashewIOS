@@ -15,6 +15,7 @@ enum TripSectionIntent: Hashable {
     case addChecklistItem
     case reviewPacking
     case reviewChecklist
+    case generateAI
 }
 
 struct TripRoute: Hashable {

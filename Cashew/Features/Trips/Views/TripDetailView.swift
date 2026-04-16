@@ -363,6 +363,15 @@ struct TripDetailView: View {
     private var nextActionsCard: some View {
         sectionCard("Next Actions", icon: "bolt.fill") {
             VStack(spacing: AppTheme.Space.sm) {
+                if trip?.activities.isEmpty == true {
+                    actionLink(
+                        title: "Generate AI Itinerary",
+                        subtitle: "Create a personalized plan with Gemini",
+                        icon: "sparkles",
+                        tint: AppTheme.secondary,
+                        route: TripRoute(section: .itinerary, intent: .generateAI)
+                    )
+                }
                 actionLink(
                     title: "Add Itinerary Activity",
                     subtitle: "Drop the next stop into your timeline",

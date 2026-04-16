@@ -22,6 +22,7 @@ final class AIItineraryViewModel {
     var phase: Phase = .configure
     var selectedIDs: Set<String> = []
     var selectedMapDay: String? = nil  // "YYYY-MM-DD" or nil = show all days
+    var regeneratingDay: String? = nil // date string currently being regenerated
 
     private let service: AIItineraryServiceProtocol
     let trip: Trip
@@ -118,6 +119,44 @@ final class AIItineraryViewModel {
             .filter { selectedIDs.contains($0.id) }
             .map { $0.toActivity(tripStartDate: trip.startDate, tripCurrency: trip.currency) }
     }
+
+    @MainActor
+    func regenerateDay(_ dateString: String) async {
+        regeneratingDay = dateString
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+
+        var request = AIItineraryRequest(
+            destination: trip.destination,
+            destinationLatitude: trip.destinationLatitude,
+            destinationLongitude: trip.destinationLongitude,
+            startDate: fmt.string(from: trip.startDate),
+            endDate: fmt.string(from: trip.endDate),
+            tripCurrency: trip.currency,
+            budgetAllocation: budgetAllocation,
+            interests: Array(selectedInterests),
+            existingActivityTitles: trip.activities.map(\.title)
+        )
+        request.targetDate = dateString
+
+        do {
+            let response = try await service.generateItinerary(request: request)
+
+            // Remove old activities for this day, keep others
+            guard case .review(let current) = phase else { return }
+            let kept = current.filter { $0.date != dateString }
+            let merged = kept + response.activities
+
+            // Select new activities
+            for a in response.activities { selectedIDs.insert(a.id) }
+
+            phase = .review(merged)
+        } catch {
+            // Don't replace the whole phase on single-day failure
+        }
+
+        regeneratingDay = nil
+    }
 }
 
 // MARK: - Main View
@@ -126,6 +165,7 @@ struct AIItineraryView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var trip: Trip
     @State private var viewModel: AIItineraryViewModel
+    @State private var selectedAIActivity: AIActivity?
     let onGoToBudget: () -> Void
 
     init(trip: Binding<Trip>, onGoToBudget: @escaping () -> Void) {
@@ -162,6 +202,13 @@ struct AIItineraryView: View {
             if !viewModel.hasBudget {
                 viewModel.phase = .noBudget
             }
+        }
+        .sheet(item: $selectedAIActivity) { aiActivity in
+            ActivityDetailView(
+                activity: aiActivity.toActivity(tripStartDate: viewModel.trip.startDate, tripCurrency: viewModel.trip.currency),
+                trip: $trip,
+                isReadOnly: true
+            )
         }
     }
 
@@ -285,7 +332,9 @@ struct AIItineraryView: View {
     private var reviewPhase: some View {
         VStack(spacing: 0) {
             // Map
-            AIItineraryMapView(activities: viewModel.visibleMapActivities)
+            AIItineraryMapView(activities: viewModel.visibleMapActivities) { activity in
+                selectedAIActivity = activity
+            }
                 .frame(height: 260)
 
             // Day filter pills
@@ -319,12 +368,36 @@ struct AIItineraryView: View {
                     ForEach(viewModel.activitiesByDay, id: \.date) { group in
                         TripSectionCard(formattedDayLabel(group.date), icon: "calendar") {
                             VStack(spacing: AppTheme.Space.sm) {
-                                ForEach(group.items) { activity in
-                                    AIActivityRow(
-                                        activity: activity,
-                                        isSelected: viewModel.selectedIDs.contains(activity.id),
-                                        onToggle: { viewModel.toggleActivity(activity) }
-                                    )
+                                if viewModel.regeneratingDay == group.date {
+                                    HStack(spacing: 8) {
+                                        ProgressView()
+                                            .tint(AppTheme.secondary)
+                                        Text("Regenerating...")
+                                            .font(AppTheme.TextStyle.caption)
+                                            .foregroundStyle(AppTheme.onSurfaceVariant)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, AppTheme.Space.lg)
+                                } else {
+                                    ForEach(group.items) { activity in
+                                        AIActivityRow(
+                                            activity: activity,
+                                            isSelected: viewModel.selectedIDs.contains(activity.id),
+                                            onToggle: { viewModel.toggleActivity(activity) },
+                                            onTap: { selectedAIActivity = activity }
+                                        )
+                                    }
+
+                                    Button {
+                                        Task { await viewModel.regenerateDay(group.date) }
+                                    } label: {
+                                        Label("Regenerate this day", systemImage: "arrow.trianglehead.2.clockwise")
+                                            .font(AppTheme.TextStyle.caption)
+                                            .foregroundStyle(AppTheme.secondary)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .frame(maxWidth: .infinity, alignment: .trailing)
+                                    .padding(.top, 4)
                                 }
                             }
                         }
@@ -351,7 +424,7 @@ struct AIItineraryView: View {
     private func dayFilterPill(date: String?, label: String) -> some View {
         let isSelected = viewModel.selectedMapDay == date
         return Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
                 viewModel.selectedMapDay = date
             }
         } label: {
@@ -442,8 +515,11 @@ struct AIItineraryView: View {
 
 struct AIItineraryMapView: View {
     let activities: [AIActivity]
+    var onPinTapped: ((AIActivity) -> Void)?
 
-    private var cameraPosition: MapCameraPosition {
+    @State private var cameraPos: MapCameraPosition = .automatic
+
+    private var computedPosition: MapCameraPosition {
         let coords = activities.compactMap { a -> CLLocationCoordinate2D? in
             guard let lat = a.latitude, let lon = a.longitude else { return nil }
             return CLLocationCoordinate2D(latitude: lat, longitude: lon)
@@ -471,7 +547,7 @@ struct AIItineraryMapView: View {
     }
 
     var body: some View {
-        Map(position: .constant(cameraPosition)) {
+        Map(position: $cameraPos) {
             if polylineCoords.count > 1 {
                 MapPolyline(coordinates: polylineCoords)
                     .stroke(
@@ -484,19 +560,20 @@ struct AIItineraryMapView: View {
                         style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round)
                     )
             }
-            ForEach(activities, id: \.id) { activity in
+            ForEach(Array(activities.enumerated()), id: \.element.id) { index, activity in
                 if let lat = activity.latitude, let lon = activity.longitude {
                     Annotation(
                         activity.title,
                         coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
                         anchor: .bottom
                     ) {
-                        Image("MapPinCashew")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 34, height: 44)
-                            .shadow(color: AppTheme.secondary.opacity(0.35), radius: 4, x: 0, y: 2)
-                            .accessibilityLabel(activity.title)
+                        Button {
+                            onPinTapped?(activity)
+                        } label: {
+                            NumberedMapPin(index: index + 1)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(activity.title)
                     }
                 }
             }
@@ -508,6 +585,8 @@ struct AIItineraryMapView: View {
                 showsTraffic: false
             )
         )
+        .onAppear { cameraPos = computedPosition }
+        .onChange(of: activities) { _, _ in cameraPos = computedPosition }
         .overlay {
             LinearGradient(
                 colors: [
@@ -557,30 +636,56 @@ private struct AIActivityRow: View {
     let activity: AIActivity
     let isSelected: Bool
     let onToggle: () -> Void
+    let onTap: () -> Void
+
+    private var category: ActivityCategory {
+        ActivityCategory(rawValue: activity.category) ?? .activity
+    }
+
+    private var formattedTime: String? {
+        guard let st = activity.startTime else { return nil }
+        let start = Self.formatTime(st)
+        if let et = activity.endTime {
+            return "\(start) – \(Self.formatTime(et))"
+        }
+        return start
+    }
+
+    private static func formatTime(_ raw: String) -> String {
+        let parts = raw.split(separator: ":").compactMap { Int($0) }
+        guard parts.count >= 2 else { return raw }
+        let hour = parts[0]
+        let minute = parts[1]
+        let period = hour >= 12 ? "PM" : "AM"
+        let displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour)
+        return minute == 0
+            ? "\(displayHour) \(period)"
+            : "\(displayHour):\(String(format: "%02d", minute)) \(period)"
+    }
 
     var body: some View {
-        Button(action: onToggle) {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 22))
-                    .foregroundStyle(isSelected ? AppTheme.secondary : AppTheme.onSurfaceVariant)
+        HStack(spacing: 0) {
+            // Accent bar
+            RoundedRectangle(cornerRadius: 2)
+                .fill(category.color.gradient)
+                .frame(width: 3)
+                .padding(.vertical, 4)
 
-                let category = ActivityCategory(rawValue: activity.category) ?? .activity
+            HStack(alignment: .top, spacing: 10) {
                 Image(systemName: category.icon)
                     .font(.system(size: 13))
                     .foregroundStyle(.white)
-                    .frame(width: 26, height: 26)
+                    .frame(width: 28, height: 28)
                     .background(category.color.gradient)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .clipShape(RoundedRectangle(cornerRadius: 7))
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text(activity.title)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(AppTheme.onSurface)
 
-                    if let st = activity.startTime {
-                        let timeLabel = activity.endTime.map { "\(st) – \($0)" } ?? st
-                        Label(timeLabel, systemImage: "clock")
+                    if let time = formattedTime {
+                        Label(time, systemImage: "clock")
                             .font(.caption)
                             .foregroundStyle(AppTheme.onSurfaceVariant)
                     }
@@ -607,12 +712,48 @@ private struct AIActivityRow: View {
                 }
 
                 Spacer(minLength: 0)
+
+                VStack(spacing: 8) {
+                    Button(action: onToggle) {
+                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 22))
+                            .foregroundStyle(isSelected ? AppTheme.secondary : AppTheme.onSurfaceVariant)
+                    }
+                    .buttonStyle(.plain)
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(AppTheme.onSurfaceVariant.opacity(0.4))
+                }
             }
-            .padding(12)
-            .tripSoftSurface()
-            .opacity(isSelected ? 1.0 : 0.5)
+            .padding(.leading, 10)
+            .padding(.trailing, 12)
+            .padding(.vertical, 14)
         }
-        .buttonStyle(.plain)
+        .tripSoftSurface()
+        .opacity(isSelected ? 1.0 : 0.5)
+        .contentShape(Rectangle())
+        .onTapGesture { onTap() }
         .animation(.easeInOut(duration: 0.15), value: isSelected)
+    }
+}
+
+// MARK: - Numbered Map Pin
+
+struct NumberedMapPin: View {
+    let index: Int
+
+    var body: some View {
+        ZStack {
+            Image(systemName: "mappin.circle.fill")
+                .font(.system(size: 30))
+                .foregroundStyle(AppTheme.secondary)
+                .shadow(color: AppTheme.secondary.opacity(0.35), radius: 4, x: 0, y: 2)
+
+            Text("\(index)")
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+                .offset(y: -1)
+        }
     }
 }

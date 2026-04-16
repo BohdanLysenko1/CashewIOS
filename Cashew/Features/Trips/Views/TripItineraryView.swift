@@ -10,6 +10,8 @@ struct TripItineraryView: View {
     @State private var showBudgetFromAI = false
     @State private var editingActivity: Activity?
     @State private var showBookedOnly = false
+    @State private var selectedActivity: Activity?
+    @State private var showShareSheet = false
     @State private var didApplyInitialIntent = false
 
     init(trip: Binding<Trip>, initialIntent: TripSectionIntent = .overview) {
@@ -41,7 +43,9 @@ struct TripItineraryView: View {
             ScrollView {
                 VStack(spacing: AppTheme.Space.md) {
                     if !mappableActivities.isEmpty {
-                        ItineraryMapView(activities: mappableActivities)
+                        ItineraryMapView(activities: mappableActivities) { activity in
+                            selectedActivity = activity
+                        }
                             .frame(height: 220)
                             .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
                             .padding(.horizontal, AppTheme.Space.lg)
@@ -49,11 +53,15 @@ struct TripItineraryView: View {
 
                     summaryCard
 
-                    let activities = displayedActivities
-                    if activities.isEmpty {
-                        emptyDayView
+                    if trip.activities.isEmpty {
+                        aiPromptCard
                     } else {
-                        dayScheduleView(activities: activities)
+                        let activities = displayedActivities
+                        if activities.isEmpty {
+                            emptyDayView
+                        } else {
+                            dayScheduleView(activities: activities)
+                        }
                     }
                 }
                 .padding(.horizontal, AppTheme.Space.lg)
@@ -64,6 +72,13 @@ struct TripItineraryView: View {
         .navigationTitle("Itinerary")
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
+                if !trip.activities.isEmpty {
+                    Button {
+                        showShareSheet = true
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                }
                 Button {
                     showAIGenerator = true
                 } label: {
@@ -75,6 +90,9 @@ struct TripItineraryView: View {
                     Image(systemName: "plus")
                 }
             }
+        }
+        .sheet(isPresented: $showShareSheet) {
+            ShareSheet(items: [formatItineraryForShare()])
         }
         .sheet(isPresented: $showAddActivity) {
             ActivityFormView(trip: $trip, activity: nil, defaultDate: selectedDate)
@@ -89,6 +107,9 @@ struct TripItineraryView: View {
         }
         .sheet(isPresented: $showBudgetFromAI) {
             TripBudgetView(trip: $trip, initialIntent: .addExpense)
+        }
+        .sheet(item: $selectedActivity) { activity in
+            ActivityDetailView(activity: activity, trip: $trip)
         }
         .onAppear {
             applyInitialIntentIfNeeded()
@@ -194,6 +215,61 @@ struct TripItineraryView: View {
         .tripModuleCard()
     }
 
+    // MARK: - AI Prompt Card
+
+    private var aiPromptCard: some View {
+        VStack(spacing: AppTheme.Space.lg) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 48))
+                .foregroundStyle(AppTheme.tripGradient)
+
+            VStack(spacing: 6) {
+                Text("Plan Your Itinerary with AI")
+                    .font(.headline)
+
+                Text("Let Gemini create a personalized day-by-day itinerary based on your interests and budget")
+                    .font(.subheadline)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
+                    .multilineTextAlignment(.center)
+            }
+
+            HStack(spacing: 8) {
+                Label(
+                    "\(trip.startDate.formatted(date: .abbreviated, time: .omitted)) – \(trip.endDate.formatted(date: .abbreviated, time: .omitted))",
+                    systemImage: "calendar"
+                )
+                .font(AppTheme.TextStyle.caption)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(AppTheme.surfaceContainerLow)
+                .clipShape(Capsule())
+            }
+
+            Button {
+                showAIGenerator = true
+            } label: {
+                Label("Generate AI Itinerary", systemImage: "sparkles")
+                    .fontWeight(.semibold)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(AppTheme.secondary)
+
+            Button {
+                showAddActivity = true
+            } label: {
+                Text("or add activities manually")
+                    .font(AppTheme.TextStyle.caption)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+        .padding(.horizontal, AppTheme.Space.lg)
+        .tripModuleCard()
+    }
+
     // MARK: - Day Schedule
 
     private func dayScheduleView(activities: [Activity]) -> some View {
@@ -201,11 +277,28 @@ struct TripItineraryView: View {
             VStack(spacing: AppTheme.Space.sm) {
                 ForEach(activities) { activity in
                     ActivityCard(activity: activity) {
+                        selectedActivity = activity
+                    } onEdit: {
                         editingActivity = activity
                     } onDelete: {
                         deleteActivity(activity)
                     }
                 }
+                .onMove { source, destination in
+                    moveActivities(from: source, to: destination)
+                }
+            }
+        }
+    }
+
+    private func moveActivities(from source: IndexSet, to destination: Int) {
+        var dayActivities = displayedActivities
+        dayActivities.move(fromOffsets: source, toOffset: destination)
+
+        // Update sortOrder for all reordered activities
+        for (index, activity) in dayActivities.enumerated() {
+            if let tripIndex = trip.activities.firstIndex(where: { $0.id == activity.id }) {
+                trip.activities[tripIndex].sortOrder = index
             }
         }
     }
@@ -214,12 +307,52 @@ struct TripItineraryView: View {
         trip.activities.removeAll { $0.id == activity.id }
     }
 
+    private func formatItineraryForShare() -> String {
+        let timeFormatter = DateFormatter()
+        timeFormatter.timeStyle = .short
+
+        var lines: [String] = []
+        lines.append("\(trip.name) — Itinerary")
+        lines.append("\(trip.destination)")
+        lines.append("\(trip.startDate.formatted(date: .long, time: .omitted)) – \(trip.endDate.formatted(date: .long, time: .omitted))")
+        lines.append("")
+
+        for date in tripDates {
+            let dayActivities = trip.activitiesForDate(date)
+            guard !dayActivities.isEmpty else { continue }
+
+            lines.append(date.formatted(date: .long, time: .omitted))
+            lines.append(String(repeating: "─", count: 30))
+
+            for activity in dayActivities {
+                var timeStr = ""
+                if let start = activity.startTime {
+                    timeStr = timeFormatter.string(from: start)
+                    if let end = activity.endTime {
+                        timeStr += " – \(timeFormatter.string(from: end))"
+                    }
+                    timeStr += "  "
+                }
+                let location = activity.location.isEmpty ? "" : " @ \(activity.location)"
+                lines.append("\(timeStr)\(activity.title) (\(activity.category.displayName))\(location)")
+            }
+            lines.append("")
+        }
+
+        return lines.joined(separator: "\n")
+    }
+
     private func applyInitialIntentIfNeeded() {
         guard !didApplyInitialIntent else { return }
         didApplyInitialIntent = true
 
-        if initialIntent == .addActivity {
+        switch initialIntent {
+        case .addActivity:
             showAddActivity = true
+        case .generateAI:
+            showAIGenerator = true
+        default:
+            break
         }
     }
 }
@@ -277,6 +410,7 @@ private struct DateTab: View {
 
 private struct ActivityCard: View {
     let activity: Activity
+    let onTap: () -> Void
     let onEdit: () -> Void
     let onDelete: () -> Void
 
@@ -366,6 +500,8 @@ private struct ActivityCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .tripSoftSurface()
         }
+        .contentShape(Rectangle())
+        .onTapGesture { onTap() }
         .contextMenu {
             Button { onEdit() } label: {
                 Label("Edit", systemImage: "pencil")
@@ -655,8 +791,11 @@ struct ActivityFormView: View {
 
 private struct ItineraryMapView: View {
     let activities: [Activity]
+    var onPinTapped: ((Activity) -> Void)?
 
-    private var cameraPosition: MapCameraPosition {
+    @State private var cameraPos: MapCameraPosition = .automatic
+
+    private var computedPosition: MapCameraPosition {
         let coords = activities.compactMap { a -> CLLocationCoordinate2D? in
             guard let lat = a.latitude, let lon = a.longitude else { return nil }
             return CLLocationCoordinate2D(latitude: lat, longitude: lon)
@@ -684,7 +823,7 @@ private struct ItineraryMapView: View {
     }
 
     var body: some View {
-        Map(position: .constant(cameraPosition)) {
+        Map(position: $cameraPos) {
             if polylineCoords.count > 1 {
                 MapPolyline(coordinates: polylineCoords)
                     .stroke(
@@ -697,19 +836,20 @@ private struct ItineraryMapView: View {
                         style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round)
                     )
             }
-            ForEach(activities, id: \.id) { activity in
+            ForEach(Array(activities.enumerated()), id: \.element.id) { index, activity in
                 if let lat = activity.latitude, let lon = activity.longitude {
                     Annotation(
                         activity.title,
                         coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
                         anchor: .bottom
                     ) {
-                        Image("MapPinCashew")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 34, height: 44)
-                            .shadow(color: AppTheme.secondary.opacity(0.35), radius: 4, x: 0, y: 2)
-                            .accessibilityLabel(activity.title)
+                        Button {
+                            onPinTapped?(activity)
+                        } label: {
+                            NumberedMapPin(index: index + 1)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(activity.title)
                     }
                 }
             }
@@ -721,6 +861,8 @@ private struct ItineraryMapView: View {
                 showsTraffic: false
             )
         )
+        .onAppear { cameraPos = computedPosition }
+        .onChange(of: activities) { _, _ in cameraPos = computedPosition }
         .overlay {
             LinearGradient(
                 colors: [

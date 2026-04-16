@@ -13,6 +13,7 @@ struct AIItineraryRequest: Encodable {
     let budgetAllocation: Double
     let interests: [String]
     let existingActivityTitles: [String]
+    var targetDate: String?  // When set, regenerate only this day
 }
 
 // MARK: - Response
@@ -21,7 +22,9 @@ struct AIItineraryResponse: Decodable {
     let activities: [AIActivity]
 }
 
-struct AIActivity: Decodable, Identifiable {
+struct AIActivity: Decodable, Identifiable, Hashable {
+    static func == (lhs: AIActivity, rhs: AIActivity) -> Bool { lhs.id == rhs.id }
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
     // Composite key — Gemini returns no IDs
     var id: String { "\(date)-\(title)-\(startTime ?? "")" }
 

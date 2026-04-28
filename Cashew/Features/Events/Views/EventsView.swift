@@ -369,11 +369,9 @@ struct EventsView: View {
                 showAddEvent = true
             } label: {
                 Label("Create Event", systemImage: "plus")
-                    .fontWeight(.semibold)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
+                    .primaryActionButton(gradient: AppTheme.eventGradient, fullWidth: false)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.plain)
         }
         .padding()
     }
@@ -416,10 +414,13 @@ struct EventsView: View {
         } description: {
             Text(error.localizedDescription)
         } actions: {
-            Button("Retry") {
+            Button {
                 Task { await loadEvents() }
+            } label: {
+                Text("Retry")
+                    .secondaryActionButton(fullWidth: false)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.plain)
         }
     }
 

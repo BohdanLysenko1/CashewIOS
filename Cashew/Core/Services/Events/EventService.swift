@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import os
 import Supabase
 
 @Observable
@@ -80,7 +81,7 @@ final class EventService: EventServiceProtocol {
                 events = try await repository.fetchAll()
                 sortEvents()
             } catch {
-                print("[EventService] Failed to refresh events for notifications: \(error)")
+                Log.eventService.error("Failed to refresh events for notifications: \(error)")
                 return
             }
         }
@@ -106,11 +107,13 @@ final class EventService: EventServiceProtocol {
 
     // MARK: - Realtime Sync
 
+    private static let realtimeChannel = "events-sync"
+
     func startRealtimeSync(ownerID: UUID) {
         guard syncTask == nil else { return }
 
-        let filter = "owner_id=eq.\(ownerID.uuidString)"
-        let channel = SupabaseManager.client.channel("events-sync")
+        let filter: RealtimePostgresFilter = .eq("owner_id", value: ownerID)
+        let channel = SupabaseManager.client.channel(Self.realtimeChannel)
         // Register postgres changes synchronously before subscribing, filtered to this user's rows
         let inserts = channel.postgresChange(InsertAction.self, schema: "public", table: "events", filter: filter)
         let updates = channel.postgresChange(UpdateAction.self, schema: "public", table: "events", filter: filter)
@@ -121,7 +124,7 @@ final class EventService: EventServiceProtocol {
             do {
                 try await channel.subscribeWithError()
             } catch {
-                print("[EventService] Realtime subscription failed: \(error)")
+                Log.eventService.error("Realtime subscription failed: \(error)")
                 return
             }
 
@@ -156,7 +159,7 @@ final class EventService: EventServiceProtocol {
                 announceRealtimeChange("New shared event added", changedId: id)
             }
         } catch {
-            print("[EventService] Failed to fetch inserted event \(id): \(error)")
+            Log.eventService.error("Failed to fetch inserted event \(id): \(error)")
         }
     }
 
@@ -175,7 +178,7 @@ final class EventService: EventServiceProtocol {
                 announceRealtimeChange("Event updated by collaborator", changedId: id)
             }
         } catch {
-            print("[EventService] Failed to fetch updated event \(id): \(error)")
+            Log.eventService.error("Failed to fetch updated event \(id): \(error)")
         }
     }
 

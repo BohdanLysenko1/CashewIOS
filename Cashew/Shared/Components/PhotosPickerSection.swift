@@ -5,7 +5,7 @@ import PhotosUI
 
 struct PhotoViewerState: Identifiable {
     let id = UUID()
-    let images: [UIImage]
+    let attachments: [Attachment]
     let startIndex: Int
 }
 
@@ -23,16 +23,16 @@ struct PhotosPickerSection: View {
 
     private let tileSize: CGFloat = 90
 
+    private var displayableAttachments: [Attachment] {
+        photoAttachments.filter { $0.type == .image && ($0.localPath != nil || $0.storagePath != nil) }
+    }
+
     var body: some View {
         Section {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
-                    ForEach(photoAttachments.indices, id: \.self) { index in
-                        let attachment = photoAttachments[index]
-                        if let filename = attachment.localPath,
-                           let image = ImageStore.load(filename: filename) {
-                            photoTile(image: image, attachment: attachment, index: index)
-                        }
+                    ForEach(displayableAttachments.indices, id: \.self) { index in
+                        photoTile(attachment: displayableAttachments[index], index: index)
                     }
 
                     addTile
@@ -57,20 +57,18 @@ struct PhotosPickerSection: View {
             }
         }
         .fullScreenCover(item: $viewerState) { state in
-            FullScreenPhotoView(images: state.images, startIndex: state.startIndex)
+            FullScreenPhotoView(attachments: state.attachments, startIndex: state.startIndex)
         }
     }
 
     // MARK: - Photo Tile
 
-    private func photoTile(image: UIImage, attachment: Attachment, index: Int) -> some View {
+    private func photoTile(attachment: Attachment, index: Int) -> some View {
         ZStack(alignment: .topTrailing) {
             Button {
                 openViewer(startingAt: index)
             } label: {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
+                AttachmentImageView(attachment: attachment, contentMode: .fill)
                     .frame(width: tileSize, height: tileSize)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .shadow(color: .black.opacity(0.12), radius: 4, x: 0, y: 2)
@@ -144,16 +142,9 @@ struct PhotosPickerSection: View {
     // MARK: - Actions
 
     private func openViewer(startingAt attachmentIndex: Int) {
-        var images: [UIImage] = []
-        var targetImageIndex = 0
-        for (i, attachment) in photoAttachments.enumerated() {
-            guard let filename = attachment.localPath,
-                  let image = ImageStore.load(filename: filename) else { continue }
-            if i == attachmentIndex { targetImageIndex = images.count }
-            images.append(image)
-        }
-        guard !images.isEmpty else { return }
-        viewerState = PhotoViewerState(images: images, startIndex: targetImageIndex)
+        let attachments = displayableAttachments
+        guard !attachments.isEmpty, attachments.indices.contains(attachmentIndex) else { return }
+        viewerState = PhotoViewerState(attachments: attachments, startIndex: attachmentIndex)
     }
 
     private func removePhoto(_ attachment: Attachment) {
@@ -186,10 +177,10 @@ extension UIImage: @retroactive Identifiable {
     public var id: ObjectIdentifier { ObjectIdentifier(self) }
 }
 
-// MARK: - Zoomable Image View
+// MARK: - Zoomable Attachment View
 
-private struct ZoomableImageView: View {
-    let image: UIImage
+private struct ZoomableAttachmentView: View {
+    let attachment: Attachment
 
     @State private var scale: CGFloat = 1
     @State private var lastScale: CGFloat = 1
@@ -197,65 +188,69 @@ private struct ZoomableImageView: View {
     @State private var lastOffset: CGSize = .zero
 
     var body: some View {
-        Image(uiImage: image)
-            .resizable()
-            .scaledToFit()
-            .scaleEffect(scale)
-            .offset(offset)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .simultaneousGesture(
-                MagnificationGesture()
-                    .onChanged { value in
-                        scale = lastScale * value
-                    }
-                    .onEnded { _ in
-                        if scale < 1 {
-                            withAnimation(.spring()) {
-                                scale = 1; lastScale = 1
-                                offset = .zero; lastOffset = .zero
-                            }
-                        } else {
-                            lastScale = scale
+        AttachmentImageView(attachment: attachment, contentMode: .fit) {
+            ProgressView().tint(.white)
+        }
+        .scaleEffect(scale)
+        .offset(offset)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .simultaneousGesture(
+            MagnificationGesture()
+                .onChanged { value in
+                    scale = lastScale * value
+                }
+                .onEnded { _ in
+                    if scale < 1 {
+                        withAnimation(.spring()) {
+                            scale = 1; lastScale = 1
+                            offset = .zero; lastOffset = .zero
                         }
-                    }
-            )
-            .simultaneousGesture(
-                DragGesture()
-                    .onChanged { value in
-                        offset = CGSize(
-                            width: lastOffset.width + value.translation.width,
-                            height: lastOffset.height + value.translation.height
-                        )
-                    }
-                    .onEnded { _ in
-                        lastOffset = offset
-                    },
-                including: scale > 1 ? .all : .subviews
-            )
-            .onTapGesture(count: 2) {
-                withAnimation(.spring()) {
-                    if scale > 1 {
-                        scale = 1; lastScale = 1
-                        offset = .zero; lastOffset = .zero
                     } else {
-                        scale = 2; lastScale = 2
+                        lastScale = scale
                     }
                 }
+        )
+        .simultaneousGesture(
+            DragGesture()
+                .onChanged { value in
+                    offset = CGSize(
+                        width: lastOffset.width + value.translation.width,
+                        height: lastOffset.height + value.translation.height
+                    )
+                }
+                .onEnded { _ in
+                    lastOffset = offset
+                },
+            including: scale > 1 ? .all : .subviews
+        )
+        .onTapGesture(count: 2) {
+            withAnimation(.spring()) {
+                if scale > 1 {
+                    scale = 1; lastScale = 1
+                    offset = .zero; lastOffset = .zero
+                } else {
+                    scale = 2; lastScale = 2
+                }
             }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Photo")
+        .accessibilityHint("Pinch to zoom, drag to pan, double-tap to toggle zoom")
+        .accessibilityAddTraits(.isImage)
     }
 }
 
 // MARK: - Full-Screen Photo Viewer
 
 struct FullScreenPhotoView: View {
-    let images: [UIImage]
+    let attachments: [Attachment]
     let startIndex: Int
 
     @Environment(\.dismiss) private var dismiss
     @State private var currentIndex: Int
 
-    init(images: [UIImage], startIndex: Int = 0) {
-        self.images = images
+    init(attachments: [Attachment], startIndex: Int = 0) {
+        self.attachments = attachments
         self.startIndex = startIndex
         _currentIndex = State(initialValue: startIndex)
     }
@@ -265,8 +260,8 @@ struct FullScreenPhotoView: View {
             Color.black.ignoresSafeArea()
 
             TabView(selection: $currentIndex) {
-                ForEach(images.indices, id: \.self) { index in
-                    ZoomableImageView(image: images[index])
+                ForEach(attachments.indices, id: \.self) { index in
+                    ZoomableAttachmentView(attachment: attachments[index])
                         .tag(index)
                 }
             }
@@ -275,8 +270,8 @@ struct FullScreenPhotoView: View {
         }
         .overlay(alignment: .top) {
             HStack {
-                if images.count > 1 {
-                    Text("\(currentIndex + 1) / \(images.count)")
+                if attachments.count > 1 {
+                    Text("\(currentIndex + 1) / \(attachments.count)")
                         .font(.subheadline)
                         .fontWeight(.medium)
                         .foregroundStyle(.white)

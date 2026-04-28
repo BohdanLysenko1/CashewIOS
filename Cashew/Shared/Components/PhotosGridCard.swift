@@ -9,14 +9,7 @@ struct PhotosGridCard: View {
     @State private var viewerState: PhotoViewerState?
 
     private var photoAttachments: [Attachment] {
-        attachments.filter { $0.type == .image && $0.localPath != nil }
-    }
-
-    private var allImages: [UIImage] {
-        photoAttachments.compactMap { attachment in
-            guard let filename = attachment.localPath else { return nil }
-            return ImageStore.load(filename: filename)
-        }
+        attachments.filter { $0.type == .image && ($0.localPath != nil || $0.storagePath != nil) }
     }
 
     var body: some View {
@@ -35,7 +28,7 @@ struct PhotosGridCard: View {
             .background(AppTheme.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
             .fullScreenCover(item: $viewerState) { state in
-                FullScreenPhotoView(images: state.images, startIndex: state.startIndex)
+                FullScreenPhotoView(attachments: state.attachments, startIndex: state.startIndex)
             }
         }
     }
@@ -65,8 +58,8 @@ struct PhotosGridCard: View {
 
     private var singlePhotoView: some View {
         Group {
-            if let image = allImages.first {
-                photoButton(image: image, index: 0)
+            if let attachment = photoAttachments.first {
+                photoButton(attachment: attachment, index: 0)
                     .frame(maxWidth: .infinity)
                     .frame(height: 220)
                     .clipped()
@@ -85,14 +78,14 @@ struct PhotosGridCard: View {
     // MARK: - Compact Grid (2–4 photos)
 
     private var compactGridView: some View {
-        let total = allImages.count
+        let total = photoAttachments.count
         let columns = total == 2
             ? [GridItem(.flexible(), spacing: 2), GridItem(.flexible(), spacing: 2)]
             : [GridItem(.flexible(), spacing: 2), GridItem(.flexible(), spacing: 2), GridItem(.flexible(), spacing: 2)]
 
         return LazyVGrid(columns: columns, spacing: 2) {
-            ForEach(allImages.indices, id: \.self) { index in
-                photoButton(image: allImages[index], index: index)
+            ForEach(photoAttachments.indices, id: \.self) { index in
+                photoButton(attachment: photoAttachments[index], index: index)
                     .frame(height: total == 2 ? 160 : 120)
                     .clipped()
                     .clipShape(bottomCorners(for: index, total: total))
@@ -104,8 +97,8 @@ struct PhotosGridCard: View {
 
     private var scrollableView: some View {
         VStack(spacing: 2) {
-            if let first = allImages.first {
-                photoButton(image: first, index: 0)
+            if let first = photoAttachments.first {
+                photoButton(attachment: first, index: 0)
                     .frame(maxWidth: .infinity)
                     .frame(height: 200)
                     .clipped()
@@ -113,8 +106,8 @@ struct PhotosGridCard: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 2) {
-                    ForEach(1..<allImages.count, id: \.self) { index in
-                        photoButton(image: allImages[index], index: index)
+                    ForEach(1..<photoAttachments.count, id: \.self) { index in
+                        photoButton(attachment: photoAttachments[index], index: index)
                             .frame(width: 90, height: 90)
                             .clipped()
                     }
@@ -133,13 +126,11 @@ struct PhotosGridCard: View {
 
     // MARK: - Helpers
 
-    private func photoButton(image: UIImage, index: Int) -> some View {
+    private func photoButton(attachment: Attachment, index: Int) -> some View {
         Button {
-            viewerState = PhotoViewerState(images: allImages, startIndex: index)
+            viewerState = PhotoViewerState(attachments: photoAttachments, startIndex: index)
         } label: {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
+            AttachmentImageView(attachment: attachment, contentMode: .fill)
         }
         .buttonStyle(.plain)
     }

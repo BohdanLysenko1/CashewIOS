@@ -17,6 +17,10 @@ struct SettingsView: View {
     @State private var showNotificationAlert = false
     @State private var notificationAlertTitle = ""
     @State private var notificationAlertMessage = ""
+    @State private var showDeleteAccountConfirmation = false
+    @State private var isDeletingAccount = false
+    @State private var showDeleteAccountError = false
+    @State private var deleteAccountErrorMessage = ""
 
     var body: some View {
         NavigationStack {
@@ -257,6 +261,24 @@ struct SettingsView: View {
                             Spacer()
                         }
                     }
+
+                    Button(role: .destructive) {
+                        showDeleteAccountConfirmation = true
+                    } label: {
+                        HStack {
+                            Spacer()
+                            if isDeletingAccount {
+                                ProgressView()
+                                    .padding(.trailing, 6)
+                                Text("Deleting Account…").fontWeight(.medium)
+                            } else {
+                                Label("Delete Account", systemImage: "trash")
+                                    .fontWeight(.medium)
+                            }
+                            Spacer()
+                        }
+                    }
+                    .disabled(isDeletingAccount)
                 }
             }
             .navigationTitle("Settings")
@@ -300,6 +322,23 @@ struct SettingsView: View {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(notificationAlertMessage)
+            }
+            .confirmationDialog(
+                "Delete Your Account?",
+                isPresented: $showDeleteAccountConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Delete Account Permanently", role: .destructive) {
+                    deleteAccount()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This removes your account and all associated data from our servers. This cannot be undone.")
+            }
+            .alert("Account Deletion Failed", isPresented: $showDeleteAccountError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(deleteAccountErrorMessage)
             }
             .task {
                 await container.notificationService.checkAuthorizationStatus()
@@ -348,6 +387,19 @@ struct SettingsView: View {
             } catch {
                 signOutErrorMessage = error.localizedDescription
                 showSignOutError = true
+            }
+        }
+    }
+
+    private func deleteAccount() {
+        Task {
+            isDeletingAccount = true
+            defer { isDeletingAccount = false }
+            do {
+                try await container.authService.deleteAccount()
+            } catch {
+                deleteAccountErrorMessage = error.localizedDescription
+                showDeleteAccountError = true
             }
         }
     }

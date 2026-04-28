@@ -1,164 +1,6 @@
 import SwiftUI
 import MapKit
 
-// MARK: - ViewModel
-
-@Observable
-final class AIItineraryViewModel {
-
-    enum Phase {
-        case configure
-        case loading
-        case review([AIActivity])
-        case error(String)
-        case noBudget
-    }
-
-    // Configure state
-    var selectedInterests: Set<String> = []
-    var budgetAllocationString: String = ""
-
-    // Review state
-    var phase: Phase = .configure
-    var selectedIDs: Set<String> = []
-    var selectedMapDay: String? = nil  // "YYYY-MM-DD" or nil = show all days
-    var regeneratingDay: String? = nil // date string currently being regenerated
-
-    private let service: AIItineraryServiceProtocol
-    let trip: Trip
-
-    init(trip: Trip, service: AIItineraryServiceProtocol = AIItineraryService()) {
-        self.trip = trip
-        self.service = service
-        // Pre-fill allocation from remaining budget, else total budget
-        if let remaining = trip.remainingBudget, remaining > 0 {
-            budgetAllocationString = "\(NSDecimalNumber(decimal: remaining).doubleValue)"
-        } else if let budget = trip.budget {
-            budgetAllocationString = "\(NSDecimalNumber(decimal: budget).doubleValue)"
-        }
-    }
-
-    // MARK: - Computed
-
-    var hasBudget: Bool { trip.budget != nil }
-    var budgetAllocation: Double { Double(budgetAllocationString) ?? 0 }
-    var canGenerate: Bool { !selectedInterests.isEmpty && budgetAllocation > 0 }
-
-    let availableInterests: [String] = [
-        "restaurant", "museum", "tour", "beach",
-        "hiking", "shopping", "nightlife", "activity"
-    ]
-
-    var reviewActivities: [AIActivity] {
-        guard case .review(let a) = phase else { return [] }
-        return a
-    }
-
-    var activitiesByDay: [(date: String, items: [AIActivity])] {
-        let base = selectedMapDay.map { day in reviewActivities.filter { $0.date == day } }
-            ?? reviewActivities
-        let grouped = Dictionary(grouping: base) { $0.date }
-        return grouped.keys.sorted().map { d in
-            (date: d, items: grouped[d]!.sorted { ($0.startTime ?? "") < ($1.startTime ?? "") })
-        }
-    }
-
-    var visibleMapActivities: [AIActivity] {
-        let base = selectedMapDay.map { day in reviewActivities.filter { $0.date == day } }
-            ?? reviewActivities
-        return base.filter { $0.latitude != nil && $0.longitude != nil }
-    }
-
-    var selectedCount: Int { selectedIDs.count }
-
-    // MARK: - Actions
-
-    func toggleInterest(_ i: String) {
-        if selectedInterests.contains(i) { selectedInterests.remove(i) }
-        else { selectedInterests.insert(i) }
-    }
-
-    func toggleActivity(_ a: AIActivity) {
-        if selectedIDs.contains(a.id) { selectedIDs.remove(a.id) }
-        else { selectedIDs.insert(a.id) }
-    }
-
-    func selectAll() {
-        selectedIDs = Set(reviewActivities.map(\.id))
-    }
-
-    @MainActor
-    func generate() async {
-        phase = .loading
-        let fmt = DateFormatter()
-        fmt.dateFormat = "yyyy-MM-dd"
-
-        let request = AIItineraryRequest(
-            destination: trip.destination,
-            destinationLatitude: trip.destinationLatitude,
-            destinationLongitude: trip.destinationLongitude,
-            startDate: fmt.string(from: trip.startDate),
-            endDate: fmt.string(from: trip.endDate),
-            tripCurrency: trip.currency,
-            budgetAllocation: budgetAllocation,
-            interests: Array(selectedInterests),
-            existingActivityTitles: trip.activities.map(\.title)
-        )
-
-        do {
-            let response = try await service.generateItinerary(request: request)
-            selectedIDs = Set(response.activities.map(\.id))
-            phase = .review(response.activities)
-        } catch {
-            phase = .error(error.localizedDescription)
-        }
-    }
-
-    func buildSelectedActivities() -> [Activity] {
-        reviewActivities
-            .filter { selectedIDs.contains($0.id) }
-            .map { $0.toActivity(tripStartDate: trip.startDate, tripCurrency: trip.currency) }
-    }
-
-    @MainActor
-    func regenerateDay(_ dateString: String) async {
-        regeneratingDay = dateString
-        let fmt = DateFormatter()
-        fmt.dateFormat = "yyyy-MM-dd"
-
-        var request = AIItineraryRequest(
-            destination: trip.destination,
-            destinationLatitude: trip.destinationLatitude,
-            destinationLongitude: trip.destinationLongitude,
-            startDate: fmt.string(from: trip.startDate),
-            endDate: fmt.string(from: trip.endDate),
-            tripCurrency: trip.currency,
-            budgetAllocation: budgetAllocation,
-            interests: Array(selectedInterests),
-            existingActivityTitles: trip.activities.map(\.title)
-        )
-        request.targetDate = dateString
-
-        do {
-            let response = try await service.generateItinerary(request: request)
-
-            // Remove old activities for this day, keep others
-            guard case .review(let current) = phase else { return }
-            let kept = current.filter { $0.date != dateString }
-            let merged = kept + response.activities
-
-            // Select new activities
-            for a in response.activities { selectedIDs.insert(a.id) }
-
-            phase = .review(merged)
-        } catch {
-            // Don't replace the whole phase on single-day failure
-        }
-
-        regeneratingDay = nil
-    }
-}
-
 // MARK: - Main View
 
 struct AIItineraryView: View {
@@ -168,9 +10,13 @@ struct AIItineraryView: View {
     @State private var selectedAIActivity: AIActivity?
     let onGoToBudget: () -> Void
 
-    init(trip: Binding<Trip>, onGoToBudget: @escaping () -> Void) {
+    init(
+        trip: Binding<Trip>,
+        onGoToBudget: @escaping () -> Void,
+        viewModel: AIItineraryViewModel? = nil
+    ) {
         _trip = trip
-        _viewModel = State(initialValue: AIItineraryViewModel(trip: trip.wrappedValue))
+        _viewModel = State(initialValue: viewModel ?? AIItineraryViewModel(trip: trip.wrappedValue))
         self.onGoToBudget = onGoToBudget
     }
 
@@ -231,7 +77,7 @@ struct AIItineraryView: View {
                         }
                         .padding(.vertical, 14)
                         .background(AppTheme.surfaceContainer)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
 
                         if let remaining = trip.remainingBudget {
                             Text("Remaining trip budget: \(trip.currency) \(NSDecimalNumber(decimal: remaining).doubleValue, specifier: "%.2f")")
@@ -260,7 +106,7 @@ struct AIItineraryView: View {
                             } label: {
                                 VStack(spacing: 4) {
                                     Image(systemName: category.icon)
-                                        .font(.system(size: 20))
+                                        .font(.system(size: AppTheme.sectionIconSize + 4))
                                     Text(category.displayName)
                                         .font(AppTheme.TextStyle.caption)
                                         .lineLimit(1)
@@ -274,16 +120,7 @@ struct AIItineraryView: View {
                                         ? AnyShapeStyle(AppTheme.tripGradient)
                                         : AnyShapeStyle(AppTheme.surfaceContainer)
                                 )
-                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                        .strokeBorder(
-                                            isSelected
-                                                ? Color.white.opacity(0.3)
-                                                : AppTheme.outlineVariant,
-                                            lineWidth: 1
-                                        )
-                                )
+                                .clipShape(RoundedRectangle(cornerRadius: AppTheme.badgeCornerRadius, style: .continuous))
                             }
                             .buttonStyle(.plain)
                             .animation(.easeInOut(duration: 0.15), value: isSelected)
@@ -444,11 +281,8 @@ struct AIItineraryView: View {
     }
 
     private func formattedDayLabel(_ dateString: String) -> String {
-        let fmt = DateFormatter()
-        fmt.dateFormat = "yyyy-MM-dd"
-        let display = DateFormatter()
-        display.dateFormat = "EEE, MMM d"
-        return fmt.date(from: dateString).map { display.string(from: $0) } ?? dateString
+        DateFormatting.isoDate.date(from: dateString)
+            .map { DateFormatting.shortDayMonth.string(from: $0) } ?? dateString
     }
 
     // MARK: - Error Phase
@@ -458,19 +292,22 @@ struct AIItineraryView: View {
             Spacer()
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 48))
-                .foregroundStyle(.orange)
+                .foregroundStyle(AppTheme.negative)
             Text("Generation Failed")
-                .font(.headline)
+                .font(AppTheme.TextStyle.sectionTitle)
             Text(message)
                 .font(AppTheme.TextStyle.body)
                 .foregroundStyle(AppTheme.onSurfaceVariant)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, AppTheme.Space.lg)
-            Button("Try Again") {
+            Button {
                 viewModel.phase = .configure
+            } label: {
+                Text("Try Again")
+                    .primaryActionButton(gradient: AppTheme.tripGradient)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(AppTheme.secondary)
+            .buttonStyle(.plain)
+            .padding(.horizontal, AppTheme.Space.xl)
             Spacer()
         }
         .frame(maxWidth: .infinity)
@@ -485,18 +322,21 @@ struct AIItineraryView: View {
                 .font(.system(size: 52))
                 .foregroundStyle(AppTheme.onSurfaceVariant)
             Text("Budget Required")
-                .font(.headline)
+                .font(AppTheme.TextStyle.sectionTitle)
             Text("Set a trip budget before generating an AI itinerary. This helps the AI suggest activities within your spending plan.")
                 .font(AppTheme.TextStyle.body)
                 .foregroundStyle(AppTheme.onSurfaceVariant)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, AppTheme.Space.lg)
-            Button("Set Budget") {
+            Button {
                 dismiss()
                 onGoToBudget()
+            } label: {
+                Text("Set Budget")
+                    .primaryActionButton(gradient: AppTheme.tripGradient)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(AppTheme.secondary)
+            .buttonStyle(.plain)
+            .padding(.horizontal, AppTheme.Space.xl)
             Spacer()
         }
         .frame(maxWidth: .infinity)
@@ -611,7 +451,7 @@ struct AIItineraryMapView: View {
             .padding(.vertical, 6)
             .background(
                 Capsule()
-                    .fill(.black.opacity(0.38))
+                    .fill(AppTheme.scrim)
             )
             .padding(12)
         }
@@ -666,7 +506,7 @@ private struct AIActivityRow: View {
     var body: some View {
         HStack(spacing: 0) {
             // Accent bar
-            RoundedRectangle(cornerRadius: 2)
+            RoundedRectangle(cornerRadius: AppTheme.progressBarCornerRadius)
                 .fill(category.color.gradient)
                 .frame(width: 3)
                 .padding(.vertical, 4)
@@ -677,11 +517,11 @@ private struct AIActivityRow: View {
                     .foregroundStyle(.white)
                     .frame(width: 28, height: 28)
                     .background(category.color.gradient)
-                    .clipShape(RoundedRectangle(cornerRadius: 7))
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.badgeCornerRadius))
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(activity.title)
-                        .font(.subheadline.weight(.semibold))
+                        .font(AppTheme.TextStyle.bodyBold)
                         .foregroundStyle(AppTheme.onSurface)
 
                     if let time = formattedTime {

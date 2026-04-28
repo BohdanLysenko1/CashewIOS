@@ -8,7 +8,15 @@ struct WeatherInfo: Sendable {
     let timezoneIdentifier: String
 }
 
-final class TripWeatherService {
+// MARK: - Protocol
+
+protocol TripWeatherServiceProtocol {
+    func fetch(latitude: Double, longitude: Double) async throws -> WeatherInfo
+}
+
+// MARK: - Implementation
+
+final class TripWeatherService: TripWeatherServiceProtocol {
 
     func fetch(latitude: Double, longitude: Double) async throws -> WeatherInfo {
         var components = URLComponents(string: "https://api.open-meteo.com/v1/forecast")!

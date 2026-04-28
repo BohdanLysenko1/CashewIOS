@@ -48,7 +48,7 @@ struct TripReadinessCard: View {
                     HStack(spacing: 5) {
                         Image(systemName: "mappin.circle.fill")
                             .font(.system(size: 11))
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(AppTheme.secondary)
                         Text(trip.destination)
                             .font(AppTheme.TextStyle.caption)
                             .foregroundStyle(AppTheme.onSurfaceVariant)

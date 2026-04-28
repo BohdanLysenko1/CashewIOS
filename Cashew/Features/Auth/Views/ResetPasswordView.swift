@@ -119,7 +119,7 @@ struct ResetPasswordView: View {
                                         endPoint: .trailing
                                     )
                                 )
-                                .clipShape(RoundedRectangle(cornerRadius: 14))
+                                .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius))
                                 .shadow(color: isValid ? AppTheme.primary.opacity(AppTheme.accentGlowOpacity) : .clear, radius: 8, x: 0, y: 4)
                         }
                         .buttonStyle(.plain)

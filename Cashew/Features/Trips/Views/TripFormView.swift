@@ -138,7 +138,7 @@ struct TripFormView: View {
         .padding(.horizontal, AppTheme.Space.md)
         .padding(.vertical, AppTheme.Space.sm)
         .background(AppTheme.surfaceContainer)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
     }
 
     private var notesCard: some View {
@@ -150,7 +150,7 @@ struct TripFormView: View {
                     .scrollContentBackground(.hidden)
                     .padding(8)
                     .background(AppTheme.surfaceContainer)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
 
                 if viewModel.notes.isEmpty {
                     Text("Add notes for this trip...")

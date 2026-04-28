@@ -19,4 +19,5 @@ protocol AuthServiceProtocol: AnyObject {
     func signedAvatarURL(for path: String, expiresIn: Int) async throws -> URL
     func updatePassword(_ newPassword: String) async throws
     func sendPasswordReset(email: String) async throws
+    func deleteAccount() async throws
 }

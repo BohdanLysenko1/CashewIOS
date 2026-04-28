@@ -15,6 +15,7 @@ struct TripDetailView: View {
     @State private var shareURL: URL?
     @State private var isGeneratingShare = false
     @State private var showCollaborators = false
+    @State private var showTripSummary = false
     @State private var revealContent = false
     @State private var weatherInfo: WeatherInfo?
     @State private var weatherLoading = false
@@ -156,6 +157,9 @@ struct TripDetailView: View {
             let collaborators = (try? await container.shareService.fetchCollaborators(for: .trip(trip))) ?? []
             hasCollaborators = !collaborators.isEmpty
         }
+        .sheet(isPresented: $showTripSummary) {
+            if let trip { AITripSummaryView(trip: trip) }
+        }
     }
 
     // MARK: - Content
@@ -256,7 +260,7 @@ struct TripDetailView: View {
                     .foregroundStyle(.white)
                     .frame(width: 48, height: 48)
                     .background(.white.opacity(0.20))
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(trip.name)
@@ -486,6 +490,17 @@ struct TripDetailView: View {
                         subtitle: checklistSubtitle(trip),
                         progress: trip.checklistItems.isEmpty ? nil : trip.checklistProgress,
                         color: AppTheme.tertiary
+                    )
+                }
+                .buttonStyle(.plain)
+
+                Button { showTripSummary = true } label: {
+                    QuickActionCard(
+                        icon: "book.pages.fill",
+                        title: "AI Journal",
+                        subtitle: "Trip summary",
+                        progress: nil,
+                        color: AppTheme.secondary
                     )
                 }
                 .buttonStyle(.plain)

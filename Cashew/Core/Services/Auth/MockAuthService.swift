@@ -39,6 +39,11 @@ final class MockAuthService: AuthServiceProtocol {
     func updatePassword(_ newPassword: String) async throws {}
     func sendPasswordReset(email: String) async throws {}
 
+    func deleteAccount() async throws {
+        isAuthenticated = false
+        currentUser = nil
+    }
+
     func updateDisplayName(_ name: String) async throws {
         currentUser?.displayName = name
     }

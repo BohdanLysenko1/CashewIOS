@@ -114,14 +114,17 @@ struct AcceptInviteView: View {
         VStack(spacing: AppTheme.Space.md) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 40))
-                .foregroundStyle(.orange)
+                .foregroundStyle(AppTheme.negative)
             Text(message)
                 .font(.subheadline)
                 .foregroundStyle(AppTheme.onSurfaceVariant)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, AppTheme.Space.xxl)
-            Button("Close") { dismiss() }
-                .buttonStyle(.borderedProminent)
+            Button { dismiss() } label: {
+                Text("Close")
+                    .primaryActionButton(gradient: AppTheme.primaryGradient, fullWidth: false)
+            }
+            .buttonStyle(.plain)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

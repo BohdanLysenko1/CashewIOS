@@ -1,12 +1,15 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { CORS_HEADERS, jsonResponse } from "../_shared/cors.ts";
+import { AuthError, verifyAuth } from "../_shared/auth.ts";
+import { callGemini } from "../_shared/gemini.ts";
+import {
+  assertDate,
+  assertNumber,
+  assertString,
+  assertStringArray,
+} from "../_shared/validate.ts";
 
-const GEMINI_MODEL = "gemini-3-flash-preview";
-
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+// ── Handler ──────────────────────────────────────────────────────────
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -14,21 +17,29 @@ serve(async (req: Request) => {
   }
 
   try {
-    const apiKey = Deno.env.get("GEMINI_API_KEY");
-    if (!apiKey) throw new Error("GEMINI_API_KEY not configured in Vault");
+    await verifyAuth(req);
 
-    const {
-      destination,
-      destinationLatitude,
-      destinationLongitude,
-      startDate,
-      endDate,
-      tripCurrency,
-      budgetAllocation,
-      interests,
-      existingActivityTitles,
-      targetDate,
-    } = await req.json();
+    const body = await req.json();
+
+    // ── Validate inputs ──────────────────────────────────────────────
+    const destination = assertString(body.destination, "destination");
+    const destinationLatitude = body.destinationLatitude != null
+      ? assertNumber(body.destinationLatitude, "destinationLatitude")
+      : null;
+    const destinationLongitude = body.destinationLongitude != null
+      ? assertNumber(body.destinationLongitude, "destinationLongitude")
+      : null;
+    const startDate = assertDate(body.startDate, "startDate");
+    const endDate = assertDate(body.endDate, "endDate");
+    if (startDate > endDate)
+      throw new Error(`"startDate" must be on or before "endDate"`);
+    const tripCurrency = assertString(body.tripCurrency, "tripCurrency");
+    const budgetAllocation = assertNumber(body.budgetAllocation, "budgetAllocation");
+    const interests = assertStringArray(body.interests, "interests");
+    const existingActivityTitles = body.existingActivityTitles
+      ? assertStringArray(body.existingActivityTitles, "existingActivityTitles")
+      : [];
+    const targetDate = body.targetDate ? assertDate(body.targetDate, "targetDate") : null;
 
     // Build a list of trip dates (or just the target date)
     let dates: string[];
@@ -47,6 +58,8 @@ serve(async (req: Request) => {
       }
     }
 
+    // NOTE: must mirror Swift's `ActivityCategory` enum raw values. If you add
+    // a category here, also add it in Cashew/Core/Models/ActivityCategory.swift.
     const validCategories = [
       "flight",
       "train",
@@ -126,34 +139,13 @@ Return ONLY a valid JSON object with no markdown fences or extra text:
   ]
 }`;
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
-
-    const geminiRes = await fetch(geminiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          maxOutputTokens: 8192,
-          thinkingConfig: { thinkingLevel: "minimal" },
-        },
-      }),
+    const parsed = await callGemini(prompt, {
+      generationConfig: {
+        responseMimeType: "application/json",
+        maxOutputTokens: 8192,
+        thinkingConfig: { thinkingLevel: "minimal" },
+      },
     });
-
-    if (!geminiRes.ok) {
-      const errText = await geminiRes.text();
-      throw new Error(`Gemini API error ${geminiRes.status}: ${errText}`);
-    }
-
-    const geminiData = await geminiRes.json();
-    // Gemini 3 includes thought parts — grab the last non-thought text part
-    const parts = geminiData?.candidates?.[0]?.content?.parts ?? [];
-    const textPart = parts.filter((p: any) => !p.thought && p.text).pop();
-    const rawText = textPart?.text;
-    if (!rawText) throw new Error("Empty response from Gemini");
-
-    const parsed = JSON.parse(rawText);
 
     // Normalize activities to guarantee camelCase keys and correct types
     const activities = (parsed.activities ?? []).map((a: any) => ({
@@ -170,21 +162,10 @@ Return ONLY a valid JSON object with no markdown fences or extra text:
       longitude: a.longitude != null ? Number(a.longitude) : null,
     }));
 
-    return new Response(JSON.stringify({ activities }), {
-      headers: { "Content-Type": "application/json", ...CORS_HEADERS },
-    });
+    return jsonResponse({ activities });
   } catch (err) {
-    return new Response(
-      JSON.stringify({
-        error: err instanceof Error ? err.message : String(err),
-      }),
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          ...CORS_HEADERS,
-        },
-      },
-    );
+    const message = err instanceof Error ? err.message : String(err);
+    const status = err instanceof AuthError ? 401 : 500;
+    return jsonResponse({ error: message }, status);
   }
 });

@@ -171,9 +171,9 @@ struct TripChecklistView: View {
                 showAddItem = true
             } label: {
                 Label("Add Task", systemImage: "plus")
-                    .fontWeight(.medium)
+                    .primaryActionButton(gradient: AppTheme.primaryGradient, fullWidth: false)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.plain)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
@@ -455,7 +455,7 @@ struct ChecklistItemFormView: View {
                             .padding(.horizontal, AppTheme.Space.md)
                             .padding(.vertical, AppTheme.Space.sm)
                             .background(AppTheme.surfaceContainer)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
 
                             Toggle("Due Date", isOn: $hasDueDate)
                                 .font(AppTheme.TextStyle.body)
@@ -463,7 +463,7 @@ struct ChecklistItemFormView: View {
                                 .padding(.horizontal, AppTheme.Space.md)
                                 .padding(.vertical, AppTheme.Space.sm)
                                 .background(AppTheme.surfaceContainer)
-                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
 
                             if hasDueDate {
                                 HStack {
@@ -478,7 +478,7 @@ struct ChecklistItemFormView: View {
                                 .padding(.horizontal, AppTheme.Space.md)
                                 .padding(.vertical, AppTheme.Space.sm)
                                 .background(AppTheme.surfaceContainer)
-                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
                             }
                         }
                     }

@@ -71,7 +71,7 @@ struct ActivityDetailView: View {
                     .foregroundStyle(.white)
                     .frame(width: 46, height: 46)
                     .background(.white.opacity(0.20))
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(activity.title)
@@ -161,11 +161,9 @@ struct ActivityDetailView: View {
                         openInMaps()
                     } label: {
                         Label("Get Directions", systemImage: "arrow.triangle.turn.up.right.diamond.fill")
-                            .font(AppTheme.TextStyle.bodyBold)
-                            .frame(maxWidth: .infinity)
+                            .primaryActionButton(gradient: AppTheme.tripGradient)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(AppTheme.secondary)
+                    .buttonStyle(.plain)
                 }
 
                 if !activity.location.isEmpty {

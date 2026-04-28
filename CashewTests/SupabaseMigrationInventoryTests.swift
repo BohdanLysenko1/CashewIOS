@@ -24,9 +24,18 @@ final class SupabaseMigrationInventoryTests: XCTestCase {
                 "20260405_trip_activity_log.sql",
                 "20260406_trip_photos_storage.sql",
                 "20260407_fix_rls_policies.sql",
+                "20260407183516_rls_policy_consolidation.sql",
                 "20260408_db_hardening.sql",
                 "20260409_rls_performance_tuning.sql",
-                "20260410_gamification_xp.sql"
+                "20260409173430_replica_identity_full_trips_events.sql",
+                "20260409213219_ai_itinerary_generation.sql",
+                "20260410_fix_member_update_recursion.sql",
+                "20260410_gamification_xp.sql",
+                "20260411_collaborator_share_access.sql",
+                "20260412_fix_collaborator_visibility.sql",
+                "20260414_health_check_cleanup.sql",
+                "20260414182955_restore_fk_indexes.sql",
+                "20260424161355_restore_delete_user_account.sql"
             ]
         )
     }

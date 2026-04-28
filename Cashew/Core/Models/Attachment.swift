@@ -6,6 +6,7 @@ struct Attachment: Identifiable, Codable, Equatable, Sendable {
     var type: AttachmentType
     var url: URL?
     var localPath: String?
+    var storagePath: String?
     let createdAt: Date
 
     init(
@@ -14,6 +15,7 @@ struct Attachment: Identifiable, Codable, Equatable, Sendable {
         type: AttachmentType,
         url: URL? = nil,
         localPath: String? = nil,
+        storagePath: String? = nil,
         createdAt: Date = Date()
     ) {
         self.id = id
@@ -21,6 +23,7 @@ struct Attachment: Identifiable, Codable, Equatable, Sendable {
         self.type = type
         self.url = url
         self.localPath = localPath
+        self.storagePath = storagePath
         self.createdAt = createdAt
     }
 }

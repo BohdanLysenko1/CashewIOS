@@ -105,7 +105,7 @@ struct TaskDetailView: View {
                     .foregroundStyle(.white)
                     .frame(width: 46, height: 46)
                     .background(.white.opacity(0.20))
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(liveTask.title)

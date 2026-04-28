@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import os
 import Supabase
 import AuthenticationServices
 import CryptoKit
@@ -102,7 +103,7 @@ final class SupabaseAuthService: AuthServiceProtocol {
                     .single()
                     .execute()
             } catch {
-                print("[SupabaseAuthService] Failed to update display name: \(error)")
+                Log.authService.error("Failed to update display name: \(error.localizedDescription, privacy: .public)")
             }
         }
 
@@ -129,7 +130,7 @@ final class SupabaseAuthService: AuthServiceProtocol {
                     ])
                     .execute()
             } catch {
-                print("[SupabaseAuthService] Failed to create profile on first sign-in: \(error)")
+                Log.authService.error("Failed to create profile on first sign-in: \(error.localizedDescription, privacy: .public)")
             }
             await fetchCurrentUser(id: session.user.id)
         }
@@ -179,6 +180,20 @@ final class SupabaseAuthService: AuthServiceProtocol {
 
     func sendPasswordReset(email: String) async throws {
         try await client.auth.resetPasswordForEmail(email, redirectTo: URL(string: "cashew://reset-callback"))
+    }
+
+    func deleteAccount() async throws {
+        try await client.rpc("delete_user_account").execute()
+        do {
+            try await client.auth.signOut()
+        } catch {
+            // RPC succeeded but local session revoke failed — surface in logs
+            // so the stale session is debuggable. Local state is still cleared below.
+            Log.authService.error("Sign-out after account deletion failed: \(error.localizedDescription, privacy: .public)")
+        }
+        isAuthenticated = false
+        isRecoveringPassword = false
+        currentUser = nil
     }
 
     func updateDisplayName(_ name: String) async throws {
@@ -303,7 +318,7 @@ final class SupabaseAuthService: AuthServiceProtocol {
                 .value
             currentUser = user
         } catch {
-            print("[SupabaseAuthService] Failed to create profile for \(id): \(error)")
+            Log.authService.error("Failed to create profile for \(id.uuidString, privacy: .public): \(error.localizedDescription, privacy: .public)")
         }
     }
 

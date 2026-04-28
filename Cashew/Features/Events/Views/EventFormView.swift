@@ -143,7 +143,7 @@ struct EventFormView: View {
             .padding(.horizontal, AppTheme.Space.md)
             .padding(.vertical, AppTheme.Space.sm)
             .background(AppTheme.surfaceContainer)
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
     }
 
     private func dateRow(
@@ -170,7 +170,7 @@ struct EventFormView: View {
         .padding(.horizontal, AppTheme.Space.md)
         .padding(.vertical, AppTheme.Space.sm)
         .background(AppTheme.surfaceContainer)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
     }
 
     private var recurrenceCard: some View {
@@ -196,7 +196,7 @@ struct EventFormView: View {
                     .padding(.horizontal, AppTheme.Space.md)
                     .padding(.vertical, AppTheme.Space.sm)
                     .background(AppTheme.surfaceContainer)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
 
                     if viewModel.recurrenceFrequency == .weekly {
                         NavigationLink {
@@ -214,7 +214,7 @@ struct EventFormView: View {
                             .padding(.horizontal, AppTheme.Space.md)
                             .padding(.vertical, AppTheme.Space.sm)
                             .background(AppTheme.surfaceContainer)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
                         }
                         .buttonStyle(.plain)
                     }
@@ -256,7 +256,7 @@ struct EventFormView: View {
                     .padding(.horizontal, AppTheme.Space.md)
                     .padding(.vertical, AppTheme.Space.sm)
                     .background(AppTheme.surfaceContainer)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
                 }
 
                 if viewModel.reminders.isEmpty {
@@ -267,7 +267,7 @@ struct EventFormView: View {
                     ForEach(viewModel.reminders) { reminder in
                         HStack {
                             Image(systemName: "bell.fill")
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(AppTheme.warning)
                             Text(reminder.interval.displayName)
                                 .font(AppTheme.TextStyle.secondary)
                             Spacer()
@@ -282,7 +282,7 @@ struct EventFormView: View {
                         .padding(.horizontal, AppTheme.Space.md)
                         .padding(.vertical, AppTheme.Space.sm)
                         .background(AppTheme.surfaceContainer)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
                     }
                 }
             }
@@ -315,7 +315,7 @@ struct EventFormView: View {
                     }
                     .padding(AppTheme.Space.md)
                     .background(AppTheme.surfaceContainer)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
                 }
 
                 CreationInlineError(text: viewModel.customCategoryError)
@@ -355,7 +355,7 @@ struct EventFormView: View {
                 .padding(.horizontal, AppTheme.Space.md)
                 .padding(.vertical, AppTheme.Space.sm)
                 .background(AppTheme.surfaceContainer)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
 
                 CreationInlineError(text: viewModel.costError)
 
@@ -396,7 +396,7 @@ struct EventFormView: View {
                         .padding(.horizontal, AppTheme.Space.md)
                         .padding(.vertical, AppTheme.Space.sm)
                         .background(AppTheme.surfaceContainer)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
                 }
                 .buttonStyle(.plain)
                 .disabled(newLinkName.trimmingCharacters(in: .whitespaces).isEmpty || newLinkURL.trimmingCharacters(in: .whitespaces).isEmpty)
@@ -420,7 +420,7 @@ struct EventFormView: View {
                     .padding(.horizontal, AppTheme.Space.md)
                     .padding(.vertical, AppTheme.Space.sm)
                     .background(AppTheme.surfaceContainer)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
                 }
             }
         }
@@ -438,7 +438,7 @@ struct EventFormView: View {
         .padding(.horizontal, AppTheme.Space.md)
         .padding(.vertical, AppTheme.Space.sm)
         .background(AppTheme.surfaceContainer)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
     }
 
     private var photosCard: some View {
@@ -456,7 +456,7 @@ struct EventFormView: View {
                     .scrollContentBackground(.hidden)
                     .padding(8)
                     .background(AppTheme.surfaceContainer)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
 
                 if viewModel.notes.isEmpty {
                     Text("Add notes...")

@@ -137,9 +137,9 @@ struct AppFilterToggleTile: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, AppTheme.Space.lg)
             .background(isOn ? tint.opacity(0.12) : AppTheme.surfaceContainerLow)
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous)
                     .stroke(isOn ? tint.opacity(0.35) : Color.clear, lineWidth: 1.5)
             )
         }

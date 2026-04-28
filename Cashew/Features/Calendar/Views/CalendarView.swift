@@ -572,10 +572,13 @@ struct CalendarView: View {
         } description: {
             Text(error.localizedDescription)
         } actions: {
-            Button("Retry") {
+            Button {
                 Task { await loadData() }
+            } label: {
+                Text("Retry")
+                    .secondaryActionButton(fullWidth: false)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.plain)
         }
     }
 
@@ -615,18 +618,18 @@ struct CalendarView: View {
                         .foregroundStyle(.white)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(.orange)
+                        .background(AppTheme.warning)
                         .clipShape(Capsule())
                 }
             }
-            .foregroundStyle(hasActiveFilters ? .orange : AppTheme.onSurfaceVariant)
+            .foregroundStyle(hasActiveFilters ? AppTheme.warning : AppTheme.onSurfaceVariant)
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
-            .background(hasActiveFilters ? .orange.opacity(0.12) : AppTheme.surfaceContainerLow)
+            .background(hasActiveFilters ? AppTheme.warning.opacity(0.12) : AppTheme.surfaceContainerLow)
             .clipShape(Capsule())
             .overlay(
                 Capsule()
-                    .strokeBorder(hasActiveFilters ? .orange.opacity(0.3) : Color.clear, lineWidth: 1)
+                    .strokeBorder(hasActiveFilters ? AppTheme.warning.opacity(0.3) : Color.clear, lineWidth: 1)
             )
             .onGeometryChange(for: CGRect.self) { proxy in
                 proxy.frame(in: .global)

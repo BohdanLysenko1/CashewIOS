@@ -361,7 +361,7 @@ struct DashboardView: View {
                     }
                     .padding(AppTheme.Space.md)
                     .background(AppTheme.negativeBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
                 }
             }
             .padding(AppTheme.Space.lg)

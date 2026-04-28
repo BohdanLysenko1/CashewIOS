@@ -2,6 +2,24 @@ import Foundation
 import Observation
 import Supabase
 
+// MARK: - GamificationServiceProtocol
+
+@MainActor
+protocol GamificationServiceProtocol: AnyObject {
+    var totalXP: Int { get }
+    var currentLevel: Int { get }
+    var levelTitle: String { get }
+    var levelProgress: Double { get }
+    var xpToNextLevel: Int { get }
+    var isMaxLevel: Bool { get }
+    var pendingLevelUp: Int? { get set }
+
+    func refreshForCurrentUser() async
+    func award(xp: Int, streakDays: Int)
+    func deduct(xp: Int, streakDays: Int)
+    func clearLevelUp()
+}
+
 protocol GamificationCloudStore {
     func fetchState(for userId: UUID) async throws -> GamificationCloudState
     func upsertState(for userId: UUID, totalXP: Int, updatedAt: Date) async throws
@@ -62,7 +80,7 @@ private struct UserGamificationUpdatePayload: Encodable {
 
 @Observable
 @MainActor
-final class GamificationService {
+final class GamificationService: GamificationServiceProtocol {
 
     // MARK: - UserDefaults Keys
 
@@ -75,6 +93,9 @@ final class GamificationService {
 
     // MARK: - Level Table
 
+    /// App-wide reference data accessed without a service instance.
+    /// Intentionally omitted from `GamificationServiceProtocol` since callers (UI rows,
+    /// notification scheduler) only need read-only metadata, not a fully wired service.
     static let levels: [(level: Int, title: String, xpRequired: Int)] = [
         (1,  "Starter",     0),
         (2,  "Planner",     150),

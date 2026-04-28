@@ -235,7 +235,7 @@ struct EventDetailView: View {
                     .foregroundStyle(.white)
                     .frame(width: 48, height: 48)
                     .background(event.category.color.opacity(0.75))
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(event.title)

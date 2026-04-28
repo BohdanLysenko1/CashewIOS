@@ -180,10 +180,13 @@ struct TripBudgetView: View {
                         .font(.subheadline)
                         .foregroundStyle(AppTheme.onSurfaceVariant)
 
-                    Button("Add Expense") {
+                    Button {
                         showAddExpense = true
+                    } label: {
+                        Text("Add Expense")
+                            .secondaryActionButton(fullWidth: false)
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.plain)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 24)
@@ -339,7 +342,7 @@ struct BudgetEditorView: View {
                             .padding(.horizontal, AppTheme.Space.md)
                             .padding(.vertical, AppTheme.Space.sm)
                             .background(AppTheme.surfaceContainer)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
                         }
                     }
                 }
@@ -447,7 +450,7 @@ struct ExpenseFormView: View {
                             .padding(.horizontal, AppTheme.Space.md)
                             .padding(.vertical, AppTheme.Space.sm)
                             .background(AppTheme.surfaceContainer)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
 
                             HStack {
                                 Text("Date")
@@ -461,7 +464,7 @@ struct ExpenseFormView: View {
                             .padding(.horizontal, AppTheme.Space.md)
                             .padding(.vertical, AppTheme.Space.sm)
                             .background(AppTheme.surfaceContainer)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
                         }
                     }
 

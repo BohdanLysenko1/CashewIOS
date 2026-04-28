@@ -444,9 +444,9 @@ struct DayPlannerView: View {
                 showAddTask = true
             } label: {
                 Label("Add Task", systemImage: "plus")
-                    .fontWeight(.medium)
+                    .primaryActionButton(gradient: AppTheme.dayPlannerGradient, fullWidth: false)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.plain)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)

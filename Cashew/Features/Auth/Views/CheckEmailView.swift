@@ -53,7 +53,7 @@ struct CheckEmailView: View {
                     .frame(height: 52)
                     .foregroundStyle(.white)
                     .background(AppTheme.primaryGradient)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius))
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 24)

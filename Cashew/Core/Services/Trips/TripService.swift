@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import os
 import Supabase
 
 @Observable
@@ -48,7 +49,7 @@ final class TripService: TripServiceProtocol {
                     registerLocalMutation(saved.id, updatedAt: saved.updatedAt)
                     trips[i] = saved
                 } catch {
-                    print("[TripService] Status sync failed for '\(trips[i].name)': \(error)")
+                    Log.tripService.error("Status sync failed for '\(self.trips[i].name)': \(error)")
                 }
             }
         }
@@ -57,7 +58,17 @@ final class TripService: TripServiceProtocol {
     // MARK: - CRUD
 
     func createTrip(_ trip: Trip) async throws {
-        let saved = try await repository.save(trip)
+        // First save establishes the trip row so storage RLS can match the `{tripId}/...` prefix.
+        let initial = try await repository.save(trip)
+
+        let withStoragePaths = await uploadPendingPhotos(for: initial)
+        let saved: Trip
+        if withStoragePaths.attachments != initial.attachments {
+            saved = try await repository.save(withStoragePaths)
+        } else {
+            saved = initial
+        }
+
         registerLocalMutation(saved.id, updatedAt: saved.updatedAt)
         trips.append(saved)
         sortTrips()
@@ -77,7 +88,8 @@ final class TripService: TripServiceProtocol {
         sortTrips()
 
         do {
-            let saved = try await repository.save(trip)
+            let uploaded = await uploadPendingPhotos(for: trip)
+            let saved = try await repository.save(uploaded)
             registerLocalMutation(saved.id, updatedAt: saved.updatedAt)
 
             if let index = trips.firstIndex(where: { $0.id == trip.id }) {
@@ -104,6 +116,23 @@ final class TripService: TripServiceProtocol {
         }
     }
 
+    /// Uploads any image attachments that have a local file but no storage path yet.
+    /// Assumes the trip row already exists in the database (required by storage RLS).
+    private func uploadPendingPhotos(for trip: Trip) async -> Trip {
+        var updated = trip
+        for index in updated.attachments.indices {
+            let attachment = updated.attachments[index]
+            guard attachment.type == .image,
+                  attachment.storagePath == nil,
+                  let localPath = attachment.localPath else { continue }
+
+            if let path = await ImageStore.uploadToTripStorage(filename: localPath, tripId: trip.id) {
+                updated.attachments[index].storagePath = path
+            }
+        }
+        return updated
+    }
+
     func deleteTrip(by id: UUID) async throws {
         try await repository.delete(by: id)
         registerLocalMutation(id)
@@ -121,11 +150,13 @@ final class TripService: TripServiceProtocol {
 
     // MARK: - Realtime Sync
 
+    private static let realtimeChannel = "trips-sync"
+
     func startRealtimeSync(ownerID: UUID) {
         guard syncTask == nil else { return }
 
-        let filter = "owner_id=eq.\(ownerID.uuidString)"
-        let channel = SupabaseManager.client.channel("trips-sync")
+        let filter: RealtimePostgresFilter = .eq("owner_id", value: ownerID)
+        let channel = SupabaseManager.client.channel(Self.realtimeChannel)
         // Register postgres changes synchronously before subscribing, filtered to this user's rows
         let inserts = channel.postgresChange(InsertAction.self, schema: "public", table: "trips", filter: filter)
         let updates = channel.postgresChange(UpdateAction.self, schema: "public", table: "trips", filter: filter)
@@ -136,7 +167,7 @@ final class TripService: TripServiceProtocol {
             do {
                 try await channel.subscribeWithError()
             } catch {
-                print("[TripService] Realtime subscription failed: \(error)")
+                Log.tripService.error("Realtime subscription failed: \(error)")
                 return
             }
 
@@ -171,7 +202,7 @@ final class TripService: TripServiceProtocol {
                 announceRealtimeChange("New shared trip added", changedId: id)
             }
         } catch {
-            print("[TripService] Failed to fetch inserted trip \(id): \(error)")
+            Log.tripService.error("Failed to fetch inserted trip \(id): \(error)")
         }
     }
 
@@ -190,7 +221,7 @@ final class TripService: TripServiceProtocol {
                 announceRealtimeChange("Trip updated by collaborator", changedId: id)
             }
         } catch {
-            print("[TripService] Failed to fetch updated trip \(id): \(error)")
+            Log.tripService.error("Failed to fetch updated trip \(id): \(error)")
         }
     }
 

@@ -158,7 +158,7 @@ struct DailyTaskFormView: View {
                 .padding(.horizontal, AppTheme.Space.md)
                 .padding(.vertical, AppTheme.Space.sm)
                 .background(AppTheme.surfaceContainer)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
             }
         }
     }
@@ -196,7 +196,7 @@ struct DailyTaskFormView: View {
             .padding(.horizontal, AppTheme.Space.md)
             .padding(.vertical, AppTheme.Space.sm)
             .background(AppTheme.surfaceContainer)
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
     }
 
     private func timeRow(_ title: String, selection: Binding<Date>, minDate: Date? = nil) -> some View {
@@ -218,7 +218,7 @@ struct DailyTaskFormView: View {
         .padding(.horizontal, AppTheme.Space.md)
         .padding(.vertical, AppTheme.Space.sm)
         .background(AppTheme.surfaceContainer)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
     }
 
     private var categoryCard: some View {
@@ -241,7 +241,7 @@ struct DailyTaskFormView: View {
                 .padding(.horizontal, AppTheme.Space.md)
                 .padding(.vertical, AppTheme.Space.sm)
                 .background(AppTheme.surfaceContainer)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
 
                 if category == .custom {
                     VStack(alignment: .leading, spacing: AppTheme.Space.sm) {
@@ -256,7 +256,7 @@ struct DailyTaskFormView: View {
                     }
                     .padding(AppTheme.Space.md)
                     .background(AppTheme.surfaceContainer)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
                 }
 
                 CreationInlineError(
@@ -317,7 +317,7 @@ struct DailyTaskFormView: View {
         .padding(.horizontal, AppTheme.Space.md)
         .padding(.vertical, AppTheme.Space.sm)
         .background(AppTheme.surfaceContainer)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
     }
 
     private var selectedTripTitle: String {
@@ -339,7 +339,7 @@ struct DailyTaskFormView: View {
                     .scrollContentBackground(.hidden)
                     .padding(8)
                     .background(AppTheme.surfaceContainer)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
 
                 if notes.isEmpty {
                     Text("Add notes...")
@@ -406,7 +406,7 @@ struct DailyTaskFormView: View {
                     .padding(.horizontal, AppTheme.Space.md)
                     .padding(.vertical, AppTheme.Space.sm)
                     .background(AppTheme.surfaceContainer)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
                 }
 
                 if !subtasks.isEmpty {

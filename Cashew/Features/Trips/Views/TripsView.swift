@@ -438,11 +438,9 @@ struct TripsView: View {
                 showAddTrip = true
             } label: {
                 Label("Plan a Trip", systemImage: "plus")
-                    .fontWeight(.semibold)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
+                    .primaryActionButton(gradient: AppTheme.tripGradient, fullWidth: false)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.plain)
         }
         .padding()
         .tripModuleCard()
@@ -486,10 +484,13 @@ struct TripsView: View {
         } description: {
             Text(error.localizedDescription)
         } actions: {
-            Button("Retry") {
+            Button {
                 Task { await loadTrips() }
+            } label: {
+                Text("Retry")
+                    .secondaryActionButton(fullWidth: false)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.plain)
         }
     }
 

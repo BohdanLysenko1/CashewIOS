@@ -178,7 +178,7 @@ struct RoutineFormView: View {
             .padding(.horizontal, AppTheme.Space.md)
             .padding(.vertical, AppTheme.Space.sm)
             .background(AppTheme.surfaceContainer)
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
     }
 
     private func timeRow(_ label: String, selection: Binding<Date>, minDate: Date? = nil) -> some View {
@@ -200,7 +200,7 @@ struct RoutineFormView: View {
         .padding(.horizontal, AppTheme.Space.md)
         .padding(.vertical, AppTheme.Space.sm)
         .background(AppTheme.surfaceContainer)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
     }
 
     private func pickerRow<T: Hashable, Content: View>(
@@ -222,7 +222,7 @@ struct RoutineFormView: View {
         .padding(.horizontal, AppTheme.Space.md)
         .padding(.vertical, AppTheme.Space.sm)
         .background(AppTheme.surfaceContainer)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
     }
 
     // MARK: - Load & Save

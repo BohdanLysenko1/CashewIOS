@@ -229,6 +229,10 @@ enum AppTheme {
     static var heroGlowOpacity: Double { isDark ? 0.40 : 0.25 }
 
     // Tab state
+    /// Dark scrim for photographic / map surfaces that carry white text.
+    /// Use instead of raw `Color.black.opacity(...)` in views.
+    static let scrim: Color = Color.black.opacity(0.38)
+
     static var tabBarBackground: Color { isDark ? surfaceContainerLowest.opacity(0.98) : surfaceContainerLowest }
     static var tabBarBorder: Color { isDark ? onSurface.opacity(0.10) : onSurface.opacity(0.06) }
     static var tabBarSelectedItem: Color { primary }
@@ -248,6 +252,7 @@ enum AppTheme {
     static let cardCornerRadius: CGFloat = 24
     static let containerCornerRadius: CGFloat = 32
     static let buttonCornerRadius: CGFloat = 48
+    static let chipCornerRadius: CGFloat = 14   // mid-scale pills, sub-cards, compact buttons
     static let badgeCornerRadius: CGFloat = 12
     static let iconCornerRadius: CGFloat = 16
 
@@ -584,9 +589,72 @@ struct DestructiveSelectionBar: View {
             .padding(.vertical, 14)
             .background(AppTheme.negative)
             .foregroundStyle(.white)
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
             .padding(.horizontal, 24)
             .padding(.bottom, 8)
         }
+    }
+}
+
+// MARK: - Action Button Styles
+
+/// Primary CTA: gradient fill, white text, chip-radius pill. Replaces ad-hoc
+/// gradient buttons and system `.buttonStyle(.borderedProminent)` usage.
+/// Pass `fullWidth: false` for inline/compact contexts (e.g. ContentUnavailableView actions).
+struct PrimaryActionButtonStyle: ViewModifier {
+    let gradient: AnyShapeStyle
+    var cornerRadius: CGFloat = AppTheme.chipCornerRadius
+    var fullWidth: Bool = true
+
+    func body(content: Content) -> some View {
+        content
+            .font(AppTheme.TextStyle.bodyBold)
+            .frame(maxWidth: fullWidth ? .infinity : nil)
+            .padding(.vertical, 14)
+            .padding(.horizontal, fullWidth ? 0 : 22)
+            .background(gradient)
+            .foregroundStyle(.white)
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+    }
+}
+
+/// Secondary CTA: surface-container background, primary-color text, chip-radius pill.
+/// Replaces system `.buttonStyle(.bordered)` usage.
+struct SecondaryActionButtonStyle: ViewModifier {
+    var cornerRadius: CGFloat = AppTheme.chipCornerRadius
+    var fullWidth: Bool = true
+
+    func body(content: Content) -> some View {
+        content
+            .font(AppTheme.TextStyle.bodyBold)
+            .frame(maxWidth: fullWidth ? .infinity : nil)
+            .padding(.vertical, 12)
+            .padding(.horizontal, fullWidth ? 0 : 20)
+            .background(AppTheme.surfaceContainerHigh)
+            .foregroundStyle(AppTheme.primary)
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+    }
+}
+
+extension View {
+    /// Primary CTA with a gradient fill. Pass any `ShapeStyle` (LinearGradient, Color, etc.).
+    func primaryActionButton<S: ShapeStyle>(
+        gradient: S,
+        cornerRadius: CGFloat = AppTheme.chipCornerRadius,
+        fullWidth: Bool = true
+    ) -> some View {
+        modifier(PrimaryActionButtonStyle(
+            gradient: AnyShapeStyle(gradient),
+            cornerRadius: cornerRadius,
+            fullWidth: fullWidth
+        ))
+    }
+
+    /// Secondary CTA with surface-container background and primary-color text.
+    func secondaryActionButton(
+        cornerRadius: CGFloat = AppTheme.chipCornerRadius,
+        fullWidth: Bool = true
+    ) -> some View {
+        modifier(SecondaryActionButtonStyle(cornerRadius: cornerRadius, fullWidth: fullWidth))
     }
 }

@@ -4,6 +4,7 @@ struct TripPackingView: View {
     @Binding var trip: Trip
     let initialIntent: TripSectionIntent
     @State private var showAddItem = false
+    @State private var showAIPackingList = false
     @State private var editingItem: PackingItem?
     @State private var showUnpackedOnly = false
     @State private var didApplyInitialIntent = false
@@ -67,15 +68,25 @@ struct TripPackingView: View {
         .navigationTitle("Packing List")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button {
-                    showAddItem = true
-                } label: {
-                    Image(systemName: "plus")
+                HStack(spacing: 12) {
+                    Button {
+                        showAIPackingList = true
+                    } label: {
+                        Image(systemName: "sparkles")
+                    }
+                    Button {
+                        showAddItem = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
                 }
             }
         }
         .sheet(isPresented: $showAddItem) {
             PackingItemFormView(trip: $trip, item: nil)
+        }
+        .sheet(isPresented: $showAIPackingList) {
+            AIPackingListView(trip: $trip)
         }
         .sheet(item: $editingItem) { item in
             PackingItemFormView(trip: $trip, item: item)
@@ -140,9 +151,9 @@ struct TripPackingView: View {
                 showAddItem = true
             } label: {
                 Label("Add Item", systemImage: "plus")
-                    .fontWeight(.medium)
+                    .primaryActionButton(gradient: AppTheme.tripGradient, fullWidth: false)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.plain)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
@@ -421,7 +432,7 @@ struct PackingItemFormView: View {
                             .padding(.horizontal, AppTheme.Space.md)
                             .padding(.vertical, AppTheme.Space.sm)
                             .background(AppTheme.surfaceContainer)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
                         }
                     }
 
@@ -442,7 +453,7 @@ struct PackingItemFormView: View {
                         .padding(.horizontal, AppTheme.Space.md)
                         .padding(.vertical, AppTheme.Space.sm)
                         .background(AppTheme.surfaceContainer)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
                     }
                 }
                 .padding(.horizontal, AppTheme.Space.lg)

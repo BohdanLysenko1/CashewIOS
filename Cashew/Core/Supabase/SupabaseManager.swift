@@ -3,8 +3,21 @@ import Supabase
 
 enum SupabaseManager {
 
-    static let projectURL = URL(string: "https://sjmeicdvnzismnmvjnro.supabase.co")!
-    static let anonKey = "sb_publishable_XOp-tQduFHrUwH9eK7hJqQ_PDadlmAL"
+    static let projectURL: URL = {
+        guard let urlString = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String,
+              let url = URL(string: urlString) else {
+            fatalError("SUPABASE_URL not set in Info.plist — see Secrets.xcconfig.example")
+        }
+        return url
+    }()
+
+    static let anonKey: String = {
+        guard let key = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_ANON_KEY") as? String,
+              !key.isEmpty else {
+            fatalError("SUPABASE_ANON_KEY not set in Info.plist — see Secrets.xcconfig.example")
+        }
+        return key
+    }()
 
     static let client = SupabaseClient(
         supabaseURL: projectURL,

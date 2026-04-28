@@ -157,9 +157,9 @@ struct RoutinesListView: View {
                 showAddRoutine = true
             } label: {
                 Label("Create Routine", systemImage: "plus")
-                    .fontWeight(.medium)
+                    .primaryActionButton(gradient: AppTheme.dayPlannerGradient, fullWidth: false)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.plain)
         }
         .padding(AppTheme.cardPadding)
         .frame(maxWidth: .infinity)

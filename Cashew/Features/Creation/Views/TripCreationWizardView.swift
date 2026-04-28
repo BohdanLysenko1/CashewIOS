@@ -110,7 +110,7 @@ struct TripCreationWizardView: View {
                 )
                 .padding(AppTheme.Space.md)
                 .background(AppTheme.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius))
                 .shadow(color: AppTheme.cardShadow, radius: AppTheme.cardShadowRadius, x: 0, y: AppTheme.cardShadowY)
             }
         }
@@ -569,7 +569,7 @@ struct TripCreationWizardView: View {
             content()
                 .padding(AppTheme.Space.md)
                 .background(AppTheme.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius))
                 .shadow(color: AppTheme.cardShadow, radius: AppTheme.cardShadowRadius, x: 0, y: AppTheme.cardShadowY)
         }
     }
@@ -577,7 +577,7 @@ struct TripCreationWizardView: View {
     private func infoCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         content()
             .background(AppTheme.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius))
             .shadow(color: AppTheme.cardShadow, radius: AppTheme.cardShadowRadius, x: 0, y: AppTheme.cardShadowY)
     }
 

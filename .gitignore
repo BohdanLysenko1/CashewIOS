@@ -30,3 +30,6 @@ Podfile.lock
 
 # Carthage
 Carthage/Build/
+
+# Secrets (xcconfig with real credentials)
+Cashew/Configuration/Secrets.xcconfig

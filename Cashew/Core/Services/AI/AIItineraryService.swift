@@ -1,5 +1,4 @@
 import Foundation
-import Supabase
 
 // MARK: - Request
 
@@ -45,9 +44,7 @@ struct AIActivity: Decodable, Identifiable, Hashable {
 
 extension AIActivity {
     func toActivity(tripStartDate: Date, tripCurrency: String) -> Activity {
-        let isoFmt = DateFormatter()
-        isoFmt.dateFormat = "yyyy-MM-dd"
-        let actDate = isoFmt.date(from: date) ?? tripStartDate
+        let actDate = DateFormatting.isoDate.date(from: date) ?? tripStartDate
 
         func parseTime(_ t: String) -> Date? {
             let parts = t.split(separator: ":").compactMap { Int($0) }
@@ -101,22 +98,11 @@ protocol AIItineraryServiceProtocol {
 
 final class AIItineraryService: AIItineraryServiceProtocol {
     func generateItinerary(request: AIItineraryRequest) async throws -> AIItineraryResponse {
-        do {
-            let response: AIItineraryResponse = try await SupabaseManager.client.functions.invoke(
-                "generate-itinerary",
-                options: .init(body: request)
-            )
-            return response
-        } catch let fnError as FunctionsError {
-            // Extract the real error message from the response body
-            if case .httpError(_, let body) = fnError,
-               let envelope = try? JSONDecoder().decode([String: String].self, from: body),
-               let message = envelope["error"] {
-                throw AIItineraryError.functionError(message)
-            }
-            throw AIItineraryError.functionError(fnError.localizedDescription)
-        } catch {
-            throw AIItineraryError.decodingFailed(error)
-        }
+        try await AIServiceClient.invoke(
+            "generate-itinerary",
+            body: request,
+            functionError: AIItineraryError.functionError,
+            decodingFailure: AIItineraryError.decodingFailed
+        )
     }
 }

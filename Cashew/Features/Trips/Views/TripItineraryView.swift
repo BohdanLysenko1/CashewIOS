@@ -195,18 +195,17 @@ struct TripItineraryView: View {
                     showAddActivity = true
                 } label: {
                     Label("Add Activity", systemImage: "plus")
-                        .fontWeight(.medium)
+                        .primaryActionButton(gradient: AppTheme.tripGradient, fullWidth: false)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.plain)
 
                 Button {
                     showAIGenerator = true
                 } label: {
                     Label("Generate with AI", systemImage: "sparkles")
-                        .fontWeight(.medium)
+                        .secondaryActionButton(fullWidth: false)
                 }
-                .buttonStyle(.bordered)
-                .tint(AppTheme.secondary)
+                .buttonStyle(.plain)
             }
         }
         .frame(maxWidth: .infinity)
@@ -250,11 +249,9 @@ struct TripItineraryView: View {
                 showAIGenerator = true
             } label: {
                 Label("Generate AI Itinerary", systemImage: "sparkles")
-                    .fontWeight(.semibold)
-                    .frame(maxWidth: .infinity)
+                    .primaryActionButton(gradient: AppTheme.tripGradient)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(AppTheme.secondary)
+            .buttonStyle(.plain)
 
             Button {
                 showAddActivity = true
@@ -397,9 +394,9 @@ private struct DateTab: View {
         }
         .frame(width: 58, height: 78)
         .background(isSelected ? AnyShapeStyle(AppTheme.tripGradient) : AnyShapeStyle(AppTheme.surfaceContainerLow))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous)
                 .strokeBorder(isSelected ? .white.opacity(0.36) : AppTheme.outlineVariant, lineWidth: 1)
         )
         .shadow(color: isSelected ? AppTheme.secondary.opacity(0.22) : .clear, radius: 12, x: 0, y: 4)
@@ -581,7 +578,7 @@ struct ActivityFormView: View {
                             .padding(.horizontal, AppTheme.Space.md)
                             .padding(.vertical, AppTheme.Space.sm)
                             .background(AppTheme.surfaceContainer)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
                         }
                     }
 
@@ -600,7 +597,7 @@ struct ActivityFormView: View {
                             .padding(.horizontal, AppTheme.Space.md)
                             .padding(.vertical, AppTheme.Space.sm)
                             .background(AppTheme.surfaceContainer)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
 
                             Toggle("Set Time", isOn: $hasTime)
                                 .font(AppTheme.TextStyle.body)
@@ -608,7 +605,7 @@ struct ActivityFormView: View {
                                 .padding(.horizontal, AppTheme.Space.md)
                                 .padding(.vertical, AppTheme.Space.sm)
                                 .background(AppTheme.surfaceContainer)
-                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
 
                             if hasTime {
                                 HStack {
@@ -623,7 +620,7 @@ struct ActivityFormView: View {
                                 .padding(.horizontal, AppTheme.Space.md)
                                 .padding(.vertical, AppTheme.Space.sm)
                                 .background(AppTheme.surfaceContainer)
-                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
 
                                 Toggle("End Time", isOn: $hasEndTime)
                                     .font(AppTheme.TextStyle.body)
@@ -631,7 +628,7 @@ struct ActivityFormView: View {
                                     .padding(.horizontal, AppTheme.Space.md)
                                     .padding(.vertical, AppTheme.Space.sm)
                                     .background(AppTheme.surfaceContainer)
-                                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
 
                                 if hasEndTime {
                                     HStack {
@@ -646,7 +643,7 @@ struct ActivityFormView: View {
                                     .padding(.horizontal, AppTheme.Space.md)
                                     .padding(.vertical, AppTheme.Space.sm)
                                     .background(AppTheme.surfaceContainer)
-                                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
                                 }
                             }
                         }
@@ -674,7 +671,7 @@ struct ActivityFormView: View {
                                 .padding(.horizontal, AppTheme.Space.md)
                                 .padding(.vertical, AppTheme.Space.sm)
                                 .background(AppTheme.surfaceContainer)
-                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
 
                             if isBooked {
                                 TextField("Confirmation #", text: $confirmationNumber)
@@ -887,7 +884,7 @@ private struct ItineraryMapView: View {
             .padding(.vertical, 6)
             .background(
                 Capsule()
-                    .fill(.black.opacity(0.38))
+                    .fill(AppTheme.scrim)
             )
             .padding(12)
         }

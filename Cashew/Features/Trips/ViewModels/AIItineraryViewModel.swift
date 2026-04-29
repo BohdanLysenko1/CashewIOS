@@ -15,6 +15,11 @@ final class AIItineraryViewModel {
     // Configure state
     var selectedInterests: Set<String> = []
     var budgetAllocationString: String = ""
+    var userNote: String = ""
+    var selectedVibe: TripVibe? = nil
+    var selectedPace: TripPace = .balanced
+
+    static let userNoteCharLimit = 500
 
     // Review state
     var phase: Phase = .configure
@@ -40,12 +45,13 @@ final class AIItineraryViewModel {
 
     var hasBudget: Bool { trip.budget != nil }
     var budgetAllocation: Double { Double(budgetAllocationString) ?? 0 }
-    var canGenerate: Bool { !selectedInterests.isEmpty && budgetAllocation > 0 }
+    var canGenerate: Bool {
+        !selectedInterests.isEmpty
+            && budgetAllocation > 0
+            && userNote.count <= Self.userNoteCharLimit
+    }
 
-    let availableInterests: [String] = [
-        "restaurant", "museum", "tour", "beach",
-        "hiking", "shopping", "nightlife", "activity"
-    ]
+    let availableInterests: [ItineraryInterest] = ItineraryInterest.catalog
 
     var reviewActivities: [AIActivity] {
         guard case .review(let a) = phase else { return [] }
@@ -85,11 +91,9 @@ final class AIItineraryViewModel {
         selectedIDs = Set(reviewActivities.map(\.id))
     }
 
-    @MainActor
-    func generate() async {
-        phase = .loading
-
-        let request = AIItineraryRequest(
+    private func buildRequest(targetDate: String? = nil) -> AIItineraryRequest {
+        let trimmedNote = userNote.trimmingCharacters(in: .whitespacesAndNewlines)
+        return AIItineraryRequest(
             destination: trip.destination,
             destinationLatitude: trip.destinationLatitude,
             destinationLongitude: trip.destinationLongitude,
@@ -98,8 +102,19 @@ final class AIItineraryViewModel {
             tripCurrency: trip.currency,
             budgetAllocation: budgetAllocation,
             interests: Array(selectedInterests),
-            existingActivityTitles: trip.activities.map(\.title)
+            existingActivityTitles: trip.activities.map(\.title),
+            targetDate: targetDate,
+            userNote: trimmedNote.isEmpty ? nil : trimmedNote,
+            vibe: selectedVibe?.rawValue,
+            pace: selectedPace.rawValue
         )
+    }
+
+    @MainActor
+    func generate() async {
+        phase = .loading
+
+        let request = buildRequest()
 
         do {
             let response = try await service.generateItinerary(request: request)
@@ -122,18 +137,7 @@ final class AIItineraryViewModel {
         guard regeneratingDay == nil else { return }
         regeneratingDay = dateString
 
-        var request = AIItineraryRequest(
-            destination: trip.destination,
-            destinationLatitude: trip.destinationLatitude,
-            destinationLongitude: trip.destinationLongitude,
-            startDate: DateFormatting.isoDate.string(from: trip.startDate),
-            endDate: DateFormatting.isoDate.string(from: trip.endDate),
-            tripCurrency: trip.currency,
-            budgetAllocation: budgetAllocation,
-            interests: Array(selectedInterests),
-            existingActivityTitles: trip.activities.map(\.title)
-        )
-        request.targetDate = dateString
+        let request = buildRequest(targetDate: dateString)
 
         do {
             let response = try await service.generateItinerary(request: request)

@@ -97,17 +97,16 @@ struct AIItineraryView: View {
                         ],
                         spacing: AppTheme.Space.sm
                     ) {
-                        ForEach(viewModel.availableInterests, id: \.self) { interest in
-                            let isSelected = viewModel.selectedInterests.contains(interest)
-                            let category = ActivityCategory(rawValue: interest) ?? .activity
+                        ForEach(viewModel.availableInterests) { interest in
+                            let isSelected = viewModel.selectedInterests.contains(interest.id)
 
                             Button {
-                                viewModel.toggleInterest(interest)
+                                viewModel.toggleInterest(interest.id)
                             } label: {
                                 VStack(spacing: 4) {
-                                    Image(systemName: category.icon)
+                                    Image(systemName: interest.icon)
                                         .font(.system(size: AppTheme.sectionIconSize + 4))
-                                    Text(category.displayName)
+                                    Text(interest.displayName)
                                         .font(AppTheme.TextStyle.caption)
                                         .lineLimit(1)
                                         .minimumScaleFactor(0.8)
@@ -124,6 +123,70 @@ struct AIItineraryView: View {
                             }
                             .buttonStyle(.plain)
                             .animation(.easeInOut(duration: 0.15), value: isSelected)
+                        }
+                    }
+                }
+
+                // Travel Style (vibe + pace)
+                CreationSectionCard(title: "Travel Style", icon: "sparkles") {
+                    VStack(alignment: .leading, spacing: AppTheme.Space.md) {
+                        VStack(alignment: .leading, spacing: AppTheme.Space.xs) {
+                            Text("Vibe")
+                                .font(AppTheme.TextStyle.captionBold)
+                                .foregroundStyle(AppTheme.onSurfaceVariant)
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: AppTheme.Space.sm) {
+                                    ForEach(TripVibe.allCases) { vibe in
+                                        vibePill(vibe: vibe)
+                                    }
+                                }
+                            }
+                        }
+
+                        VStack(alignment: .leading, spacing: AppTheme.Space.xs) {
+                            Text("Pace")
+                                .font(AppTheme.TextStyle.captionBold)
+                                .foregroundStyle(AppTheme.onSurfaceVariant)
+                            HStack(spacing: AppTheme.Space.sm) {
+                                ForEach(TripPace.allCases) { pace in
+                                    pacePill(pace: pace)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Notes for Gemini
+                CreationSectionCard(title: "Notes for Gemini", icon: "text.bubble") {
+                    VStack(alignment: .leading, spacing: AppTheme.Space.xs) {
+                        ZStack(alignment: .topLeading) {
+                            if viewModel.userNote.isEmpty {
+                                Text("e.g. vegetarian, traveling with a toddler, want a sunset hike")
+                                    .font(AppTheme.TextStyle.body)
+                                    .foregroundStyle(AppTheme.onSurfaceVariant.opacity(0.6))
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 14)
+                                    .allowsHitTesting(false)
+                            }
+                            TextEditor(text: $viewModel.userNote)
+                                .font(AppTheme.TextStyle.body)
+                                .scrollContentBackground(.hidden)
+                                .frame(minHeight: 120)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 8)
+                        }
+                        .background(AppTheme.surfaceContainer)
+                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
+
+                        HStack {
+                            Spacer()
+                            Text("\(viewModel.userNote.count)/\(AIItineraryViewModel.userNoteCharLimit)")
+                                .font(AppTheme.TextStyle.caption)
+                                .foregroundStyle(
+                                    viewModel.userNote.count > AIItineraryViewModel.userNoteCharLimit
+                                        ? AppTheme.negative
+                                        : AppTheme.onSurfaceVariant
+                                )
                         }
                     }
                 }
@@ -256,6 +319,59 @@ struct AIItineraryView: View {
                 onConfirm: { addToTrip() }
             )
         }
+    }
+
+    private func vibePill(vibe: TripVibe) -> some View {
+        let isSelected = viewModel.selectedVibe == vibe
+        return Button {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                viewModel.selectedVibe = isSelected ? nil : vibe
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: vibe.icon)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(vibe.displayName)
+                    .font(AppTheme.TextStyle.captionBold)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .foregroundStyle(isSelected ? .white : AppTheme.onSurface)
+            .background(
+                isSelected
+                    ? AnyShapeStyle(AppTheme.tripGradient)
+                    : AnyShapeStyle(AppTheme.surfaceContainerLow)
+            )
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func pacePill(pace: TripPace) -> some View {
+        let isSelected = viewModel.selectedPace == pace
+        return Button {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                viewModel.selectedPace = pace
+            }
+        } label: {
+            VStack(spacing: 2) {
+                Text(pace.displayName)
+                    .font(AppTheme.TextStyle.captionBold)
+                Text(pace.subtitle)
+                    .font(AppTheme.TextStyle.caption)
+                    .opacity(0.85)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .foregroundStyle(isSelected ? .white : AppTheme.onSurface)
+            .background(
+                isSelected
+                    ? AnyShapeStyle(AppTheme.tripGradient)
+                    : AnyShapeStyle(AppTheme.surfaceContainerLow)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.badgeCornerRadius, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 
     private func dayFilterPill(date: String?, label: String) -> some View {

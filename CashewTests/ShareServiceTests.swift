@@ -277,6 +277,10 @@ private final class StubAuthService: AuthServiceProtocol {
     }
     func updatePassword(_ newPassword: String) async throws {}
     func sendPasswordReset(email: String) async throws {}
+    func deleteAccount() async throws {
+        currentUser = nil
+        isAuthenticated = false
+    }
 }
 
 @MainActor
@@ -386,5 +390,12 @@ private final class MockSharingDataStore: SharingDataStoreProtocol {
     func fetchUser(id: UUID) async throws -> AppUser {
         lastFetchUserId = id
         return userToReturn
+    }
+
+    var sharedByMeTripIdsToReturn: Set<UUID> = []
+    private(set) var lastSharedByMeFetchId: UUID?
+    func fetchSharedByMeTripIds(userId: UUID) async throws -> Set<UUID> {
+        lastSharedByMeFetchId = userId
+        return sharedByMeTripIdsToReturn
     }
 }

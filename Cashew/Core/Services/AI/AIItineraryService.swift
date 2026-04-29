@@ -13,6 +13,9 @@ struct AIItineraryRequest: Encodable {
     let interests: [String]
     let existingActivityTitles: [String]
     var targetDate: String?  // When set, regenerate only this day
+    let userNote: String?
+    let vibe: String?
+    let pace: String?
 }
 
 // MARK: - Response

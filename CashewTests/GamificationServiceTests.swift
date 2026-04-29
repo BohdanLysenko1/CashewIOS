@@ -138,6 +138,7 @@ private final class StubAuthService: AuthServiceProtocol {
     func signedAvatarURL(for path: String, expiresIn: Int) async throws -> URL { URL(string: "https://example.com")! }
     func updatePassword(_ newPassword: String) async throws {}
     func sendPasswordReset(email: String) async throws {}
+    func deleteAccount() async throws { currentUser = nil }
 }
 
 @MainActor

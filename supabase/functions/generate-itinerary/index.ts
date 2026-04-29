@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { CORS_HEADERS, jsonResponse } from "../_shared/cors.ts";
 import { AuthError, verifyAuth } from "../_shared/auth.ts";
 import { callGemini } from "../_shared/gemini.ts";
@@ -9,6 +10,21 @@ import {
   assertStringArray,
 } from "../_shared/validate.ts";
 
+const VIBES = ["adventurous", "cultural", "romantic", "family", "party", "solo"];
+const PACES = ["relaxed", "balanced", "packed"];
+
+function paceGuidance(pace: string | null): { count: string; description: string } {
+  switch (pace) {
+    case "relaxed":
+      return { count: "2-3", description: "with longer breaks between stops and a slow morning each day" };
+    case "packed":
+      return { count: "4-5", description: "tightly scheduled with minimal downtime to maximize what the traveler sees" };
+    case "balanced":
+    default:
+      return { count: "3-4", description: "balanced between activity and rest" };
+  }
+}
+
 // ── Handler ──────────────────────────────────────────────────────────
 
 serve(async (req: Request) => {
@@ -17,7 +33,7 @@ serve(async (req: Request) => {
   }
 
   try {
-    await verifyAuth(req);
+    const { userId } = await verifyAuth(req);
 
     const body = await req.json();
 
@@ -40,6 +56,16 @@ serve(async (req: Request) => {
       ? assertStringArray(body.existingActivityTitles, "existingActivityTitles")
       : [];
     const targetDate = body.targetDate ? assertDate(body.targetDate, "targetDate") : null;
+
+    const userNote = typeof body.userNote === "string" && body.userNote.trim().length > 0
+      ? body.userNote.trim().slice(0, 500)
+      : null;
+    const vibe = typeof body.vibe === "string" && VIBES.includes(body.vibe)
+      ? body.vibe
+      : null;
+    const pace = typeof body.pace === "string" && PACES.includes(body.pace)
+      ? body.pace
+      : null;
 
     // Build a list of trip dates (or just the target date)
     let dates: string[];
@@ -97,16 +123,24 @@ serve(async (req: Request) => {
       ? `Budget for this day: ${Math.round(budgetAllocation / dates.length)} ${tripCurrency} (from total ${budgetAllocation} ${tripCurrency})`
       : `Total budget allocation: ${budgetAllocation} ${tripCurrency}`;
 
+    const { count: paceCount, description: paceDescription } = paceGuidance(pace);
+    const styleLines = [
+      `Travel pace: ${pace ?? "balanced"} — ${paceDescription}.`,
+      vibe ? `Trip vibe: ${vibe} — emphasize activities matching this mood.` : null,
+      userNote ? `Traveler's specific notes (treat as hard preferences when feasible): ${userNote}` : null,
+    ].filter(Boolean).join("\n");
+
     const prompt =
       `You are an expert travel itinerary planner. ${dayContext}
 
 Trip dates: ${dates.join(", ")}
 ${budgetContext}
 Traveler interests: ${(interests as string[]).join(", ")}
+${styleLines}
 Activities already planned — do NOT duplicate these: ${alreadyPlanned}
 
 Requirements:
-1. Generate 3-5 activities per day, spread evenly across all trip dates.
+1. Generate ${paceCount} activities per day, spread evenly across all trip dates, matching the stated pace.
 2. Each activity MUST include accurate real-world GPS coordinates (latitude and longitude).
 3. Within each day, order activities by geographic proximity to minimize travel between consecutive stops.
 4. Assign realistic, non-overlapping start and end times (HH:MM format) for each activity within a day.
@@ -161,6 +195,33 @@ Return ONLY a valid JSON object with no markdown fences or extra text:
       latitude: a.latitude != null ? Number(a.latitude) : null,
       longitude: a.longitude != null ? Number(a.longitude) : null,
     }));
+
+    // ── Persist generation inputs (best-effort) ─────────────────────
+    try {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (supabaseUrl && serviceKey) {
+        const supabase = createClient(supabaseUrl, serviceKey);
+        const { error: insertError } = await supabase
+          .from("itinerary_generations")
+          .insert({
+            user_id: userId,
+            destination,
+            days: dates.length,
+            interests,
+            user_note: userNote,
+            vibe,
+            pace,
+            target_date: targetDate,
+            budget_allocation: budgetAllocation,
+          });
+        if (insertError) {
+          console.error("itinerary_generations insert failed:", insertError.message);
+        }
+      }
+    } catch (logErr) {
+      console.error("itinerary_generations insert threw:", logErr instanceof Error ? logErr.message : String(logErr));
+    }
 
     return jsonResponse({ activities });
   } catch (err) {

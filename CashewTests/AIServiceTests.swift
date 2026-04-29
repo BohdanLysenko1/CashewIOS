@@ -362,9 +362,10 @@ final class AIPackingConversionTests: XCTestCase {
 
 // MARK: - Itinerary Tests
 
-private struct MockItineraryService: AIItineraryServiceProtocol, @unchecked Sendable {
+private final class MockItineraryService: AIItineraryServiceProtocol, @unchecked Sendable {
     let initialResult: Result<AIItineraryResponse, Error>
     let regenerateResult: ((String) -> Result<AIItineraryResponse, Error>)?
+    private(set) var lastRequest: AIItineraryRequest?
 
     init(initialResult: Result<AIItineraryResponse, Error>,
          regenerateResult: ((String) -> Result<AIItineraryResponse, Error>)? = nil) {
@@ -373,6 +374,7 @@ private struct MockItineraryService: AIItineraryServiceProtocol, @unchecked Send
     }
 
     func generateItinerary(request: AIItineraryRequest) async throws -> AIItineraryResponse {
+        lastRequest = request
         if let target = request.targetDate, let handler = regenerateResult {
             return try handler(target).get()
         }
@@ -532,6 +534,65 @@ final class AIItineraryViewModelTests: XCTestCase {
             latitude: 0,
             longitude: 0
         )
+    }
+
+    func testGenerate_passesUserNoteAndVibeAndPace() async {
+        let service = MockItineraryService(
+            initialResult: .success(AIItineraryResponse(activities: [sampleActivity(date: "2025-06-01", title: "A")]))
+        )
+        let vm = AIItineraryViewModel(trip: makeTrip(), service: service)
+        vm.budgetAllocationString = "1000"
+        vm.selectedInterests = ["art"]
+        vm.userNote = "  vegetarian, sunset hike  "
+        vm.selectedVibe = .cultural
+        vm.selectedPace = .relaxed
+
+        await vm.generate()
+
+        let req = service.lastRequest
+        XCTAssertEqual(req?.userNote, "vegetarian, sunset hike", "userNote should be trimmed and forwarded")
+        XCTAssertEqual(req?.vibe, "cultural")
+        XCTAssertEqual(req?.pace, "relaxed")
+    }
+
+    func testGenerate_emptyUserNote_sendsNil() async {
+        let service = MockItineraryService(
+            initialResult: .success(AIItineraryResponse(activities: [sampleActivity(date: "2025-06-01", title: "A")]))
+        )
+        let vm = AIItineraryViewModel(trip: makeTrip(), service: service)
+        vm.budgetAllocationString = "1000"
+        vm.selectedInterests = ["art"]
+        vm.userNote = "   \n  "
+
+        await vm.generate()
+
+        XCTAssertNil(service.lastRequest?.userNote, "Whitespace-only note should serialize as nil")
+        XCTAssertNil(service.lastRequest?.vibe, "Vibe defaults to nil when not chosen")
+        XCTAssertEqual(service.lastRequest?.pace, "balanced", "Pace defaults to balanced")
+    }
+
+    func testCanGenerate_blocksWhenNoteExceedsLimit() async {
+        let vm = AIItineraryViewModel(trip: makeTrip())
+        vm.budgetAllocationString = "1000"
+        vm.selectedInterests = ["art"]
+
+        vm.userNote = String(repeating: "a", count: AIItineraryViewModel.userNoteCharLimit)
+        XCTAssertTrue(vm.canGenerate, "At the limit should still allow generation")
+
+        vm.userNote = String(repeating: "a", count: AIItineraryViewModel.userNoteCharLimit + 1)
+        XCTAssertFalse(vm.canGenerate, "Past the limit should block generation")
+    }
+
+    func testAvailableInterests_has14EntriesIncludingArtAndFoodie() async {
+        let vm = AIItineraryViewModel(trip: makeTrip())
+        XCTAssertEqual(vm.availableInterests.count, 14)
+        let ids = vm.availableInterests.map(\.id)
+        XCTAssertTrue(ids.contains("art"))
+        XCTAssertTrue(ids.contains("foodie"))
+        XCTAssertTrue(ids.contains("photography"))
+        XCTAssertTrue(ids.contains("history"))
+        XCTAssertTrue(ids.contains("nature"))
+        XCTAssertTrue(ids.contains("wellness"))
     }
 }
 

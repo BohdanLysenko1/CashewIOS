@@ -94,9 +94,9 @@ struct EventDTO: Codable {
     }
 }
 
-// MARK: - Event Insert/Update payload
+// MARK: - Event Insert payload (owner-only — INSERT WITH CHECK requires owner_id = auth.uid)
 
-private struct EventPayload: Encodable {
+struct EventPayload: Encodable {
     let id: UUID
     let ownerId: UUID
     let title: String
@@ -172,6 +172,78 @@ private struct EventPayload: Encodable {
     }
 }
 
+// MARK: - Event Update payload (collaborator-safe — omits owner_id since RLS pins it)
+
+struct EventUpdatePayload: Encodable {
+    let title: String
+    let date: Date
+    let endDate: Date?
+    let location: String
+    let locationLatitude: Double?
+    let locationLongitude: Double?
+    let address: String
+    let notes: String
+    let category: String
+    let isAllDay: Bool
+    let priority: String
+    let url: String?
+    let cost: Double?
+    let currency: String
+    let customCategoryName: String?
+    let tripId: UUID?
+    let reminders: [Reminder]
+    let recurrenceRule: RecurrenceRule?
+    let exceptionDates: [Date]
+    let timezoneIdentifier: String?
+    let attachments: [Attachment]
+    let heroMode: String?
+    let heroColorToken: String?
+    let heroPhotoAttachmentId: UUID?
+
+    enum CodingKeys: String, CodingKey {
+        case title, date, notes, category, priority, url, cost, currency, location, address, reminders, attachments
+        case endDate            = "end_date"
+        case locationLatitude   = "location_latitude"
+        case locationLongitude  = "location_longitude"
+        case isAllDay           = "is_all_day"
+        case customCategoryName = "custom_category_name"
+        case tripId             = "trip_id"
+        case recurrenceRule     = "recurrence_rule"
+        case exceptionDates     = "exception_dates"
+        case timezoneIdentifier = "timezone_identifier"
+        case heroMode           = "hero_mode"
+        case heroColorToken     = "hero_color_token"
+        case heroPhotoAttachmentId = "hero_photo_attachment_id"
+    }
+
+    init(event: Event) {
+        self.title = event.title
+        self.date = event.date
+        self.endDate = event.endDate
+        self.location = event.location
+        self.locationLatitude = event.locationLatitude
+        self.locationLongitude = event.locationLongitude
+        self.address = event.address
+        self.notes = event.notes
+        self.category = event.category.rawValue
+        self.isAllDay = event.isAllDay
+        self.priority = event.priority.rawValue
+        self.url = event.url?.absoluteString
+        self.cost = event.cost.map { Double(truncating: $0 as NSNumber) }
+        self.currency = event.currency
+        self.customCategoryName = event.customCategoryName
+        self.tripId = event.tripId
+        self.reminders = event.reminders
+        self.recurrenceRule = event.recurrenceRule
+        self.exceptionDates = event.exceptionDates
+        self.timezoneIdentifier = event.timezoneIdentifier
+        self.attachments = event.attachments
+        self.heroMode = event.heroMode
+        self.heroColorToken = event.heroColorToken
+        self.heroPhotoAttachmentId = event.heroPhotoAttachmentId
+    }
+}
+
 // MARK: - Repository
 
 @MainActor
@@ -203,22 +275,34 @@ final class SupabaseEventRepository: EventRepositoryProtocol {
 
     @discardableResult
     func save(_ event: Event) async throws -> Event {
-        let ownerId: UUID
-        if let existing = event.ownerId {
-            ownerId = existing
+        let session = try await client.auth.session
+        let currentUserId = session.user.id
+        // See SupabaseTripRepository.save — collaborators must use UPDATE; UPSERT
+        // would trip the trips/events INSERT WITH CHECK (`owner_id = auth.uid`).
+        let isOwner = event.ownerId == nil || event.ownerId == currentUserId
+
+        if isOwner {
+            let payload = EventPayload(event: event, ownerId: event.ownerId ?? currentUserId)
+            let dto: EventDTO = try await client
+                .from(SupabaseSchema.Table.events)
+                .upsert(payload)
+                .select(SupabaseSchema.Select.eventWithOwner)
+                .single()
+                .execute()
+                .value
+            return dto.toEvent()
         } else {
-            let session = try await client.auth.session
-            ownerId = session.user.id
+            let payload = EventUpdatePayload(event: event)
+            let dto: EventDTO = try await client
+                .from(SupabaseSchema.Table.events)
+                .update(payload)
+                .eq("id", value: event.id.uuidString)
+                .select(SupabaseSchema.Select.eventWithOwner)
+                .single()
+                .execute()
+                .value
+            return dto.toEvent()
         }
-        let payload = EventPayload(event: event, ownerId: ownerId)
-        let dto: EventDTO = try await client
-            .from(SupabaseSchema.Table.events)
-            .upsert(payload)
-            .select(SupabaseSchema.Select.eventWithOwner)
-            .single()
-            .execute()
-            .value
-        return dto.toEvent()
     }
 
     func delete(by id: UUID) async throws {

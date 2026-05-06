@@ -109,11 +109,11 @@ struct TripHighlightCalendar: View {
             ZStack {
                 if isSelected {
                     Circle()
-                        .fill(.blue)
+                        .fill(AppTheme.primary)
                         .frame(width: 36, height: 36)
                 } else if isToday {
                     Circle()
-                        .strokeBorder(.blue, lineWidth: 1.5)
+                        .strokeBorder(AppTheme.primary.opacity(0.75), lineWidth: 1.5)
                         .frame(width: 36, height: 36)
                 }
 
@@ -121,7 +121,7 @@ struct TripHighlightCalendar: View {
                     Text("\(calendar.component(.day, from: date))")
                         .font(.subheadline)
                         .fontWeight(isToday || isSelected ? .bold : .regular)
-                        .foregroundStyle(isSelected ? .white : isToday ? .blue : .primary)
+                        .foregroundStyle(isSelected ? .white : isToday ? AppTheme.primary : AppTheme.onSurface)
 
                     if !dots.isEmpty && !isSelected {
                         HStack(spacing: 2) {
@@ -159,7 +159,7 @@ struct TripHighlightCalendar: View {
         }
 
         let hasTask = tasks.contains { calendar.isDate($0.date, inSameDayAs: date) }
-        if hasTask { dots.append(.green) }
+        if hasTask { dots.append(AppTheme.positive) }
 
         return dots
     }
@@ -189,7 +189,7 @@ struct TripHighlightCalendar: View {
         case .trip:
             let ranges = trips.map { DateRange(start: $0.startDate, end: $0.endDate) }
             guard !ranges.isEmpty else { return [] }
-            return buildSegments(in: week, ranges: ranges, color: .blue, prefix: "t")
+            return buildSegments(in: week, ranges: ranges, color: AppTheme.secondary, prefix: "t")
 
         case .event:
             var segments: [HighlightSegment] = []

@@ -11,6 +11,8 @@ struct AcceptInviteView: View {
 
     enum ViewState {
         case loading
+        case preview(ShareInvitePreview)
+        case accepting(ShareInvitePreview)
         case ready(SharedResource)
         case error(String)
     }
@@ -21,6 +23,10 @@ struct AcceptInviteView: View {
                 switch state {
                 case .loading:
                     loadingView
+                case .preview(let preview):
+                    previewView(preview, isAccepting: false)
+                case .accepting(let preview):
+                    previewView(preview, isAccepting: true)
                 case .ready(let resource):
                     readyView(resource)
                 case .error(let message):
@@ -48,6 +54,66 @@ struct AcceptInviteView: View {
                 .foregroundStyle(AppTheme.onSurfaceVariant)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Preview
+
+    private func previewView(_ preview: ShareInvitePreview, isAccepting: Bool) -> some View {
+        VStack(spacing: AppTheme.Space.xxl) {
+            Spacer()
+
+            ZStack {
+                Circle()
+                    .fill(iconColor(for: preview.resourceType).opacity(0.12))
+                    .frame(width: 88, height: 88)
+                Image(systemName: iconName(for: preview.resourceType))
+                    .font(.system(size: 36, weight: .semibold))
+                    .foregroundStyle(iconColor(for: preview.resourceType))
+            }
+
+            VStack(spacing: AppTheme.Space.sm) {
+                Text(preview.title)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .multilineTextAlignment(.center)
+
+                Text("Shared by \(preview.createdByName)")
+                    .font(.subheadline)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
+
+                Text("\(resourceTypeName(for: preview.resourceType)) invite")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, AppTheme.Space.xs)
+            }
+            .padding(.horizontal, AppTheme.Space.xxl)
+
+            Spacer()
+
+            Button {
+                Task { await acceptInvite(preview) }
+            } label: {
+                HStack(spacing: AppTheme.Space.sm) {
+                    if isAccepting {
+                        ProgressView()
+                            .tint(.white)
+                    }
+                    Text(isAccepting ? "Accepting..." : "Accept \(resourceTypeName(for: preview.resourceType))")
+                        .font(.subheadline)
+                        .fontWeight(.bold)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+                .foregroundStyle(.white)
+                .background(iconColor(for: preview.resourceType))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .buttonStyle(.plain)
+            .disabled(isAccepting)
+            .padding(.horizontal, AppTheme.Space.lg)
+            .padding(.bottom, AppTheme.Space.xxxl)
+        }
     }
 
     // MARK: - Ready
@@ -133,19 +199,32 @@ struct AcceptInviteView: View {
 
     private func loadInvite() async {
         do {
+            let preview = try await container.shareService.previewInvite(token: token)
+            state = .preview(preview)
+        } catch {
+            state = .error(error.localizedDescription)
+        }
+    }
+
+    private func acceptInvite(_ preview: ShareInvitePreview) async {
+        state = .accepting(preview)
+        do {
             let resource = try await container.shareService.acceptInvite(token: token)
-            // Reload data so the newly shared item appears
-            switch resource {
-            case .trip:
-                do { try await container.tripService.loadTrips() }
-                catch { print("[AcceptInviteView] Failed to reload trips: \(error)") }
-            case .event:
-                do { try await container.eventService.loadEvents() }
-                catch { print("[AcceptInviteView] Failed to reload events: \(error)") }
-            }
+            await reload(resource)
             state = .ready(resource)
         } catch {
             state = .error(error.localizedDescription)
+        }
+    }
+
+    private func reload(_ resource: SharedResource) async {
+        switch resource {
+        case .trip:
+            do { try await container.tripService.loadTrips() }
+            catch { print("[AcceptInviteView] Failed to reload trips: \(error)") }
+        case .event:
+            do { try await container.eventService.loadEvents() }
+            catch { print("[AcceptInviteView] Failed to reload events: \(error)") }
         }
     }
 
@@ -156,5 +235,17 @@ struct AcceptInviteView: View {
         case .trip:  return .orange
         case .event: return .pink
         }
+    }
+
+    private func iconColor(for resourceType: String) -> Color {
+        resourceType == SharedResource.tripType ? .orange : .pink
+    }
+
+    private func iconName(for resourceType: String) -> String {
+        resourceType == SharedResource.tripType ? "airplane.departure" : "calendar"
+    }
+
+    private func resourceTypeName(for resourceType: String) -> String {
+        resourceType == SharedResource.tripType ? "Trip" : "Event"
     }
 }

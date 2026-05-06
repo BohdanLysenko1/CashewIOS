@@ -312,9 +312,8 @@ struct EventsView: View {
                         .rotationEffect(.degrees(showPast ? 90 : 0))
                 }
                 .foregroundStyle(AppTheme.onSurfaceVariant)
-                .padding()
-                .background(AppTheme.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
+                .padding(AppTheme.cardPadding)
+                .cardStyle()
             }
             .buttonStyle(.plain)
 
@@ -349,31 +348,16 @@ struct EventsView: View {
     }
 
     private var emptyView: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "star.circle")
-                .font(.system(size: 70))
-                .foregroundStyle(AppTheme.eventGradient)
-
-            VStack(spacing: 8) {
-                Text("No Events")
-                    .font(AppTheme.TextStyle.title)
-                    .foregroundStyle(AppTheme.onSurface)
-
-                Text("Create events to track your activities!")
-                    .font(AppTheme.TextStyle.body)
-                    .foregroundStyle(AppTheme.onSurfaceVariant)
-                    .multilineTextAlignment(.center)
-            }
-
-            Button {
-                showAddEvent = true
-            } label: {
-                Label("Create Event", systemImage: "plus")
-                    .primaryActionButton(gradient: AppTheme.eventGradient, fullWidth: false)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding()
+        PremiumEmptyStateCard(
+            title: "No Events",
+            message: "Add dinners, appointments, and reminders so your calendar has the full picture.",
+            systemImage: "star.circle",
+            gradient: AppTheme.eventGradient,
+            actionTitle: "Create Event",
+            actionIcon: "plus",
+            action: { showAddEvent = true }
+        )
+        .padding(AppTheme.Space.lg)
     }
 
     private var noResultsView: some View {
@@ -390,38 +374,47 @@ struct EventsView: View {
     @ViewBuilder
     private var noResultsContent: some View {
         if !searchText.isEmpty {
-            ContentUnavailableView.search(text: searchText)
+            PremiumEmptyStateCard(
+                title: "No Events Found",
+                message: "Nothing matches \"\(searchText)\". Try a title, place, or clear the search.",
+                systemImage: "magnifyingglass",
+                gradient: AppTheme.eventGradient
+            )
         } else if selectedCategoryFilters.count == 1, let category = selectedCategoryFilters.first {
-            ContentUnavailableView(
-                "No \(category.displayName) Events",
+            PremiumEmptyStateCard(
+                title: "No \(category.displayName) Events",
+                message: "There are no events in this category right now.",
                 systemImage: category.icon,
-                description: Text("No events in this category")
+                gradient: AppTheme.eventGradient
             )
         } else if !selectedCategoryFilters.isEmpty {
-            ContentUnavailableView(
-                "No Matching Events",
+            PremiumEmptyStateCard(
+                title: "No Matching Events",
+                message: "The selected filters are hiding every event.",
                 systemImage: "calendar.badge.exclamationmark",
-                description: Text("No events match your selected filters")
+                gradient: AppTheme.eventGradient
             )
         } else {
-            ContentUnavailableView.search
+            PremiumEmptyStateCard(
+                title: "No Events Found",
+                message: "Try a different search or clear your filters.",
+                systemImage: "magnifyingglass",
+                gradient: AppTheme.eventGradient
+            )
         }
     }
 
     private func errorView(_ error: Error) -> some View {
-        ContentUnavailableView {
-            Label("Unable to Load Events", systemImage: "exclamationmark.triangle")
-        } description: {
-            Text(error.localizedDescription)
-        } actions: {
-            Button {
-                Task { await loadEvents() }
-            } label: {
-                Text("Retry")
-                    .secondaryActionButton(fullWidth: false)
-            }
-            .buttonStyle(.plain)
-        }
+        PremiumEmptyStateCard(
+            title: "Unable to Load Events",
+            message: error.localizedDescription,
+            systemImage: "exclamationmark.triangle",
+            gradient: AppTheme.eventGradient,
+            actionTitle: "Retry",
+            actionIcon: "arrow.clockwise",
+            action: { Task { await loadEvents() } }
+        )
+        .padding(AppTheme.Space.lg)
     }
 
     // MARK: - Actions

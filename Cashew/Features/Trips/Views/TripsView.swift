@@ -362,10 +362,10 @@ struct TripsView: View {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(AppTheme.onSurfaceVariant)
                     Text("Completed")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                        .font(AppTheme.TextStyle.bodyBold)
+                        .foregroundStyle(AppTheme.onSurface)
                     Text("\(completedTrips.count)")
-                        .font(.caption)
+                        .font(AppTheme.TextStyle.caption)
                         .foregroundStyle(AppTheme.onSurfaceVariant)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
@@ -378,7 +378,7 @@ struct TripsView: View {
                         .rotationEffect(.degrees(showCompleted ? 90 : 0))
                 }
                 .foregroundStyle(AppTheme.onSurfaceVariant)
-                .padding()
+                .padding(AppTheme.cardPadding)
                 .tripModuleCard()
             }
             .buttonStyle(.plain)
@@ -418,32 +418,16 @@ struct TripsView: View {
     }
 
     private var emptyView: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "airplane.circle")
-                .font(.system(size: 70))
-                .foregroundStyle(AppTheme.tripGradient)
-
-            VStack(spacing: 8) {
-                Text("No Trips Yet")
-                    .font(.title2)
-                    .fontWeight(.bold)
-
-                Text("Start planning your next adventure!")
-                    .font(.subheadline)
-                    .foregroundStyle(AppTheme.onSurfaceVariant)
-                    .multilineTextAlignment(.center)
-            }
-
-            Button {
-                showAddTrip = true
-            } label: {
-                Label("Plan a Trip", systemImage: "plus")
-                    .primaryActionButton(gradient: AppTheme.tripGradient, fullWidth: false)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding()
-        .tripModuleCard()
+        PremiumEmptyStateCard(
+            title: "No Trips Yet",
+            message: "Start with one upcoming trip and Cashew will keep planning, packing, and budget details together.",
+            systemImage: "airplane.circle",
+            gradient: AppTheme.tripGradient,
+            actionTitle: "Plan a Trip",
+            actionIcon: "plus",
+            action: { showAddTrip = true }
+        )
+        .padding(AppTheme.Space.lg)
     }
 
     private var noResultsView: some View {
@@ -460,38 +444,47 @@ struct TripsView: View {
     @ViewBuilder
     private var noResultsContent: some View {
         if !searchText.isEmpty {
-            ContentUnavailableView.search(text: searchText)
+            PremiumEmptyStateCard(
+                title: "No Trips Found",
+                message: "Nothing matches \"\(searchText)\". Try a destination, trip name, or clear the search.",
+                systemImage: "magnifyingglass",
+                gradient: AppTheme.tripGradient
+            )
         } else if selectedStatusFilters.count == 1, let status = selectedStatusFilters.first {
-            ContentUnavailableView(
-                "No \(status.displayName) Trips",
-                systemImage: "airplane",
-                description: Text("No trips with this status")
+            PremiumEmptyStateCard(
+                title: "No \(status.displayName) Trips",
+                message: "There are no trips in this status right now.",
+                systemImage: status.icon,
+                gradient: AppTheme.tripGradient
             )
         } else if !selectedStatusFilters.isEmpty {
-            ContentUnavailableView(
-                "No Matching Trips",
-                systemImage: "airplane",
-                description: Text("No trips match your selected filters")
+            PremiumEmptyStateCard(
+                title: "No Matching Trips",
+                message: "The selected filters are hiding every trip.",
+                systemImage: "line.3.horizontal.decrease.circle",
+                gradient: AppTheme.tripGradient
             )
         } else {
-            ContentUnavailableView.search
+            PremiumEmptyStateCard(
+                title: "No Trips Found",
+                message: "Try a different search or clear your filters.",
+                systemImage: "magnifyingglass",
+                gradient: AppTheme.tripGradient
+            )
         }
     }
 
     private func errorView(_ error: Error) -> some View {
-        ContentUnavailableView {
-            Label("Unable to Load Trips", systemImage: "exclamationmark.triangle")
-        } description: {
-            Text(error.localizedDescription)
-        } actions: {
-            Button {
-                Task { await loadTrips() }
-            } label: {
-                Text("Retry")
-                    .secondaryActionButton(fullWidth: false)
-            }
-            .buttonStyle(.plain)
-        }
+        PremiumEmptyStateCard(
+            title: "Unable to Load Trips",
+            message: error.localizedDescription,
+            systemImage: "exclamationmark.triangle",
+            gradient: AppTheme.tripGradient,
+            actionTitle: "Retry",
+            actionIcon: "arrow.clockwise",
+            action: { Task { await loadTrips() } }
+        )
+        .padding(AppTheme.Space.lg)
     }
 
     // MARK: - Actions

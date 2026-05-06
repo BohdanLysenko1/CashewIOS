@@ -492,25 +492,3 @@ private struct TonePill: View {
     }
 }
 
-// MARK: - Rotating Caption
-
-private struct RotatingCaption: View {
-    let lines: [String]
-    @State private var index = 0
-
-    var body: some View {
-        Text(lines[index])
-            .font(AppTheme.TextStyle.body)
-            .foregroundStyle(AppTheme.onSurfaceVariant)
-            .id(index)
-            .transition(.opacity)
-            .task {
-                while !Task.isCancelled {
-                    try? await Task.sleep(for: .seconds(1.5))
-                    withAnimation(.easeInOut(duration: 0.4)) {
-                        index = (index + 1) % lines.count
-                    }
-                }
-            }
-    }
-}

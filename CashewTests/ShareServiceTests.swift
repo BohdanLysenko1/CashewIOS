@@ -38,15 +38,16 @@ final class ShareServiceTests: XCTestCase {
         XCTAssertEqual(store.lastCreateInviteCall?.createdBy, userID)
     }
 
-    func testAcceptInviteThrowsExpired() async {
+    func testPreviewInviteThrowsExpired() async {
         let userID = UUID()
         let auth = StubAuthService(isAuthenticated: true, currentUser: makeUser(id: userID))
         let store = MockSharingDataStore()
-        store.inviteToReturn = InviteLinkRecord(
-            id: UUID(),
+        store.previewToReturn = ShareInvitePreview(
             resourceType: SharedResource.tripType,
             resourceId: UUID(),
             createdBy: UUID(),
+            createdByName: "Taylor",
+            title: "Expired Trip",
             expiresAt: Date(timeIntervalSince1970: 50)
         )
         let service = ShareService(
@@ -56,7 +57,7 @@ final class ShareServiceTests: XCTestCase {
         )
 
         do {
-            _ = try await service.acceptInvite(token: "expired")
+            _ = try await service.previewInvite(token: "expired")
             XCTFail("Expected expired")
         } catch let error as ShareError {
             XCTAssertEqual(error, .expired)
@@ -69,12 +70,9 @@ final class ShareServiceTests: XCTestCase {
         let userID = UUID()
         let auth = StubAuthService(isAuthenticated: true, currentUser: makeUser(id: userID))
         let store = MockSharingDataStore()
-        store.inviteToReturn = InviteLinkRecord(
-            id: UUID(),
+        store.acceptedInviteToReturn = AcceptedShareInvite(
             resourceType: "unknown",
-            resourceId: UUID(),
-            createdBy: UUID(),
-            expiresAt: Date(timeIntervalSince1970: 200)
+            resourceId: UUID()
         )
         let service = ShareService(
             authService: auth,
@@ -92,18 +90,39 @@ final class ShareServiceTests: XCTestCase {
         }
     }
 
-    func testAcceptInviteTripUpsertsShareAndReturnsTrip() async throws {
+    func testPreviewInviteReturnsServerPreview() async throws {
         let userID = UUID()
-        let invitedBy = UUID()
+        let auth = StubAuthService(isAuthenticated: true, currentUser: makeUser(id: userID))
+        let store = MockSharingDataStore()
+        let preview = ShareInvitePreview(
+            resourceType: SharedResource.tripType,
+            resourceId: UUID(),
+            createdBy: UUID(),
+            createdByName: "Taylor",
+            title: "Rome",
+            expiresAt: Date(timeIntervalSince1970: 200)
+        )
+        store.previewToReturn = preview
+        let service = ShareService(
+            authService: auth,
+            dataStore: store,
+            now: { Date(timeIntervalSince1970: 100) }
+        )
+
+        let returned = try await service.previewInvite(token: "trip-token")
+
+        XCTAssertEqual(returned, preview)
+        XCTAssertEqual(store.lastPreviewToken, "trip-token")
+    }
+
+    func testAcceptInviteTripUsesServerRpcAndReturnsTrip() async throws {
+        let userID = UUID()
         let trip = makeTrip()
         let auth = StubAuthService(isAuthenticated: true, currentUser: makeUser(id: userID))
         let store = MockSharingDataStore()
-        store.inviteToReturn = InviteLinkRecord(
-            id: UUID(),
+        store.acceptedInviteToReturn = AcceptedShareInvite(
             resourceType: SharedResource.tripType,
-            resourceId: trip.id,
-            createdBy: invitedBy,
-            expiresAt: Date(timeIntervalSince1970: 200)
+            resourceId: trip.id
         )
         store.tripToReturn = trip
 
@@ -119,24 +138,17 @@ final class ShareServiceTests: XCTestCase {
             return
         }
         XCTAssertEqual(returnedTrip.id, trip.id)
-        XCTAssertEqual(store.lastTripShareUpsert?.resourceId, trip.id)
-        XCTAssertEqual(store.lastTripShareUpsert?.userId, userID)
-        XCTAssertEqual(store.lastTripShareUpsert?.invitedBy, invitedBy)
-        XCTAssertEqual(store.lastTripShareUpsert?.acceptedAt, Date(timeIntervalSince1970: 100))
+        XCTAssertEqual(store.lastAcceptedToken, "trip-token")
     }
 
-    func testAcceptInviteEventUpsertsShareAndReturnsEvent() async throws {
+    func testAcceptInviteEventUsesServerRpcAndReturnsEvent() async throws {
         let userID = UUID()
-        let invitedBy = UUID()
         let event = makeEvent()
         let auth = StubAuthService(isAuthenticated: true, currentUser: makeUser(id: userID))
         let store = MockSharingDataStore()
-        store.inviteToReturn = InviteLinkRecord(
-            id: UUID(),
+        store.acceptedInviteToReturn = AcceptedShareInvite(
             resourceType: SharedResource.eventType,
-            resourceId: event.id,
-            createdBy: invitedBy,
-            expiresAt: Date(timeIntervalSince1970: 200)
+            resourceId: event.id
         )
         store.eventToReturn = event
 
@@ -152,10 +164,7 @@ final class ShareServiceTests: XCTestCase {
             return
         }
         XCTAssertEqual(returnedEvent.id, event.id)
-        XCTAssertEqual(store.lastEventShareUpsert?.resourceId, event.id)
-        XCTAssertEqual(store.lastEventShareUpsert?.userId, userID)
-        XCTAssertEqual(store.lastEventShareUpsert?.invitedBy, invitedBy)
-        XCTAssertEqual(store.lastEventShareUpsert?.acceptedAt, Date(timeIntervalSince1970: 100))
+        XCTAssertEqual(store.lastAcceptedToken, "event-token")
     }
 
     func testFetchCollaboratorsRoutesByResourceType() async throws {
@@ -193,6 +202,61 @@ final class ShareServiceTests: XCTestCase {
         XCTAssertEqual(store.lastTripCollaboratorRemoval?.userId, removedId)
         XCTAssertEqual(store.lastEventCollaboratorRemoval?.resourceId, event.id)
         XCTAssertEqual(store.lastEventCollaboratorRemoval?.userId, removedId)
+    }
+
+    func testFetchPendingInvitesPassesAuthAndResourceContext() async throws {
+        let userID = UUID()
+        let auth = StubAuthService(isAuthenticated: true, currentUser: makeUser(id: userID))
+        let store = MockSharingDataStore()
+        let trip = makeTrip()
+        let expectedInvite = PendingShareInvite(
+            id: UUID(),
+            displayName: nil,
+            invitedAt: Date(timeIntervalSince1970: 50),
+            expiresAt: Date(timeIntervalSince1970: 1_000)
+        )
+        store.pendingInvitesToReturn = [expectedInvite]
+        let service = ShareService(authService: auth, dataStore: store, now: fixedNow)
+
+        let invites = try await service.fetchPendingInvites(for: .trip(trip))
+
+        XCTAssertEqual(invites, [expectedInvite])
+        XCTAssertEqual(store.lastPendingInvitesFetch?.resourceType, SharedResource.tripType)
+        XCTAssertEqual(store.lastPendingInvitesFetch?.resourceId, trip.id)
+        XCTAssertEqual(store.lastPendingInvitesFetch?.createdBy, userID)
+        XCTAssertEqual(store.lastPendingInvitesFetch?.after, fixedNow())
+    }
+
+    func testFetchPendingInvitesThrowsWhenNotAuthenticated() async {
+        let auth = StubAuthService(isAuthenticated: false, currentUser: nil)
+        let store = MockSharingDataStore()
+        let service = ShareService(authService: auth, dataStore: store, now: fixedNow)
+
+        do {
+            _ = try await service.fetchPendingInvites(for: .trip(makeTrip()))
+            XCTFail("Expected notAuthenticated")
+        } catch let error as ShareError {
+            XCTAssertEqual(error, .notAuthenticated)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
+
+    func testCancelPendingInvitePassesIdToDataStore() async throws {
+        let auth = StubAuthService(isAuthenticated: true, currentUser: makeUser())
+        let store = MockSharingDataStore()
+        let trip = makeTrip()
+        let invite = PendingShareInvite(
+            id: UUID(),
+            displayName: nil,
+            invitedAt: Date(timeIntervalSince1970: 50),
+            expiresAt: Date(timeIntervalSince1970: 1_000)
+        )
+        let service = ShareService(authService: auth, dataStore: store, now: fixedNow)
+
+        try await service.cancelPendingInvite(invite, from: .trip(trip))
+
+        XCTAssertEqual(store.lastCanceledInviteId, invite.id)
     }
 
     func testFetchUserPassesThroughDataStore() async throws {
@@ -284,36 +348,31 @@ private final class StubAuthService: AuthServiceProtocol {
 }
 
 @MainActor
-private final class MockSharingDataStore: SharingDataStoreProtocol {
-    struct CreateInviteCall {
-        let resourceType: String
-        let resourceId: UUID
-        let createdBy: UUID
-    }
+    private final class MockSharingDataStore: SharingDataStoreProtocol {
+        struct CreateInviteCall {
+            let resourceType: String
+            let resourceId: UUID
+            let createdBy: UUID
+        }
 
-    struct ShareUpsertCall {
-        let resourceId: UUID
-        let userId: UUID
-        let invitedBy: UUID
-        let acceptedAt: Date
-    }
+        struct CollaboratorRemovalCall {
+            let resourceId: UUID
+            let userId: UUID
+        }
 
-    struct CollaboratorRemovalCall {
-        let resourceId: UUID
-        let userId: UUID
-    }
-
-    var tokenToReturn = "token"
-    var inviteToReturn = InviteLinkRecord(
-        id: UUID(),
-        resourceType: SharedResource.tripType,
-        resourceId: UUID(),
-        createdBy: UUID(),
-        expiresAt: Date(timeIntervalSince1970: 10_000)
-    )
-    var tripToReturn = Trip(
-        name: "Default Trip",
-        destination: "Paris",
+        var tokenToReturn = "token"
+        var previewToReturn = ShareInvitePreview(
+            resourceType: SharedResource.tripType,
+            resourceId: UUID(),
+            createdBy: UUID(),
+            createdByName: "Default",
+            title: "Default Trip",
+            expiresAt: Date(timeIntervalSince1970: 10_000)
+        )
+        var acceptedInviteToReturn = AcceptedShareInvite(resourceType: SharedResource.tripType, resourceId: UUID())
+        var tripToReturn = Trip(
+            name: "Default Trip",
+            destination: "Paris",
         startDate: Date(timeIntervalSince1970: 1_000),
         endDate: Date(timeIntervalSince1970: 2_000)
     )
@@ -333,33 +392,29 @@ private final class MockSharingDataStore: SharingDataStoreProtocol {
         createdAt: Date(timeIntervalSince1970: 0)
     )
 
-    var lastCreateInviteCall: CreateInviteCall?
-    var lastInviteLookupToken: String?
-    var lastTripShareUpsert: ShareUpsertCall?
-    var lastEventShareUpsert: ShareUpsertCall?
-    var lastTripCollaboratorRemoval: CollaboratorRemovalCall?
-    var lastEventCollaboratorRemoval: CollaboratorRemovalCall?
+        var lastCreateInviteCall: CreateInviteCall?
+        var lastPreviewToken: String?
+        var lastAcceptedToken: String?
+        var lastTripCollaboratorRemoval: CollaboratorRemovalCall?
+        var lastEventCollaboratorRemoval: CollaboratorRemovalCall?
     var lastTripCollaboratorFetchId: UUID?
     var lastEventCollaboratorFetchId: UUID?
     var lastFetchUserId: UUID?
 
     func createInviteToken(resourceType: String, resourceId: UUID, createdBy: UUID) async throws -> String {
         lastCreateInviteCall = CreateInviteCall(resourceType: resourceType, resourceId: resourceId, createdBy: createdBy)
-        return tokenToReturn
-    }
+            return tokenToReturn
+        }
 
-    func fetchInvite(token: String) async throws -> InviteLinkRecord {
-        lastInviteLookupToken = token
-        return inviteToReturn
-    }
+        func previewInvite(token: String) async throws -> ShareInvitePreview {
+            lastPreviewToken = token
+            return previewToReturn
+        }
 
-    func upsertTripShare(tripId: UUID, userId: UUID, invitedBy: UUID, acceptedAt: Date) async throws {
-        lastTripShareUpsert = ShareUpsertCall(resourceId: tripId, userId: userId, invitedBy: invitedBy, acceptedAt: acceptedAt)
-    }
-
-    func upsertEventShare(eventId: UUID, userId: UUID, invitedBy: UUID, acceptedAt: Date) async throws {
-        lastEventShareUpsert = ShareUpsertCall(resourceId: eventId, userId: userId, invitedBy: invitedBy, acceptedAt: acceptedAt)
-    }
+        func acceptInvite(token: String) async throws -> AcceptedShareInvite {
+            lastAcceptedToken = token
+            return acceptedInviteToReturn
+        }
 
     func fetchTrip(id: UUID) async throws -> Trip {
         tripToReturn
@@ -397,5 +452,37 @@ private final class MockSharingDataStore: SharingDataStoreProtocol {
     func fetchSharedByMeTripIds(userId: UUID) async throws -> Set<UUID> {
         lastSharedByMeFetchId = userId
         return sharedByMeTripIdsToReturn
+    }
+
+    struct PendingInvitesFetchCall: Equatable {
+        let resourceType: String
+        let resourceId: UUID
+        let createdBy: UUID
+        let after: Date
+    }
+
+    var pendingInvitesToReturn: [PendingShareInvite] = []
+    var lastPendingInvitesFetch: PendingInvitesFetchCall?
+    var cancelInviteError: Error?
+    var lastCanceledInviteId: UUID?
+
+    func fetchPendingInvites(
+        resourceType: String,
+        resourceId: UUID,
+        createdBy: UUID,
+        after: Date
+    ) async throws -> [PendingShareInvite] {
+        lastPendingInvitesFetch = PendingInvitesFetchCall(
+            resourceType: resourceType,
+            resourceId: resourceId,
+            createdBy: createdBy,
+            after: after
+        )
+        return pendingInvitesToReturn
+    }
+
+    func cancelInvite(id: UUID) async throws {
+        lastCanceledInviteId = id
+        if let cancelInviteError { throw cancelInviteError }
     }
 }

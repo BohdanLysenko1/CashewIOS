@@ -27,8 +27,8 @@ struct AIItineraryResponse: Decodable {
 struct AIActivity: Decodable, Identifiable, Hashable {
     static func == (lhs: AIActivity, rhs: AIActivity) -> Bool { lhs.id == rhs.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
-    // Composite key — Gemini returns no IDs
-    var id: String { "\(date)-\(title)-\(startTime ?? "")" }
+    // Stable per-decode UUID — server response has no IDs.
+    let id: String
 
     let title: String
     let date: String        // "YYYY-MM-DD"
@@ -41,6 +41,54 @@ struct AIActivity: Decodable, Identifiable, Hashable {
     let estimatedCost: Double?
     let latitude: Double?
     let longitude: Double?
+
+    private enum CodingKeys: String, CodingKey {
+        case title, date, startTime, endTime, location, address, notes, category, estimatedCost, latitude, longitude
+    }
+
+    init(
+        id: String = UUID().uuidString,
+        title: String,
+        date: String,
+        startTime: String?,
+        endTime: String?,
+        location: String,
+        address: String,
+        notes: String,
+        category: String,
+        estimatedCost: Double?,
+        latitude: Double?,
+        longitude: Double?
+    ) {
+        self.id = id
+        self.title = title
+        self.date = date
+        self.startTime = startTime
+        self.endTime = endTime
+        self.location = location
+        self.address = address
+        self.notes = notes
+        self.category = category
+        self.estimatedCost = estimatedCost
+        self.latitude = latitude
+        self.longitude = longitude
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = UUID().uuidString
+        self.title = try c.decode(String.self, forKey: .title)
+        self.date = try c.decode(String.self, forKey: .date)
+        self.startTime = try c.decodeIfPresent(String.self, forKey: .startTime)
+        self.endTime = try c.decodeIfPresent(String.self, forKey: .endTime)
+        self.location = try c.decode(String.self, forKey: .location)
+        self.address = try c.decode(String.self, forKey: .address)
+        self.notes = try c.decode(String.self, forKey: .notes)
+        self.category = try c.decode(String.self, forKey: .category)
+        self.estimatedCost = try c.decodeIfPresent(Double.self, forKey: .estimatedCost)
+        self.latitude = try c.decodeIfPresent(Double.self, forKey: .latitude)
+        self.longitude = try c.decodeIfPresent(Double.self, forKey: .longitude)
+    }
 }
 
 // MARK: - Conversion to Activity

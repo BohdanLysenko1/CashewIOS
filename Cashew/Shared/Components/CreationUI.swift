@@ -7,18 +7,22 @@ struct CreationScreenBackground: View {
         ZStack {
             AppTheme.background.ignoresSafeArea()
 
-            Circle()
-                .fill(gradient.opacity(0.16))
-                .frame(width: 320, height: 320)
-                .blur(radius: 24)
-                .offset(x: -140, y: -260)
-                .ignoresSafeArea()
+            LinearGradient(
+                colors: [
+                    AppTheme.surfaceContainerLowest.opacity(0.65),
+                    AppTheme.background.opacity(0.20),
+                    AppTheme.background
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
 
-            RoundedRectangle(cornerRadius: 180, style: .continuous)
-                .fill(AppTheme.surfaceContainerLowest.opacity(0.45))
-                .frame(width: 280, height: 180)
-                .blur(radius: 18)
-                .offset(x: 120, y: -300)
+            Rectangle()
+                .fill(gradient.opacity(0.10))
+                .frame(height: 190)
+                .blur(radius: 28)
+                .frame(maxHeight: .infinity, alignment: .top)
                 .ignoresSafeArea()
         }
     }

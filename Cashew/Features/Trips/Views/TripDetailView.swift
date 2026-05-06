@@ -19,8 +19,10 @@ struct TripDetailView: View {
     @State private var revealContent = false
     @State private var weatherInfo: WeatherInfo?
     @State private var weatherLoading = false
-    @State private var hasCollaborators = false
+    @State private var members: [AppUser] = []
     private let weatherService = TripWeatherService()
+
+    private var hasCollaborators: Bool { !members.isEmpty }
 
     private var trip: Trip? {
         container.tripService.trip(by: tripId)
@@ -60,19 +62,17 @@ struct TripDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if trip != nil {
-                if canEdit {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button {
-                            Task { await generateShareLink() }
-                        } label: {
-                            if isGeneratingShare {
-                                ProgressView()
-                            } else {
-                                Image(systemName: "square.and.arrow.up")
-                            }
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        Task { await generateShareLink() }
+                    } label: {
+                        if isGeneratingShare {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "square.and.arrow.up")
                         }
-                        .disabled(isGeneratingShare)
                     }
+                    .disabled(isGeneratingShare)
                 }
 
                 ToolbarItem(placement: .primaryAction) {
@@ -153,9 +153,8 @@ struct TripDetailView: View {
             }
         }
         .task(id: tripId) {
-            guard isOwner, let trip else { return }
-            let collaborators = (try? await container.shareService.fetchCollaborators(for: .trip(trip))) ?? []
-            hasCollaborators = !collaborators.isEmpty
+            guard let trip else { return }
+            members = (try? await container.shareService.fetchCollaborators(for: .trip(trip))) ?? []
         }
         .sheet(isPresented: $showTripSummary) {
             if let trip { AITripSummaryView(trip: trip) }
@@ -370,7 +369,7 @@ struct TripDetailView: View {
                 if trip?.activities.isEmpty == true {
                     actionLink(
                         title: "Generate AI Itinerary",
-                        subtitle: "Create a personalized plan with Gemini",
+                        subtitle: "Create a personalized plan with Cashew",
                         icon: "sparkles",
                         tint: AppTheme.secondary,
                         route: TripRoute(section: .itinerary, intent: .generateAI)
@@ -673,7 +672,7 @@ struct TripDetailView: View {
                         HStack(spacing: 10) {
                             Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
                                 .font(.system(size: 20))
-                                .foregroundStyle(task.isCompleted ? .green : task.category.color)
+                                .foregroundStyle(task.isCompleted ? AppTheme.positive : task.category.color)
 
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(task.title)
@@ -740,13 +739,7 @@ struct TripDetailView: View {
             content()
         }
         .padding(AppTheme.Space.lg)
-        .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous)
-                .strokeBorder(AppTheme.outlineVariant, lineWidth: 1)
-        )
-        .shadow(color: AppTheme.cardShadow, radius: 16, x: 0, y: 6)
+        .cardStyle()
     }
 
     private func detailLine(icon: String, tint: Color, title: String, value: String) -> some View {
@@ -809,35 +802,98 @@ struct TripDetailView: View {
     }
 
     private var sharingActiveOwnerBanner: some View {
-        HStack(spacing: AppTheme.Space.sm) {
-            Image(systemName: "person.2.fill")
-                .font(.caption)
-                .foregroundStyle(AppTheme.primary)
-            Text("You're sharing this trip")
-                .font(AppTheme.TextStyle.captionBold)
-                .foregroundStyle(AppTheme.primary)
-            Spacer()
+        Button { showCollaborators = true } label: {
+            HStack(spacing: AppTheme.Space.sm) {
+                Image(systemName: "person.2.fill")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.primary)
+                Text("You're the organizer")
+                    .font(AppTheme.TextStyle.captionBold)
+                    .foregroundStyle(AppTheme.primary)
+                Spacer()
+                memberAvatarStack(tint: AppTheme.primary)
+            }
+            .padding(.horizontal, AppTheme.Space.md)
+            .padding(.vertical, AppTheme.Space.sm)
+            .background(AppTheme.primary.opacity(0.10))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
-        .padding(.horizontal, AppTheme.Space.md)
-        .padding(.vertical, AppTheme.Space.sm)
-        .background(AppTheme.primary.opacity(0.10))
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .buttonStyle(.plain)
     }
 
     private func sharedByBanner(name: String, color: Color) -> some View {
-        HStack(spacing: AppTheme.Space.sm) {
-            Image(systemName: "person.fill.checkmark")
-                .font(.caption)
-                .foregroundStyle(color)
-            Text("Shared by \(name)")
-                .font(AppTheme.TextStyle.captionBold)
-                .foregroundStyle(color)
-            Spacer()
+        Button { showCollaborators = true } label: {
+            HStack(spacing: AppTheme.Space.sm) {
+                Image(systemName: "person.fill.checkmark")
+                    .font(.caption)
+                    .foregroundStyle(color)
+                Text("Organized by \(name)")
+                    .font(AppTheme.TextStyle.captionBold)
+                    .foregroundStyle(color)
+                Spacer()
+                memberAvatarStack(tint: color)
+            }
+            .padding(.horizontal, AppTheme.Space.md)
+            .padding(.vertical, AppTheme.Space.sm)
+            .background(color.opacity(0.10))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
-        .padding(.horizontal, AppTheme.Space.md)
-        .padding(.vertical, AppTheme.Space.sm)
-        .background(color.opacity(0.10))
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .buttonStyle(.plain)
+    }
+
+    private func memberAvatarStack(tint: Color) -> some View {
+        let avatars = avatarStackUsers
+        let visible = Array(avatars.prefix(3))
+        let overflow = max(0, avatars.count - visible.count)
+        let stride: CGFloat = 18
+        return HStack(spacing: 4) {
+            ZStack(alignment: .leading) {
+                ForEach(Array(visible.enumerated()), id: \.element.id) { index, user in
+                    UserAvatarView(
+                        displayName: user.displayName,
+                        avatarPath: user.avatarPath,
+                        size: 24,
+                        tint: tint
+                    )
+                    .overlay(Circle().strokeBorder(AppTheme.background, lineWidth: 1.5))
+                    .offset(x: CGFloat(index) * stride)
+                }
+            }
+            .frame(width: visible.isEmpty ? 0 : stride * CGFloat(visible.count - 1) + 24, height: 24)
+
+            if overflow > 0 {
+                Text("+\(overflow)")
+                    .font(.caption2.bold())
+                    .foregroundStyle(tint)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(tint.opacity(0.15))
+                    .clipShape(Capsule())
+            }
+        }
+    }
+
+    private var avatarStackUsers: [AppUser] {
+        guard let trip else { return members }
+        let currentUser = container.authService.currentUser
+        let organizer: AppUser? = {
+            if let currentUser, trip.ownerId == currentUser.id { return currentUser }
+            guard let ownerId = trip.ownerId else { return nil }
+            return AppUser(
+                id: ownerId,
+                email: "",
+                displayName: trip.ownerName ?? "Organizer",
+                avatarPath: nil,
+                createdAt: Date()
+            )
+        }()
+        var seen = Set<UUID>()
+        var ordered: [AppUser] = []
+        if let organizer, seen.insert(organizer.id).inserted { ordered.append(organizer) }
+        for member in members where seen.insert(member.id).inserted {
+            ordered.append(member)
+        }
+        return ordered
     }
 
     private func durationText(from start: Date, to end: Date) -> String {

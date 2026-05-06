@@ -114,9 +114,9 @@ struct TripDTO: Codable {
     }
 }
 
-// MARK: - Trip → Insert/Update payload
+// MARK: - Trip → Insert payload (owner-only — INSERT WITH CHECK requires owner_id = auth.uid)
 
-private struct TripPayload: Encodable {
+struct TripPayload: Encodable {
     let id: UUID
     let ownerId: UUID
     let name: String
@@ -206,6 +206,92 @@ private struct TripPayload: Encodable {
     }
 }
 
+// MARK: - Trip → Update payload (collaborator-safe — omits owner_id since RLS pins it)
+
+struct TripUpdatePayload: Encodable {
+    let name: String
+    let destination: String
+    let destinationLatitude: Double?
+    let destinationLongitude: Double?
+    let startDate: Date
+    let endDate: Date
+    let notes: String
+    let coverImageUrl: String?
+    let status: String
+    let budget: Double?
+    let currency: String
+    let accommodationName: String
+    let accommodationAddress: String
+    let accommodationCheckIn: Date?
+    let accommodationCheckOut: Date?
+    let accommodationConfirmation: String
+    let transportationType: String
+    let transportationDetails: String
+    let transportationConfirmation: String
+    let expenses: [Expense]
+    let activities: [Activity]
+    let packingItems: [PackingItem]
+    let checklistItems: [ChecklistItem]
+    let attachments: [Attachment]
+    let heroMode: String?
+    let heroColorToken: String?
+    let heroPhotoAttachmentId: UUID?
+
+    enum CodingKeys: String, CodingKey {
+        case name, destination, notes, status, budget, currency
+        case destinationLatitude  = "destination_latitude"
+        case destinationLongitude = "destination_longitude"
+        case startDate            = "start_date"
+        case endDate              = "end_date"
+        case coverImageUrl        = "cover_image_url"
+        case accommodationName    = "accommodation_name"
+        case accommodationAddress = "accommodation_address"
+        case accommodationCheckIn = "accommodation_check_in"
+        case accommodationCheckOut = "accommodation_check_out"
+        case accommodationConfirmation = "accommodation_confirmation"
+        case transportationType   = "transportation_type"
+        case transportationDetails = "transportation_details"
+        case transportationConfirmation = "transportation_confirmation"
+        case expenses, activities
+        case packingItems   = "packing_items"
+        case checklistItems = "checklist_items"
+        case attachments
+        case heroMode = "hero_mode"
+        case heroColorToken = "hero_color_token"
+        case heroPhotoAttachmentId = "hero_photo_attachment_id"
+    }
+
+    init(trip: Trip) {
+        self.name = trip.name
+        self.destination = trip.destination
+        self.destinationLatitude = trip.destinationLatitude
+        self.destinationLongitude = trip.destinationLongitude
+        self.startDate = trip.startDate
+        self.endDate = trip.endDate
+        self.notes = trip.notes
+        self.coverImageUrl = trip.coverImageURL?.absoluteString
+        self.status = trip.status.rawValue
+        self.budget = trip.budget.map { Double(truncating: $0 as NSNumber) }
+        self.currency = trip.currency
+        self.accommodationName = trip.accommodationName
+        self.accommodationAddress = trip.accommodationAddress
+        self.accommodationCheckIn = trip.accommodationCheckIn
+        self.accommodationCheckOut = trip.accommodationCheckOut
+        self.accommodationConfirmation = trip.accommodationConfirmation
+        self.transportationType = trip.transportationType
+        self.transportationDetails = trip.transportationDetails
+        self.transportationConfirmation = trip.transportationConfirmation
+        self.expenses = trip.expenses
+        self.activities = trip.activities
+        self.packingItems = trip.packingItems
+        self.checklistItems = trip.checklistItems
+        self.attachments = trip.attachments
+        self.heroMode = trip.heroMode
+        self.heroColorToken = trip.heroColorToken
+        self.heroPhotoAttachmentId = trip.heroPhotoAttachmentId
+    }
+}
+
 // MARK: - Repository
 
 @MainActor
@@ -244,22 +330,36 @@ final class SupabaseTripRepository: TripRepositoryProtocol {
 
     @discardableResult
     func save(_ trip: Trip) async throws -> Trip {
-        let ownerId: UUID
-        if let existing = trip.ownerId {
-            ownerId = existing
+        let session = try await client.auth.session
+        let currentUserId = session.user.id
+        // Owner path: trip has no ownerId yet (first save) or current user owns it.
+        // Collaborator path: someone else owns the trip — must use UPDATE, not UPSERT,
+        // because Postgres UPSERT evaluates INSERT WITH CHECK (`owner_id = auth.uid()`)
+        // even when only an UPDATE will execute, which rejects collaborator writes.
+        let isOwner = trip.ownerId == nil || trip.ownerId == currentUserId
+
+        if isOwner {
+            let payload = TripPayload(trip: trip, ownerId: trip.ownerId ?? currentUserId)
+            let dto: TripDTO = try await client
+                .from(SupabaseSchema.Table.trips)
+                .upsert(payload)
+                .select(SupabaseSchema.Select.tripWithOwner)
+                .single()
+                .execute()
+                .value
+            return dto.toTrip()
         } else {
-            let session = try await client.auth.session
-            ownerId = session.user.id
+            let payload = TripUpdatePayload(trip: trip)
+            let dto: TripDTO = try await client
+                .from(SupabaseSchema.Table.trips)
+                .update(payload)
+                .eq("id", value: trip.id.uuidString)
+                .select(SupabaseSchema.Select.tripWithOwner)
+                .single()
+                .execute()
+                .value
+            return dto.toTrip()
         }
-        let payload = TripPayload(trip: trip, ownerId: ownerId)
-        let dto: TripDTO = try await client
-            .from(SupabaseSchema.Table.trips)
-            .upsert(payload)
-            .select(SupabaseSchema.Select.tripWithOwner)
-            .single()
-            .execute()
-            .value
-        return dto.toTrip()
     }
 
     // MARK: - Delete

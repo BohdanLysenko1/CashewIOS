@@ -201,6 +201,10 @@ struct DayPlannerView: View {
     private var contentView: some View {
         ScrollView {
             LazyVStack(spacing: AppTheme.Space.lg) {
+                if let error {
+                    errorBanner(error)
+                }
+
                 // Today's summary
                 summaryCard
 
@@ -276,18 +280,12 @@ struct DayPlannerView: View {
                     icon: "checkmark.circle.fill",
                     title: "Done",
                     value: "\(completed)",
-                    tint: .green
+                    tint: AppTheme.positive
                 )
             }
         }
         .padding(AppTheme.cardPadding)
-        .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous)
-                .strokeBorder(AppTheme.outlineVariant, lineWidth: 1)
-        )
-        .shadow(color: AppTheme.cardShadow, radius: 16, x: 0, y: 6)
+        .cardStyle()
     }
 
     private func summaryMetricChip(icon: String, title: String, value: String, tint: Color) -> some View {
@@ -349,9 +347,9 @@ struct DayPlannerView: View {
     }
 
     private func progressColor(_ progress: Double) -> Color {
-        if progress == 1.0 { return .green }
-        if progress > 0.5 { return .blue }
-        return .orange
+        if progress == 1.0 { return AppTheme.positive }
+        if progress > 0.5 { return AppTheme.primary }
+        return AppTheme.warning
     }
 
     // MARK: - Scheduled Section
@@ -450,12 +448,36 @@ struct DayPlannerView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
-        .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous)
-                .strokeBorder(AppTheme.outlineVariant, lineWidth: 1)
-        )
+        .cardStyle()
+    }
+
+    private func errorBanner(_ message: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(AppTheme.warning)
+
+            Text(message)
+                .font(AppTheme.TextStyle.secondary)
+                .foregroundStyle(AppTheme.onSurface)
+                .lineLimit(3)
+
+            Spacer(minLength: 0)
+
+            Button {
+                Task { await loadData() }
+            } label: {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(AppTheme.primary)
+                    .frame(width: 32, height: 32)
+                    .background(AppTheme.surfaceContainerHigh)
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(AppTheme.cardPadding)
+        .background(AppTheme.warningBackground)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipCornerRadius, style: .continuous))
     }
 
     // MARK: - Loading View

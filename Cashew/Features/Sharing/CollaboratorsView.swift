@@ -8,8 +8,10 @@ struct CollaboratorsView: View {
     let resource: SharedResource
 
     @State private var collaborators: [AppUser] = []
+    @State private var pendingInvites: [PendingShareInvite] = []
     @State private var isLoading = true
     @State private var removingId: UUID?
+    @State private var cancelingInviteId: UUID?
     @State private var errorMessage: String?
     @State private var ownerProfile: AppUser?
 
@@ -33,12 +35,10 @@ struct CollaboratorsView: View {
     var body: some View {
         NavigationStack {
             List {
-                // Owner section
-                Section("Owner") {
+                Section("Organizer") {
                     ownerRow
                 }
 
-                // Collaborators section
                 Section {
                     if isLoading {
                         HStack {
@@ -48,7 +48,7 @@ struct CollaboratorsView: View {
                         }
                         .listRowBackground(Color.clear)
                     } else if collaborators.isEmpty {
-                        Text("No collaborators yet")
+                        Text("No members yet")
                             .font(.subheadline)
                             .foregroundStyle(AppTheme.onSurfaceVariant)
                     } else {
@@ -57,10 +57,26 @@ struct CollaboratorsView: View {
                         }
                     }
                 } header: {
-                    Text("Collaborators")
+                    Text("Members")
                 } footer: {
                     if isOwner {
-                        Text("Collaborators can view and edit this \(resourceTypeName).")
+                        Text("Members can view and edit this \(resourceTypeName). Only the organizer can remove members or delete it.")
+                    } else {
+                        Text("Members can view and edit this \(resourceTypeName).")
+                    }
+                }
+
+                if !pendingInvites.isEmpty {
+                    Section {
+                        ForEach(pendingInvites) { invite in
+                            pendingInviteRow(invite)
+                        }
+                    } header: {
+                        Text("Pending")
+                    } footer: {
+                        if isOwner {
+                            Text("These invites haven't been accepted yet. Cancel any you no longer want to honor.")
+                        }
                     }
                 }
 
@@ -99,7 +115,7 @@ struct CollaboratorsView: View {
                     Text(ownerDisplayName)
                         .font(.subheadline)
                         .fontWeight(.semibold)
-                    Text("Owner")
+                    Text("Organizer")
                         .font(.caption2)
                         .fontWeight(.bold)
                         .foregroundStyle(.white)
@@ -155,9 +171,19 @@ struct CollaboratorsView: View {
             )
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(user.displayName)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                HStack(spacing: 6) {
+                    Text(user.displayName)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Text("Member")
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.purple)
+                        .clipShape(Capsule())
+                }
                 Text(user.email)
                     .font(.caption)
                     .foregroundStyle(AppTheme.onSurfaceVariant)
@@ -184,6 +210,55 @@ struct CollaboratorsView: View {
         .padding(.vertical, 4)
     }
 
+    private func pendingInviteRow(_ invite: PendingShareInvite) -> some View {
+        HStack(spacing: 12) {
+            UserAvatarView(
+                displayName: invite.displayName ?? "?",
+                avatarPath: nil,
+                size: 36,
+                tint: AppTheme.warning
+            )
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(invite.displayName ?? "Pending invite")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Text("Pending")
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(AppTheme.warning)
+                        .clipShape(Capsule())
+                }
+                Text("Invited \(invite.invitedAt.formatted(date: .abbreviated, time: .omitted))")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
+            }
+
+            Spacer()
+
+            if isOwner {
+                if cancelingInviteId == invite.id {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                } else {
+                    Button {
+                        Task { await cancelPendingInvite(invite) }
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(AppTheme.onSurfaceVariant)
+                            .font(.system(size: 20))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
     // MARK: - Actions
 
     private func loadCollaborators() async {
@@ -194,7 +269,22 @@ struct CollaboratorsView: View {
         } catch {
             errorMessage = error.localizedDescription
         }
+        // Pending invites are best-effort: an error fetching them shouldn't block the rest.
+        if isOwner {
+            pendingInvites = (try? await container.shareService.fetchPendingInvites(for: resource)) ?? []
+        }
         isLoading = false
+    }
+
+    private func cancelPendingInvite(_ invite: PendingShareInvite) async {
+        cancelingInviteId = invite.id
+        do {
+            try await container.shareService.cancelPendingInvite(invite, from: resource)
+            pendingInvites.removeAll { $0.id == invite.id }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        cancelingInviteId = nil
     }
 
     private func loadOwnerProfile() async {

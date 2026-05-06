@@ -11,9 +11,10 @@ interface GeminiOptions {
 ///
 /// Throws on:
 /// - missing GEMINI_API_KEY
-/// - non-200 Gemini response
+/// - non-200 Gemini response (raw upstream body is logged via console.error;
+///   the thrown error message is generic to avoid leaking upstream details to clients)
 /// - empty response payload
-/// - response not parseable as JSON (includes a snippet of the raw text for diagnostics)
+/// - response not parseable as JSON
 export async function callGemini(
   prompt: string,
   options: GeminiOptions = {},
@@ -27,11 +28,17 @@ export async function callGemini(
     thinkingConfig: { thinkingLevel: "minimal" },
   };
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+  // Pass the API key via the x-goog-api-key header rather than the URL query
+  // string, so it never appears in URLs that may be captured by network errors,
+  // proxy logs, or stack traces.
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": apiKey,
+    },
     body: JSON.stringify({
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       generationConfig,
@@ -40,7 +47,8 @@ export async function callGemini(
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`Gemini API error ${res.status}: ${errText}`);
+    console.error(`[gemini] Upstream error ${res.status}: ${errText}`);
+    throw new Error(`Gemini request failed (status ${res.status})`);
   }
 
   const data = await res.json();
@@ -57,8 +65,7 @@ export async function callGemini(
     return JSON.parse(rawText);
   } catch (parseErr) {
     const detail = parseErr instanceof Error ? parseErr.message : String(parseErr);
-    throw new Error(
-      `Gemini returned non-JSON response: ${detail}. Snippet: ${rawText.slice(0, 200)}`,
-    );
+    console.error(`[gemini] Non-JSON response: ${detail}. Raw text: ${rawText}`);
+    throw new Error("Gemini returned non-JSON response");
   }
 }

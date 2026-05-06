@@ -92,7 +92,8 @@ struct AuthView: View {
                                     text: $viewModel.username,
                                     contentType: .username,
                                     keyboardType: .default,
-                                    isSecure: false
+                                    isSecure: false,
+                                    isFocused: focusedField == .username
                                 )
                                 .focused($focusedField, equals: .username)
                                 .transition(.move(edge: .top).combined(with: .opacity))
@@ -104,7 +105,8 @@ struct AuthView: View {
                                 text: $viewModel.email,
                                 contentType: .emailAddress,
                                 keyboardType: .emailAddress,
-                                isSecure: false
+                                isSecure: false,
+                                isFocused: focusedField == .email
                             )
                             .focused($focusedField, equals: .email)
                             .autocapitalization(.none)
@@ -132,11 +134,7 @@ struct AuthView: View {
                                     )
                                     .textContentType(viewModel.mode == .signUp ? .newPassword : .password)
                                 }
-                                .font(.system(size: 16))
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 14)
-                                .background(AppTheme.surfaceContainer)
-                                .clipShape(RoundedRectangle(cornerRadius: AppTheme.badgeCornerRadius, style: .continuous))
+                                .designField(isFocused: focusedField == .password)
                             }
                             .focused($focusedField, equals: .password)
                         }
@@ -167,15 +165,13 @@ struct AuthView: View {
                                     viewModel.submitEmail()
                                 } label: {
                                     Text(viewModel.mode == .signIn ? "Sign In" : "Create Account")
-                                        .font(.system(size: 16, weight: .semibold))
-                                        .frame(maxWidth: .infinity)
-                                        .frame(height: 52)
-                                        .foregroundStyle(AppTheme.onPrimary)
-                                        .background(AppTheme.primaryGradient)
-                                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
-                                        .shadow(color: AppTheme.primary.opacity(0.3), radius: 8, x: 0, y: 4)
+                                        .primaryActionButton(
+                                            gradient: AppTheme.primaryGradient,
+                                            cornerRadius: AppTheme.buttonCornerRadius
+                                        )
                                 }
                                 .buttonStyle(.plain)
+                                .shadow(color: AppTheme.primary.opacity(0.22), radius: 12, x: 0, y: 6)
 
                                         // Separator
                                 HStack(spacing: 10) {
@@ -199,7 +195,7 @@ struct AuthView: View {
                                     .frame(height: 52)
                                     .foregroundStyle(.white)
                                     .background(AppTheme.onSurface)
-                                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
+                                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius, style: .continuous))
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -269,6 +265,7 @@ private struct AuthField: View {
     let contentType: UITextContentType
     let keyboardType: UIKeyboardType
     let isSecure: Bool
+    var isFocused = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -286,11 +283,7 @@ private struct AuthField: View {
                 }
             }
             .textContentType(contentType)
-            .font(.system(size: 16))
-            .padding(.horizontal, 14)
-            .padding(.vertical, 14)
-            .background(AppTheme.surfaceContainer)
-            .clipShape(RoundedRectangle(cornerRadius: AppTheme.badgeCornerRadius, style: .continuous))
+            .designField(isFocused: isFocused)
         }
     }
 }

@@ -226,7 +226,7 @@ struct TripItineraryView: View {
                 Text("Plan Your Itinerary with AI")
                     .font(.headline)
 
-                Text("Let Gemini create a personalized day-by-day itinerary based on your interests and budget")
+                Text("Let Cashew create a personalized day-by-day itinerary based on your interests and budget")
                     .font(.subheadline)
                     .foregroundStyle(AppTheme.onSurfaceVariant)
                     .multilineTextAlignment(.center)

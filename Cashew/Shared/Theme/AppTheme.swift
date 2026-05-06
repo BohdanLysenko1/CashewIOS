@@ -596,6 +596,53 @@ struct DestructiveSelectionBar: View {
     }
 }
 
+/// Premium empty/error state card used instead of stock unavailable views on
+/// primary app surfaces.
+struct PremiumEmptyStateCard: View {
+    let title: String
+    let message: String
+    let systemImage: String
+    let gradient: LinearGradient
+    var actionTitle: String?
+    var actionIcon: String?
+    var action: (() -> Void)?
+
+    var body: some View {
+        VStack(spacing: AppTheme.Space.lg) {
+            Image(systemName: systemImage)
+                .font(.system(size: 44, weight: .semibold))
+                .foregroundStyle(gradient)
+                .frame(width: 78, height: 78)
+                .background(AppTheme.surfaceContainerLow)
+                .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
+
+            VStack(spacing: AppTheme.Space.sm) {
+                Text(title)
+                    .font(AppTheme.TextStyle.title)
+                    .foregroundStyle(AppTheme.onSurface)
+                    .multilineTextAlignment(.center)
+
+                Text(message)
+                    .font(AppTheme.TextStyle.body)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if let actionTitle, let action {
+                Button(action: action) {
+                    Label(actionTitle, systemImage: actionIcon ?? "arrow.clockwise")
+                        .primaryActionButton(gradient: gradient, fullWidth: false)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(AppTheme.Space.xxl)
+        .cardStyle()
+    }
+}
+
 // MARK: - Action Button Styles
 
 /// Primary CTA: gradient fill, white text, chip-radius pill. Replaces ad-hoc

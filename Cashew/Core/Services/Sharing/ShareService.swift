@@ -70,36 +70,36 @@ final class ShareService {
         return try ShareLinkCodec.makeInviteURL(token: token)
     }
 
+    // MARK: - Invite Preview
+
+    func previewInvite(token: String) async throws -> ShareInvitePreview {
+        _ = try currentUserIdOrThrow()
+        let preview = try await dataStore.previewInvite(token: token)
+
+        if preview.expiresAt < now() {
+            throw ShareError.expired
+        }
+
+        switch preview.resourceType {
+        case SharedResource.tripType, SharedResource.eventType:
+            return preview
+        default:
+            throw ShareError.unknownResourceType
+        }
+    }
+
     // MARK: - Accept Invite
 
     /// Accepts an invite by token. Returns the resource type and ID so the caller can navigate.
     func acceptInvite(token: String) async throws -> SharedResource {
-        let currentUserId = try currentUserIdOrThrow()
-        let invite = try await dataStore.fetchInvite(token: token)
+        _ = try currentUserIdOrThrow()
+        let invite = try await dataStore.acceptInvite(token: token)
 
-        // 2. Check expiry
-        if invite.expiresAt < now() {
-            throw ShareError.expired
-        }
-
-        // 3. Insert share record and return resource
         switch invite.resourceType {
         case SharedResource.tripType:
-            try await dataStore.upsertTripShare(
-                tripId: invite.resourceId,
-                userId: currentUserId,
-                invitedBy: invite.createdBy,
-                acceptedAt: now()
-            )
             return .trip(try await dataStore.fetchTrip(id: invite.resourceId))
 
         case SharedResource.eventType:
-            try await dataStore.upsertEventShare(
-                eventId: invite.resourceId,
-                userId: currentUserId,
-                invitedBy: invite.createdBy,
-                acceptedAt: now()
-            )
             return .event(try await dataStore.fetchEvent(id: invite.resourceId))
 
         default:
@@ -132,6 +132,23 @@ final class ShareService {
     func fetchSharedTripIds() async throws -> Set<UUID> {
         let userId = try currentUserIdOrThrow()
         return try await dataStore.fetchSharedByMeTripIds(userId: userId)
+    }
+
+    // MARK: - Pending Invites
+
+    func fetchPendingInvites(for resource: SharedResource) async throws -> [PendingShareInvite] {
+        let userId = try currentUserIdOrThrow()
+        return try await dataStore.fetchPendingInvites(
+            resourceType: resource.resourceType,
+            resourceId: resource.resourceId,
+            createdBy: userId,
+            after: now()
+        )
+    }
+
+    func cancelPendingInvite(_ invite: PendingShareInvite, from resource: SharedResource) async throws {
+        _ = resource // resource currently unused; reserved for future logging/permission checks
+        try await dataStore.cancelInvite(id: invite.id)
     }
 
     func fetchUser(id: UUID) async throws -> AppUser {

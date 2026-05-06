@@ -234,9 +234,9 @@ struct MainTabView: View {
             stopRealtimeSync()
             return
         }
-        guard let ownerID = container.authService.currentUser?.id else { return }
-        (container.tripService as? TripService)?.startRealtimeSync(ownerID: ownerID)
-        (container.eventService as? EventService)?.startRealtimeSync(ownerID: ownerID)
+        guard container.authService.currentUser != nil else { return }
+        (container.tripService as? TripService)?.startRealtimeSync()
+        (container.eventService as? EventService)?.startRealtimeSync()
     }
 
     private func stopRealtimeSync() {

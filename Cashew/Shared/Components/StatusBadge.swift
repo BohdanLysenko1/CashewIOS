@@ -35,7 +35,7 @@ extension TripStatus {
         switch self {
         case .planning: AppTheme.primary
         case .upcoming: AppTheme.secondary
-        case .active: Color(red: 0.20, green: 0.72, blue: 0.45)
+        case .active: AppTheme.positive
         case .completed: AppTheme.onSurfaceVariant
         case .cancelled: AppTheme.tertiary
         }

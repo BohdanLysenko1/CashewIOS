@@ -143,8 +143,8 @@ struct CalendarView: View {
                             .fontWeight(.semibold)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
-                            .background(.blue.opacity(0.12))
-                            .foregroundStyle(.blue)
+                            .background(AppTheme.primary.opacity(0.12))
+                            .foregroundStyle(AppTheme.primary)
                             .clipShape(Capsule())
                     }
                 }
@@ -326,7 +326,7 @@ struct CalendarView: View {
                         .fontWeight(.semibold)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
-                        .background(.blue)
+                        .background(AppTheme.primary)
                         .foregroundStyle(.white)
                         .clipShape(Capsule())
                 }
@@ -436,11 +436,11 @@ struct CalendarView: View {
                 HStack(spacing: 8) {
                     ZStack {
                         Circle()
-                            .fill(.blue.opacity(0.12))
+                            .fill(AppTheme.primary.opacity(0.12))
                             .frame(width: 28, height: 28)
                         Image(systemName: "arrow.right.circle.fill")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(AppTheme.primary)
                     }
 
                     Text("Upcoming")
@@ -450,10 +450,10 @@ struct CalendarView: View {
                     Text("\(count)")
                         .font(.caption2)
                         .fontWeight(.bold)
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(AppTheme.primary)
                         .padding(.horizontal, 7)
                         .padding(.vertical, 3)
-                        .background(.blue.opacity(0.12))
+                        .background(AppTheme.primary.opacity(0.12))
                         .clipShape(Capsule())
 
                     Spacer()
@@ -465,8 +465,7 @@ struct CalendarView: View {
                 }
                 .padding(.vertical, 10)
                 .padding(.horizontal, 12)
-                .background(AppTheme.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
+                .cardStyle()
             }
             .buttonStyle(.plain)
 
@@ -521,8 +520,7 @@ struct CalendarView: View {
                 }
                 .padding(.vertical, 10)
                 .padding(.horizontal, 12)
-                .background(AppTheme.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
+                .cardStyle()
             }
             .buttonStyle(.plain)
 
@@ -567,19 +565,16 @@ struct CalendarView: View {
     }
 
     private func errorView(_ error: Error) -> some View {
-        ContentUnavailableView {
-            Label("Unable to Load", systemImage: "exclamationmark.triangle")
-        } description: {
-            Text(error.localizedDescription)
-        } actions: {
-            Button {
-                Task { await loadData() }
-            } label: {
-                Text("Retry")
-                    .secondaryActionButton(fullWidth: false)
-            }
-            .buttonStyle(.plain)
-        }
+        PremiumEmptyStateCard(
+            title: "Unable to Load Calendar",
+            message: error.localizedDescription,
+            systemImage: "exclamationmark.triangle",
+            gradient: AppTheme.calendarGradient,
+            actionTitle: "Retry",
+            actionIcon: "arrow.clockwise",
+            action: { Task { await loadData() } }
+        )
+        .padding(AppTheme.Space.lg)
     }
 
     // MARK: - Filter

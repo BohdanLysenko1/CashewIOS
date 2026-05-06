@@ -26,46 +26,23 @@ final class SupabaseSharingDataStore: SharingDataStoreProtocol {
         return row.token
     }
 
-    func fetchInvite(token: String) async throws -> InviteLinkRecord {
-        let invite: InviteLinkRow = try await client
-            .from(SupabaseSchema.Table.inviteLinks)
-            .select()
-            .eq("token", value: token)
+    func previewInvite(token: String) async throws -> ShareInvitePreview {
+        let row: InvitePreviewRow = try await client
+            .rpc("preview_share_invite", params: ["p_token": token])
             .single()
             .execute()
             .value
 
-        return InviteLinkRecord(
-            id: invite.id,
-            resourceType: invite.resourceType,
-            resourceId: invite.resourceId,
-            createdBy: invite.createdBy,
-            expiresAt: invite.expiresAt
-        )
+        return row.toPreview()
     }
 
-    func upsertTripShare(tripId: UUID, userId: UUID, invitedBy: UUID, acceptedAt: Date) async throws {
-        try await client
-            .from(SupabaseSchema.Table.tripShares)
-            .upsert(TripSharePayload(
-                trip_id: tripId,
-                user_id: userId,
-                invited_by: invitedBy,
-                accepted_at: acceptedAt
-            ))
+    func acceptInvite(token: String) async throws -> AcceptedShareInvite {
+        let row: AcceptedInviteRow = try await client
+            .rpc("accept_share_invite", params: ["p_token": token])
+            .single()
             .execute()
-    }
-
-    func upsertEventShare(eventId: UUID, userId: UUID, invitedBy: UUID, acceptedAt: Date) async throws {
-        try await client
-            .from(SupabaseSchema.Table.eventShares)
-            .upsert(EventSharePayload(
-                event_id: eventId,
-                user_id: userId,
-                invited_by: invitedBy,
-                accepted_at: acceptedAt
-            ))
-            .execute()
+            .value
+        return AcceptedShareInvite(resourceType: row.resourceType, resourceId: row.resourceId)
     }
 
     func fetchTrip(id: UUID) async throws -> Trip {
@@ -151,6 +128,40 @@ final class SupabaseSharingDataStore: SharingDataStoreProtocol {
             .execute()
             .value
     }
+
+    func fetchPendingInvites(
+        resourceType: String,
+        resourceId: UUID,
+        createdBy: UUID,
+        after: Date
+    ) async throws -> [PendingShareInvite] {
+        let rows: [PendingInviteRow] = try await client
+            .from(SupabaseSchema.Table.inviteLinks)
+            .select("id, created_at, expires_at")
+            .eq("resource_type", value: resourceType)
+            .eq("resource_id", value: resourceId.uuidString)
+            .eq("created_by", value: createdBy.uuidString)
+            .gt("expires_at", value: ISO8601DateFormatter().string(from: after))
+            .order("created_at", ascending: false)
+            .execute()
+            .value
+        return rows.map { row in
+            PendingShareInvite(
+                id: row.id,
+                displayName: nil,
+                invitedAt: row.createdAt ?? row.expiresAt.addingTimeInterval(-7 * 24 * 60 * 60),
+                expiresAt: row.expiresAt
+            )
+        }
+    }
+
+    func cancelInvite(id: UUID) async throws {
+        try await client
+            .from(SupabaseSchema.Table.inviteLinks)
+            .delete()
+            .eq("id", value: id.uuidString)
+            .execute()
+    }
 }
 
 // MARK: - DTOs
@@ -165,36 +176,57 @@ private struct InviteTokenRow: Decodable {
     let token: String
 }
 
-private struct InviteLinkRow: Decodable {
-    let id: UUID
+private struct InvitePreviewRow: Decodable {
     let resourceType: String
     let resourceId: UUID
     let createdBy: UUID
+    let createdByName: String
+    let title: String
     let expiresAt: Date
 
     enum CodingKeys: String, CodingKey {
-        case id
         case resourceType = "resource_type"
         case resourceId   = "resource_id"
         case createdBy    = "created_by"
+        case createdByName = "created_by_name"
+        case title
         case expiresAt    = "expires_at"
+    }
+
+    func toPreview() -> ShareInvitePreview {
+        ShareInvitePreview(
+            resourceType: resourceType,
+            resourceId: resourceId,
+            createdBy: createdBy,
+            createdByName: createdByName,
+            title: title,
+            expiresAt: expiresAt
+        )
     }
 }
 
-private struct TripSharePayload: Encodable {
-    let trip_id: UUID
-    let user_id: UUID
-    let invited_by: UUID
-    let accepted_at: Date
-}
+private struct AcceptedInviteRow: Decodable {
+    let resourceType: String
+    let resourceId: UUID
 
-private struct EventSharePayload: Encodable {
-    let event_id: UUID
-    let user_id: UUID
-    let invited_by: UUID
-    let accepted_at: Date
+    enum CodingKeys: String, CodingKey {
+        case resourceType = "resource_type"
+        case resourceId = "resource_id"
+    }
 }
 
 private struct CollaboratorRow: Decodable {
     let user: AppUser
+}
+
+private struct PendingInviteRow: Decodable {
+    let id: UUID
+    let createdAt: Date?
+    let expiresAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case createdAt = "created_at"
+        case expiresAt = "expires_at"
+    }
 }

@@ -32,7 +32,7 @@ struct CalendarFilterSheet: View {
                                 label: "Trips",
                                 icon: "airplane",
                                 isOn: showTrips,
-                                tint: .blue,
+                                tint: AppTheme.secondary,
                                 onTap: {
                                     withAnimation(.easeInOut(duration: 0.2)) {
                                         if showTrips {
@@ -48,7 +48,7 @@ struct CalendarFilterSheet: View {
                                 label: "Events",
                                 icon: "calendar",
                                 isOn: showEvents,
-                                tint: .purple,
+                                tint: AppTheme.tertiary,
                                 onTap: {
                                     withAnimation(.easeInOut(duration: 0.2)) {
                                         if showEvents {
@@ -64,7 +64,7 @@ struct CalendarFilterSheet: View {
                                 label: "Tasks",
                                 icon: "checkmark.circle",
                                 isOn: showTasks,
-                                tint: .green,
+                                tint: AppTheme.positive,
                                 onTap: {
                                     withAnimation(.easeInOut(duration: 0.2)) {
                                         showTasks.toggle()
@@ -89,7 +89,7 @@ struct CalendarFilterSheet: View {
                                     AppFilterChip(
                                         label: "All",
                                         isSelected: selectedTripStatuses.isEmpty,
-                                        tint: .blue,
+                                        tint: AppTheme.secondary,
                                         selectedGradient: AppTheme.tripGradient
                                     ) {
                                         withAnimation(.easeInOut(duration: 0.2)) {
@@ -136,7 +136,7 @@ struct CalendarFilterSheet: View {
                                     AppFilterChip(
                                         label: "All",
                                         isSelected: selectedEventCategories.isEmpty,
-                                        tint: .purple,
+                                        tint: AppTheme.tertiary,
                                         selectedGradient: AppTheme.eventGradient
                                     ) {
                                         withAnimation(.easeInOut(duration: 0.2)) {

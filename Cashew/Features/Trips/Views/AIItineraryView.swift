@@ -8,6 +8,7 @@ struct AIItineraryView: View {
     @Binding var trip: Trip
     @State private var viewModel: AIItineraryViewModel
     @State private var selectedAIActivity: AIActivity?
+    @State private var showDiscardConfirm = false
     let onGoToBudget: () -> Void
 
     init(
@@ -24,7 +25,7 @@ struct AIItineraryView: View {
         VStack(spacing: 0) {
             CreationTopBar(
                 title: "AI Itinerary",
-                subtitle: "Powered by Gemini",
+                subtitle: "Powered by Cashew",
                 onClose: { dismiss() }
             )
 
@@ -48,6 +49,20 @@ struct AIItineraryView: View {
             if !viewModel.hasBudget {
                 viewModel.phase = .noBudget
             }
+        }
+        .onDisappear { viewModel.cancelInFlight() }
+        .confirmationDialog(
+            "Discard generated itinerary?",
+            isPresented: $showDiscardConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Discard", role: .destructive) {
+                viewModel.phase = .configure
+                viewModel.selectedIDs = []
+            }
+            Button("Keep editing", role: .cancel) { }
+        } message: {
+            Text("Your selected activities won't be added to the trip.")
         }
         .sheet(item: $selectedAIActivity) { aiActivity in
             ActivityDetailView(
@@ -101,6 +116,7 @@ struct AIItineraryView: View {
                             let isSelected = viewModel.selectedInterests.contains(interest.id)
 
                             Button {
+                                HapticManager.selection()
                                 viewModel.toggleInterest(interest.id)
                             } label: {
                                 VStack(spacing: 4) {
@@ -156,8 +172,8 @@ struct AIItineraryView: View {
                     }
                 }
 
-                // Notes for Gemini
-                CreationSectionCard(title: "Notes for Gemini", icon: "text.bubble") {
+                // Free-form notes
+                CreationSectionCard(title: "Notes for Cashew", icon: "text.bubble") {
                     VStack(alignment: .leading, spacing: AppTheme.Space.xs) {
                         ZStack(alignment: .topLeading) {
                             if viewModel.userNote.isEmpty {
@@ -202,9 +218,12 @@ struct AIItineraryView: View {
                 confirmTitle: "Generate",
                 gradient: AppTheme.tripGradient,
                 canConfirm: viewModel.canGenerate,
-                isLoading: false,
+                isLoading: viewModel.isLoading,
                 onCancel: { dismiss() },
-                onConfirm: { Task { await viewModel.generate() } }
+                onConfirm: {
+                    HapticManager.impact(.medium)
+                    viewModel.startGenerate()
+                }
             )
         }
     }
@@ -217,19 +236,57 @@ struct AIItineraryView: View {
             ProgressView()
                 .scaleEffect(1.4)
                 .tint(AppTheme.secondary)
-            Text("Gemini is crafting your itinerary...")
-                .font(AppTheme.TextStyle.body)
-                .foregroundStyle(AppTheme.onSurfaceVariant)
-                .multilineTextAlignment(.center)
+            VStack(spacing: AppTheme.Space.xs) {
+                if !trip.destination.isEmpty {
+                    Text(loadingTripContext)
+                        .font(AppTheme.TextStyle.captionBold)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
+                        .multilineTextAlignment(.center)
+                }
+                RotatingCaption(lines: [
+                    "Reading your trip details…",
+                    "Picking spots that match your vibe…",
+                    "Balancing your budget…",
+                    "Mapping the route…",
+                    "Almost ready…"
+                ])
+                .padding(.horizontal, AppTheme.Space.lg)
+            }
             Spacer()
         }
         .frame(maxWidth: .infinity)
         .padding(AppTheme.Space.lg)
     }
 
+    private var loadingTripContext: String {
+        let dates = "\(DateFormatting.shortDayMonth.string(from: trip.startDate)) – \(DateFormatting.shortDayMonth.string(from: trip.endDate))"
+        return "\(trip.destination) · \(dates)"
+    }
+
     // MARK: - Review Phase
 
     private var reviewPhase: some View {
+        Group {
+            if viewModel.reviewActivities.isEmpty {
+                emptyReviewPhase
+            } else {
+                reviewContent
+            }
+        }
+        .safeAreaInset(edge: .bottom) {
+            CreationBottomActionBar(
+                cancelTitle: "Discard",
+                confirmTitle: "Add \(viewModel.selectedCount) to Trip",
+                gradient: AppTheme.tripGradient,
+                canConfirm: viewModel.selectedCount > 0,
+                isLoading: false,
+                onCancel: { showDiscardConfirm = true },
+                onConfirm: { addToTrip() }
+            )
+        }
+    }
+
+    private var reviewContent: some View {
         VStack(spacing: 0) {
             // Map
             AIItineraryMapView(activities: viewModel.visibleMapActivities) { activity in
@@ -252,13 +309,16 @@ struct AIItineraryView: View {
 
             // Activity list
             ScrollView {
-                VStack(spacing: AppTheme.Space.sm) {
+                LazyVStack(spacing: AppTheme.Space.sm) {
                     HStack {
                         Text("\(viewModel.selectedCount) selected")
                             .font(AppTheme.TextStyle.captionBold)
                             .foregroundStyle(AppTheme.onSurfaceVariant)
                         Spacer()
-                        Button("Select All") { viewModel.selectAll() }
+                        Button("Select All") {
+                            HapticManager.selection()
+                            viewModel.selectAll()
+                        }
                             .font(AppTheme.TextStyle.captionBold)
                             .foregroundStyle(AppTheme.secondary)
                     }
@@ -272,7 +332,7 @@ struct AIItineraryView: View {
                                     HStack(spacing: 8) {
                                         ProgressView()
                                             .tint(AppTheme.secondary)
-                                        Text("Regenerating...")
+                                        Text("Regenerating…")
                                             .font(AppTheme.TextStyle.caption)
                                             .foregroundStyle(AppTheme.onSurfaceVariant)
                                     }
@@ -283,13 +343,17 @@ struct AIItineraryView: View {
                                         AIActivityRow(
                                             activity: activity,
                                             isSelected: viewModel.selectedIDs.contains(activity.id),
-                                            onToggle: { viewModel.toggleActivity(activity) },
+                                            onToggle: {
+                                                HapticManager.selection()
+                                                viewModel.toggleActivity(activity)
+                                            },
                                             onTap: { selectedAIActivity = activity }
                                         )
                                     }
 
                                     Button {
-                                        Task { await viewModel.regenerateDay(group.date) }
+                                        HapticManager.impact(.medium)
+                                        viewModel.startRegenerateDay(group.date)
                                     } label: {
                                         Label("Regenerate this day", systemImage: "arrow.trianglehead.2.clockwise")
                                             .font(AppTheme.TextStyle.caption)
@@ -308,22 +372,38 @@ struct AIItineraryView: View {
             }
             .background(AppTheme.background)
         }
-        .safeAreaInset(edge: .bottom) {
-            CreationBottomActionBar(
-                cancelTitle: "Discard",
-                confirmTitle: "Add \(viewModel.selectedCount) to Trip",
-                gradient: AppTheme.tripGradient,
-                canConfirm: viewModel.selectedCount > 0,
-                isLoading: false,
-                onCancel: { viewModel.phase = .configure },
-                onConfirm: { addToTrip() }
-            )
+    }
+
+    private var emptyReviewPhase: some View {
+        VStack(spacing: AppTheme.Space.lg) {
+            Spacer()
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 48))
+                .foregroundStyle(AppTheme.onSurfaceVariant)
+            Text("No matches yet")
+                .font(AppTheme.TextStyle.sectionTitle)
+            Text("Try broadening your interests or budget and generate again.")
+                .font(AppTheme.TextStyle.body)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, AppTheme.Space.lg)
+            Button {
+                viewModel.phase = .configure
+            } label: {
+                Text("Adjust")
+                    .primaryActionButton(gradient: AppTheme.tripGradient)
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, AppTheme.Space.xl)
+            Spacer()
         }
+        .frame(maxWidth: .infinity)
     }
 
     private func vibePill(vibe: TripVibe) -> some View {
         let isSelected = viewModel.selectedVibe == vibe
         return Button {
+            HapticManager.selection()
             withAnimation(.easeInOut(duration: 0.15)) {
                 viewModel.selectedVibe = isSelected ? nil : vibe
             }
@@ -350,6 +430,7 @@ struct AIItineraryView: View {
     private func pacePill(pace: TripPace) -> some View {
         let isSelected = viewModel.selectedPace == pace
         return Button {
+            HapticManager.selection()
             withAnimation(.easeInOut(duration: 0.15)) {
                 viewModel.selectedPace = pace
             }
@@ -377,6 +458,7 @@ struct AIItineraryView: View {
     private func dayFilterPill(date: String?, label: String) -> some View {
         let isSelected = viewModel.selectedMapDay == date
         return Button {
+            HapticManager.selection()
             withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
                 viewModel.selectedMapDay = date
             }
@@ -409,15 +491,28 @@ struct AIItineraryView: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 48))
                 .foregroundStyle(AppTheme.negative)
-            Text("Generation Failed")
+            Text("Couldn't generate itinerary")
                 .font(AppTheme.TextStyle.sectionTitle)
-            Text(message)
+            Text(friendlyError(message))
                 .font(AppTheme.TextStyle.body)
                 .foregroundStyle(AppTheme.onSurfaceVariant)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, AppTheme.Space.lg)
+
+            DisclosureGroup("Show details") {
+                Text(message)
+                    .font(AppTheme.TextStyle.caption)
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, AppTheme.Space.xs)
+            }
+            .font(AppTheme.TextStyle.caption)
+            .tint(AppTheme.onSurfaceVariant)
+            .padding(.horizontal, AppTheme.Space.xl)
+
             Button {
-                viewModel.phase = .configure
+                HapticManager.impact(.medium)
+                viewModel.startGenerate()
             } label: {
                 Text("Try Again")
                     .primaryActionButton(gradient: AppTheme.tripGradient)
@@ -427,6 +522,14 @@ struct AIItineraryView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private func friendlyError(_ message: String) -> String {
+        let lower = message.lowercased()
+        if lower.contains("parse") || lower.contains("decode") {
+            return "Cashew sent something we couldn't read. Tap try again."
+        }
+        return "We couldn't reach Cashew right now. Check your connection and try again."
     }
 
     // MARK: - No Budget Phase
@@ -463,6 +566,7 @@ struct AIItineraryView: View {
     private func addToTrip() {
         let newActivities = viewModel.buildSelectedActivities()
         trip.activities.append(contentsOf: newActivities)
+        HapticManager.notification(.success)
         dismiss()
     }
 }
@@ -474,20 +578,27 @@ struct AIItineraryMapView: View {
     var onPinTapped: ((AIActivity) -> Void)?
 
     @State private var cameraPos: MapCameraPosition = .automatic
+    @State private var polylineCoords: [CLLocationCoordinate2D] = []
 
-    private var computedPosition: MapCameraPosition {
-        let coords = activities.compactMap { a -> CLLocationCoordinate2D? in
+    private static func coords(from activities: [AIActivity]) -> [CLLocationCoordinate2D] {
+        activities.compactMap { a in
             guard let lat = a.latitude, let lon = a.longitude else { return nil }
             return CLLocationCoordinate2D(latitude: lat, longitude: lon)
         }
-        guard !coords.isEmpty else { return .automatic }
+    }
 
+    private static func position(for activities: [AIActivity]) -> MapCameraPosition {
+        let coords = Self.coords(from: activities)
+        guard !coords.isEmpty else { return .automatic }
         let lats = coords.map(\.latitude)
         let lons = coords.map(\.longitude)
-        let centerLat = (lats.max()! + lats.min()!) / 2
-        let centerLon = (lons.max()! + lons.min()!) / 2
-        let spanLat = max((lats.max()! - lats.min()!) * 1.5, 0.02)
-        let spanLon = max((lons.max()! - lons.min()!) * 1.5, 0.02)
+        guard let minLat = lats.min(), let maxLat = lats.max(),
+              let minLon = lons.min(), let maxLon = lons.max() else { return .automatic }
+
+        let centerLat = (maxLat + minLat) / 2
+        let centerLon = (maxLon + minLon) / 2
+        let spanLat = max((maxLat - minLat) * 1.5, 0.02)
+        let spanLon = max((maxLon - minLon) * 1.5, 0.02)
 
         return .region(MKCoordinateRegion(
             center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon),
@@ -495,11 +606,9 @@ struct AIItineraryMapView: View {
         ))
     }
 
-    private var polylineCoords: [CLLocationCoordinate2D] {
-        activities.compactMap { a in
-            guard let lat = a.latitude, let lon = a.longitude else { return nil }
-            return CLLocationCoordinate2D(latitude: lat, longitude: lon)
-        }
+    private func refresh(for activities: [AIActivity]) {
+        polylineCoords = Self.coords(from: activities)
+        cameraPos = Self.position(for: activities)
     }
 
     var body: some View {
@@ -541,8 +650,8 @@ struct AIItineraryMapView: View {
                 showsTraffic: false
             )
         )
-        .onAppear { cameraPos = computedPosition }
-        .onChange(of: activities) { _, _ in cameraPos = computedPosition }
+        .onAppear { refresh(for: activities) }
+        .onChange(of: activities) { _, new in refresh(for: new) }
         .overlay {
             LinearGradient(
                 colors: [
@@ -559,16 +668,14 @@ struct AIItineraryMapView: View {
         .overlay(alignment: .topLeading) {
             HStack(spacing: 6) {
                 Image(systemName: "wand.and.stars")
-                Text("AI Route")
+                Text("Cashew Route")
             }
             .font(.caption2.weight(.bold))
             .foregroundStyle(.white)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(
-                Capsule()
-                    .fill(AppTheme.scrim)
-            )
+            .background(Color.black.opacity(0.25), in: Capsule())
+            .background(.ultraThinMaterial, in: Capsule())
             .padding(12)
         }
         .overlay(alignment: .bottomTrailing) {
@@ -577,10 +684,8 @@ struct AIItineraryMapView: View {
                 .foregroundStyle(.white)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(
-                    Capsule()
-                        .fill(AppTheme.secondary.opacity(0.85))
-                )
+                .background(Color.black.opacity(0.25), in: Capsule())
+                .background(.ultraThinMaterial, in: Capsule())
                 .padding(12)
         }
     }
@@ -623,7 +728,9 @@ private struct AIActivityRow: View {
         HStack(spacing: 0) {
             // Accent bar
             RoundedRectangle(cornerRadius: AppTheme.progressBarCornerRadius)
-                .fill(category.color.gradient)
+                .fill(isSelected
+                    ? AnyShapeStyle(category.color.gradient)
+                    : AnyShapeStyle(AppTheme.outlineVariant))
                 .frame(width: 3)
                 .padding(.vertical, 4)
 
@@ -676,6 +783,7 @@ private struct AIActivityRow: View {
                             .foregroundStyle(isSelected ? AppTheme.secondary : AppTheme.onSurfaceVariant)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(isSelected ? "Deselect" : "Select")
 
                     Image(systemName: "chevron.right")
                         .font(.system(size: 11, weight: .semibold))
@@ -686,11 +794,16 @@ private struct AIActivityRow: View {
             .padding(.trailing, 12)
             .padding(.vertical, 14)
         }
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(AppTheme.secondary.opacity(isSelected ? 0.06 : 0))
+        )
         .tripSoftSurface()
-        .opacity(isSelected ? 1.0 : 0.5)
         .contentShape(Rectangle())
         .onTapGesture { onTap() }
         .animation(.easeInOut(duration: 0.15), value: isSelected)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isSelected ? [.isSelected, .isButton] : [.isButton])
     }
 }
 

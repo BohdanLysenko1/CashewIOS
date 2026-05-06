@@ -30,6 +30,9 @@ final class AIItineraryViewModel {
     private let service: AIItineraryServiceProtocol
     let trip: Trip
 
+    @ObservationIgnored private var generateTask: Task<Void, Never>?
+    @ObservationIgnored private var regenerateTask: Task<Void, Never>?
+
     init(trip: Trip, service: AIItineraryServiceProtocol = AIItineraryService()) {
         self.trip = trip
         self.service = service
@@ -49,6 +52,11 @@ final class AIItineraryViewModel {
         !selectedInterests.isEmpty
             && budgetAllocation > 0
             && userNote.count <= Self.userNoteCharLimit
+    }
+
+    var isLoading: Bool {
+        if case .loading = phase { return true }
+        return false
     }
 
     let availableInterests: [ItineraryInterest] = ItineraryInterest.catalog
@@ -118,8 +126,11 @@ final class AIItineraryViewModel {
 
         do {
             let response = try await service.generateItinerary(request: request)
+            try Task.checkCancellation()
             selectedIDs = Set(response.activities.map(\.id))
             phase = .review(response.activities)
+        } catch is CancellationError {
+            // Sheet dismissed mid-flight; leave state alone.
         } catch {
             phase = .error(error.localizedDescription)
         }
@@ -141,9 +152,13 @@ final class AIItineraryViewModel {
 
         do {
             let response = try await service.generateItinerary(request: request)
+            try Task.checkCancellation()
 
             // Remove old activities for this day, keep others
-            guard case .review(let current) = phase else { return }
+            guard case .review(let current) = phase else {
+                regeneratingDay = nil
+                return
+            }
             let kept = current.filter { $0.date != dateString }
             let merged = kept + response.activities
 
@@ -151,10 +166,38 @@ final class AIItineraryViewModel {
             for a in response.activities { selectedIDs.insert(a.id) }
 
             phase = .review(merged)
+        } catch is CancellationError {
+            // View dismissed; don't mutate state further.
         } catch {
             Log.ai.error("Day regeneration failed for \(dateString): \(error.localizedDescription)")
         }
 
+        regeneratingDay = nil
+    }
+
+    @MainActor
+    func startGenerate() {
+        generateTask?.cancel()
+        generateTask = Task { [weak self] in
+            await self?.generate()
+        }
+    }
+
+    @MainActor
+    func startRegenerateDay(_ dateString: String) {
+        guard regenerateTask == nil else { return }
+        regenerateTask = Task { [weak self] in
+            await self?.regenerateDay(dateString)
+            self?.regenerateTask = nil
+        }
+    }
+
+    @MainActor
+    func cancelInFlight() {
+        generateTask?.cancel()
+        generateTask = nil
+        regenerateTask?.cancel()
+        regenerateTask = nil
         regeneratingDay = nil
     }
 }

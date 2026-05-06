@@ -57,6 +57,55 @@ final class SupabaseRepositoryMappingTests: XCTestCase {
         XCTAssertEqual(trip.updatedAt, updatedAt)
     }
 
+    func testTripUpdatePayloadOmitsOwnerIdAndIdAndTimestamps() throws {
+        let trip = Trip(
+            id: UUID(),
+            ownerId: UUID(),
+            ownerName: "Alex",
+            name: "Iceland",
+            destination: "Reykjavik",
+            startDate: Date(timeIntervalSince1970: 3_000),
+            endDate: Date(timeIntervalSince1970: 4_000)
+        )
+
+        let encoder = JSONEncoder()
+        let data = try encoder.encode(TripUpdatePayload(trip: trip))
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        // Collaborator updates must NOT send owner_id (RLS pins it; sending it triggers WITH CHECK failures)
+        XCTAssertFalse(json.keys.contains("owner_id"), "TripUpdatePayload must not encode owner_id")
+        XCTAssertFalse(json.keys.contains("ownerId"), "TripUpdatePayload must not encode ownerId")
+        XCTAssertFalse(json.keys.contains("id"), "TripUpdatePayload must not include the row id; it's used in the .eq filter")
+        XCTAssertFalse(json.keys.contains("created_at"), "TripUpdatePayload must not encode created_at")
+
+        // But should still carry the editable fields
+        XCTAssertEqual(json["name"] as? String, "Iceland")
+        XCTAssertEqual(json["destination"] as? String, "Reykjavik")
+    }
+
+    func testEventUpdatePayloadOmitsOwnerIdAndIdAndTimestamps() throws {
+        let event = Event(
+            id: UUID(),
+            title: "Standup",
+            date: Date(timeIntervalSince1970: 9_000),
+            location: "HQ",
+            category: .work,
+            ownerId: UUID(),
+            ownerName: "Casey"
+        )
+
+        let encoder = JSONEncoder()
+        let data = try encoder.encode(EventUpdatePayload(event: event))
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        XCTAssertFalse(json.keys.contains("owner_id"), "EventUpdatePayload must not encode owner_id")
+        XCTAssertFalse(json.keys.contains("ownerId"), "EventUpdatePayload must not encode ownerId")
+        XCTAssertFalse(json.keys.contains("id"), "EventUpdatePayload must not include the row id; it's used in the .eq filter")
+        XCTAssertFalse(json.keys.contains("created_at"), "EventUpdatePayload must not encode created_at")
+
+        XCTAssertEqual(json["title"] as? String, "Standup")
+    }
+
     func testEventDTOToEventMapsRecurrenceHeroAndTimezoneFields() {
         let createdAt = Date(timeIntervalSince1970: 5_000)
         let updatedAt = Date(timeIntervalSince1970: 6_000)

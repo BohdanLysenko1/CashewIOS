@@ -273,13 +273,13 @@ struct TripItineraryView: View {
         TripSectionCard("Timeline", icon: "clock.badge.checkmark") {
             VStack(spacing: AppTheme.Space.sm) {
                 ForEach(activities) { activity in
-                    ActivityCard(activity: activity) {
-                        selectedActivity = activity
-                    } onEdit: {
-                        editingActivity = activity
-                    } onDelete: {
-                        deleteActivity(activity)
-                    }
+                    ActivityCard(
+                        activity: activity,
+                        onTap: { selectedActivity = activity },
+                        onEdit: { editingActivity = activity },
+                        onDelete: { deleteActivity(activity) },
+                        onToggleBooked: { toggleBooked(activity) }
+                    )
                 }
                 .onMove { source, destination in
                     moveActivities(from: source, to: destination)
@@ -302,6 +302,11 @@ struct TripItineraryView: View {
 
     private func deleteActivity(_ activity: Activity) {
         trip.activities.removeAll { $0.id == activity.id }
+    }
+
+    private func toggleBooked(_ activity: Activity) {
+        guard let index = trip.activities.firstIndex(where: { $0.id == activity.id }) else { return }
+        trip.activities[index].isBooked.toggle()
     }
 
     private func formatItineraryForShare() -> String {
@@ -410,6 +415,7 @@ private struct ActivityCard: View {
     let onTap: () -> Void
     let onEdit: () -> Void
     let onDelete: () -> Void
+    let onToggleBooked: () -> Void
 
     private static let timeFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -467,11 +473,26 @@ private struct ActivityCard: View {
 
                     Spacer()
 
-                    if activity.isBooked {
-                        Image(systemName: "checkmark.seal.fill")
-                            .foregroundStyle(.green)
-                            .font(.caption)
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        onToggleBooked()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: activity.isBooked ? "checkmark.seal.fill" : "seal")
+                            Text(activity.isBooked ? "Booked" : "Mark booked")
+                        }
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(activity.isBooked ? .green : AppTheme.onSurfaceVariant)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule().fill(
+                                (activity.isBooked ? Color.green : AppTheme.onSurfaceVariant)
+                                    .opacity(0.12)
+                            )
+                        )
                     }
+                    .buttonStyle(.plain)
                 }
 
                 if !activity.location.isEmpty {

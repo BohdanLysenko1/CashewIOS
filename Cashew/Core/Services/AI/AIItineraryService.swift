@@ -41,9 +41,11 @@ struct AIActivity: Decodable, Identifiable, Hashable {
     let estimatedCost: Double?
     let latitude: Double?
     let longitude: Double?
+    let imageURL: String?
+    let websiteURL: String?
 
     private enum CodingKeys: String, CodingKey {
-        case title, date, startTime, endTime, location, address, notes, category, estimatedCost, latitude, longitude
+        case title, date, startTime, endTime, location, address, notes, category, estimatedCost, latitude, longitude, imageURL, websiteURL
     }
 
     init(
@@ -58,7 +60,9 @@ struct AIActivity: Decodable, Identifiable, Hashable {
         category: String,
         estimatedCost: Double?,
         latitude: Double?,
-        longitude: Double?
+        longitude: Double?,
+        imageURL: String? = nil,
+        websiteURL: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -72,6 +76,8 @@ struct AIActivity: Decodable, Identifiable, Hashable {
         self.estimatedCost = estimatedCost
         self.latitude = latitude
         self.longitude = longitude
+        self.imageURL = imageURL
+        self.websiteURL = websiteURL
     }
 
     init(from decoder: Decoder) throws {
@@ -88,7 +94,19 @@ struct AIActivity: Decodable, Identifiable, Hashable {
         self.estimatedCost = try c.decodeIfPresent(Double.self, forKey: .estimatedCost)
         self.latitude = try c.decodeIfPresent(Double.self, forKey: .latitude)
         self.longitude = try c.decodeIfPresent(Double.self, forKey: .longitude)
+        self.imageURL = try c.decodeIfPresent(String.self, forKey: .imageURL)
+        self.websiteURL = try c.decodeIfPresent(String.self, forKey: .websiteURL)
     }
+}
+
+// MARK: - URL Accessors
+
+extension AIActivity {
+    /// Parsed image URL. Returns nil for missing or malformed values so callers
+    /// can render a placeholder without worrying about the raw string shape.
+    var imageURLValue: URL? { imageURL.flatMap(URL.init(string:)) }
+    /// Parsed website URL. Same semantics as `imageURLValue`.
+    var websiteURLValue: URL? { websiteURL.flatMap(URL.init(string:)) }
 }
 
 // MARK: - Conversion to Activity
@@ -119,6 +137,8 @@ extension AIActivity {
             category: ActivityCategory(rawValue: category) ?? .activity,
             cost: estimatedCost.map { Decimal($0) },
             currency: tripCurrency,
+            link: websiteURLValue,
+            imageURL: imageURLValue,
             latitude: latitude,
             longitude: longitude
         )

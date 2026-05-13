@@ -15,6 +15,7 @@ struct Activity: Identifiable, Codable, Equatable, Sendable {
     var isBooked: Bool
     var confirmationNumber: String
     var link: URL?
+    var imageURL: URL?
     var latitude: Double?
     var longitude: Double?
     var sortOrder: Int
@@ -34,6 +35,7 @@ struct Activity: Identifiable, Codable, Equatable, Sendable {
         isBooked: Bool = false,
         confirmationNumber: String = "",
         link: URL? = nil,
+        imageURL: URL? = nil,
         latitude: Double? = nil,
         longitude: Double? = nil,
         sortOrder: Int = 0
@@ -52,6 +54,7 @@ struct Activity: Identifiable, Codable, Equatable, Sendable {
         self.isBooked = isBooked
         self.confirmationNumber = confirmationNumber
         self.link = link
+        self.imageURL = imageURL
         self.latitude = latitude
         self.longitude = longitude
         self.sortOrder = sortOrder
@@ -60,7 +63,7 @@ struct Activity: Identifiable, Codable, Equatable, Sendable {
     enum CodingKeys: String, CodingKey {
         case id, title, date, startTime, endTime, location, address
         case notes, category, cost, currency, isBooked, confirmationNumber
-        case link, latitude, longitude, sortOrder
+        case link, imageURL, latitude, longitude, sortOrder
     }
 
     init(from decoder: Decoder) throws {
@@ -79,6 +82,7 @@ struct Activity: Identifiable, Codable, Equatable, Sendable {
         isBooked = try container.decode(Bool.self, forKey: .isBooked)
         confirmationNumber = try container.decode(String.self, forKey: .confirmationNumber)
         link = try container.decodeIfPresent(URL.self, forKey: .link)
+        imageURL = try container.decodeIfPresent(URL.self, forKey: .imageURL)
         latitude = try container.decodeIfPresent(Double.self, forKey: .latitude)
         longitude = try container.decodeIfPresent(Double.self, forKey: .longitude)
         sortOrder = try container.decodeIfPresent(Int.self, forKey: .sortOrder) ?? 0

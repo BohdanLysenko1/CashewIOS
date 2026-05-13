@@ -4,7 +4,6 @@ import StoreKit
 struct SettingsView: View {
 
     @Environment(AppContainer.self) private var container
-    @Environment(OnboardingCoordinator.self) private var onboardingCoordinator
     @Environment(\.requestReview) private var requestReview
 
     @State private var showSignOutError = false
@@ -21,6 +20,7 @@ struct SettingsView: View {
     @State private var isDeletingAccount = false
     @State private var showDeleteAccountError = false
     @State private var deleteAccountErrorMessage = ""
+    @State private var showReplayTutorial = false
 
     var body: some View {
         NavigationStack {
@@ -68,7 +68,7 @@ struct SettingsView: View {
                 // Help Section
                 Section("Help") {
                     Button {
-                        onboardingCoordinator.restart()
+                        showReplayTutorial = true
                     } label: {
                         settingsRow(icon: "questionmark.circle", color: AppTheme.tertiary, label: "Replay Tutorial")
                     }
@@ -294,6 +294,10 @@ struct SettingsView: View {
             .sheet(isPresented: $showWhatsNew) {
                 WhatsNewView()
             }
+            .fullScreenCover(isPresented: $showReplayTutorial) {
+                OnbFlowView(onClose: { showReplayTutorial = false })
+                    .environment(container)
+            }
             .confirmationDialog(
                 "Disable Cloud Sync?",
                 isPresented: $showDisableSyncConfirmation,
@@ -441,5 +445,4 @@ struct SettingsView: View {
 #Preview {
     SettingsView()
         .environment(AppContainer())
-        .environment(OnboardingCoordinator())
 }

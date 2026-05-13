@@ -6,16 +6,11 @@ struct MainTabView: View {
     @Environment(AppContainer.self) private var container
     @Bindable private var appearance = AppearanceManager.shared
     @State private var selectedTab: Tab = .dashboard
-    @State private var coordinator = OnboardingCoordinator()
-    @State private var showWelcome = false
-    @State private var showCompletion = false
     @State private var showLiveUpdateBanner = false
     @State private var liveUpdateMessage = ""
     @State private var liveUpdateIcon = "bolt.horizontal.circle.fill"
     @State private var liveUpdateTint: Color = .teal
     @State private var hideLiveUpdateTask: Task<Void, Never>?
-    /// Distinguishes a "start tour" dismiss from a "skip" dismiss in onWelcomeDismissed.
-    @State private var tourStartRequested = false
 
     private enum Tab: Int, CaseIterable {
         case dashboard = 0
@@ -28,21 +23,9 @@ struct MainTabView: View {
         var previous: Tab? { Tab(rawValue: rawValue - 1) }
     }
 
-    /// A binding that silently drops tab-bar taps while the onboarding overlay is active,
-    /// preventing the user from desyncing the tour by tapping a different tab.
-    private var lockedTabSelection: Binding<Tab> {
-        Binding(
-            get: { selectedTab },
-            set: { newTab in
-                guard !coordinator.isActive else { return }
-                selectedTab = newTab
-            }
-        )
-    }
-
     var body: some View {
         ZStack {
-            TabView(selection: lockedTabSelection) {
+            TabView(selection: $selectedTab) {
                 DashboardView()
                     .tabItem { Label("My Day", systemImage: "sun.max") }
                     .tag(Tab.dashboard)
@@ -63,20 +46,10 @@ struct MainTabView: View {
                     .tabItem { Label("Settings", systemImage: "gearshape") }
                     .tag(Tab.settings)
             }
-            .environment(coordinator)
             .onChange(of: selectedTab) {
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
             }
-            // Disable swipe-to-change-tab while onboarding is active
-            .gesture(swipeGesture, including: coordinator.isActive ? .none : .all)
-
-            // Overlay — hidden for fullscreen steps (welcome / complete)
-            if coordinator.isActive && !coordinator.currentStep.isFullScreen {
-                OnboardingOverlayView()
-                    .environment(coordinator)
-                    .transition(.opacity)
-                    .zIndex(1)
-            }
+            .gesture(swipeGesture)
 
             if showLiveUpdateBanner {
                 liveUpdateBanner
@@ -87,7 +60,6 @@ struct MainTabView: View {
         }
         .onAppear {
             configureTabBarAppearance()
-            startOnboardingIfNeeded()
             configureRealtimeSync()
         }
         .onDisappear {
@@ -111,26 +83,8 @@ struct MainTabView: View {
             else { return }
             presentLiveUpdate(message, icon: "star.circle.fill", tint: .pink)
         }
-        .onChange(of: coordinator.currentStep) { _, newStep in
-            onStepChanged(to: newStep)
-        }
         .onChange(of: appearance.mode) { _, _ in
             configureTabBarAppearance()
-        }
-        // Welcome screen — shown on first launch.
-        // onDismiss fires after the dismiss animation completes, replacing the
-        // fragile 450 ms Task.sleep that used to coordinate the handoff.
-        .fullScreenCover(isPresented: $showWelcome, onDismiss: onWelcomeDismissed) {
-            WelcomeScreenView(
-                onStart: { tourStartRequested = true; showWelcome = false },
-                onSkip: skipTour
-            )
-        }
-        // Completion screen — shown after the final tour step.
-        // onDismiss ensures coordinator.complete() is called even if the cover
-        // is dismissed by the system rather than the "Let's Go!" button.
-        .fullScreenCover(isPresented: $showCompletion, onDismiss: finishTour) {
-            CompletionView(onFinish: { showCompletion = false })
         }
     }
 
@@ -147,49 +101,6 @@ struct MainTabView: View {
                     else if h > 0, let prev = selectedTab.previous { selectedTab = prev }
                 }
             }
-    }
-
-    // MARK: - Onboarding
-
-    private func startOnboardingIfNeeded() {
-        guard !OnboardingCoordinator.hasCompleted, !coordinator.isActive, !showWelcome else { return }
-        showWelcome = true
-    }
-
-    /// Called by fullScreenCover's onDismiss after the welcome sheet has fully animated out.
-    /// Replaces the old 450 ms Task.sleep — onDismiss fires at the exact moment the
-    /// dismiss animation completes, so there's no guesswork about device speed.
-    private func onWelcomeDismissed() {
-        guard tourStartRequested else { return }  // no-op when user tapped Skip
-        tourStartRequested = false
-        coordinator.activate()
-    }
-
-    /// User tapped "Skip Tour" on the welcome screen.
-    private func skipTour() {
-        showWelcome = false
-        coordinator.complete()
-    }
-
-    /// Called whenever the coordinator advances to a new step.
-    private func onStepChanged(to step: OnboardingStep) {
-        // Drive tab selection to match the step
-        if let tabIndex = step.targetTabIndex, let tab = Tab(rawValue: tabIndex) {
-            withAnimation(.easeInOut(duration: 0.35)) {
-                selectedTab = tab
-            }
-        }
-
-        // fullScreenCover is presented at window level, above the overlay, so
-        // there's no visual conflict — show the completion screen immediately.
-        if step == .complete {
-            showCompletion = true
-        }
-    }
-
-    /// Called by fullScreenCover's onDismiss after the completion sheet has fully animated out.
-    private func finishTour() {
-        coordinator.complete()
     }
 
     private var liveUpdateBanner: some View {

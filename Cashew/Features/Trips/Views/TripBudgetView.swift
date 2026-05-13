@@ -1,12 +1,26 @@
 import SwiftUI
 
 struct TripBudgetView: View {
+    @Environment(AppContainer.self) private var container
     @Binding var trip: Trip
     let initialIntent: TripSectionIntent
     @State private var showAddExpense = false
     @State private var editingExpense: Expense?
     @State private var showBudgetEditor = false
     @State private var didApplyInitialIntent = false
+
+    private var eventService: EventServiceProtocol {
+        container.eventService
+    }
+
+    private var pendingExpenses: [Expense] {
+        trip.expenses.filter { $0.status == .pending }
+            .sorted(by: { ($0.startTime ?? $0.date) < ($1.startTime ?? $1.date) })
+    }
+
+    private var approvedExpenses: [Expense] {
+        trip.expenses.filter { $0.status == .approved }
+    }
 
     init(trip: Binding<Trip>, initialIntent: TripSectionIntent = .overview) {
         self._trip = trip
@@ -18,7 +32,11 @@ struct TripBudgetView: View {
             VStack(spacing: AppTheme.Space.md) {
                 budgetOverviewCard
 
-                if !trip.expenses.isEmpty {
+                if !pendingExpenses.isEmpty {
+                    pendingApprovalCard
+                }
+
+                if !approvedExpenses.isEmpty {
                     expensesByCategoryCard
                 }
 
@@ -159,7 +177,7 @@ struct TripBudgetView: View {
 
     private var expensesByCategory: [(category: ExpenseCategory, total: Decimal)] {
         var totals: [ExpenseCategory: Decimal] = [:]
-        for expense in trip.expenses {
+        for expense in approvedExpenses {
             totals[expense.category, default: 0] += expense.amount
         }
         return totals.map { ($0.key, $0.value) }
@@ -170,7 +188,7 @@ struct TripBudgetView: View {
 
     private var recentExpensesCard: some View {
         TripSectionCard("Expenses", icon: "list.bullet.rectangle") {
-            if trip.expenses.isEmpty {
+            if approvedExpenses.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "creditcard")
                         .font(.system(size: 40))
@@ -192,13 +210,133 @@ struct TripBudgetView: View {
                 .padding(.vertical, 24)
             } else {
                 VStack(spacing: AppTheme.Space.sm) {
-                    ForEach(trip.expenses.sorted(by: { $0.date > $1.date })) { expense in
-                        ExpenseRow(expense: expense) {
-                            editingExpense = expense
-                        } onDelete: {
-                            deleteExpense(expense)
-                        }
+                    ForEach(approvedExpenses.sorted(by: { $0.date > $1.date })) { expense in
+                        ExpenseRow(
+                            expense: expense,
+                            isOnCalendar: expense.calendarEventID != nil,
+                            onEdit: { editingExpense = expense },
+                            onDelete: { deleteExpense(expense) },
+                            onAddToCalendar: expense.calendarEventID == nil ? { addToCalendar(expense) } : nil
+                        )
                     }
+                }
+            }
+        }
+    }
+
+    // MARK: - Pending Approval
+
+    private var pendingApprovalCard: some View {
+        TripSectionCard("Awaiting Approval", icon: "checklist") {
+            VStack(spacing: AppTheme.Space.sm) {
+                HStack {
+                    Text("\(pendingExpenses.count) item\(pendingExpenses.count == 1 ? "" : "s") · \(formatCurrency(pendingTotal))")
+                        .font(AppTheme.TextStyle.captionBold)
+                        .foregroundStyle(AppTheme.onSurfaceVariant)
+                    Spacer()
+                    Button {
+                        HapticManager.selection()
+                        denyAll()
+                    } label: {
+                        Text("Deny All")
+                            .font(AppTheme.TextStyle.captionBold)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .foregroundStyle(AppTheme.negative)
+                            .background(AppTheme.negative.opacity(0.10))
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        HapticManager.notification(.success)
+                        approveAll()
+                    } label: {
+                        Text("Approve All")
+                            .font(AppTheme.TextStyle.captionBold)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .foregroundStyle(.white)
+                            .background(AppTheme.tripGradient)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                ForEach(pendingExpenses) { expense in
+                    PendingExpenseRow(
+                        expense: expense,
+                        onApprove: { approve(expense) },
+                        onDeny: { deny(expense) }
+                    )
+                }
+            }
+        }
+    }
+
+    private var pendingTotal: Decimal {
+        pendingExpenses.reduce(0) { $0 + $1.amount }
+    }
+
+    private func approve(_ expense: Expense) {
+        guard let index = trip.expenses.firstIndex(where: { $0.id == expense.id }) else { return }
+        trip.expenses[index].status = .approved
+        HapticManager.notification(.success)
+    }
+
+    private func deny(_ expense: Expense) {
+        trip.expenses.removeAll { $0.id == expense.id }
+        HapticManager.impact(.light)
+    }
+
+    private func approveAll() {
+        var updated = trip
+        for index in updated.expenses.indices where updated.expenses[index].status == .pending {
+            updated.expenses[index].status = .approved
+        }
+        trip = updated
+    }
+
+    private func denyAll() {
+        trip.expenses.removeAll { $0.status == .pending }
+    }
+
+    // MARK: - Calendar
+
+    private func addToCalendar(_ expense: Expense) {
+        let activity = expense.activityID.flatMap { id in
+            trip.activities.first(where: { $0.id == id })
+        }
+        let hasTime = expense.startTime != nil
+        let event = Event(
+            title: expense.title,
+            date: expense.startTime ?? expense.date,
+            endDate: expense.endTime,
+            location: activity?.location ?? "",
+            locationLatitude: activity?.latitude,
+            locationLongitude: activity?.longitude,
+            address: activity?.address ?? "",
+            notes: expense.notes,
+            category: activity?.category.asEventCategory ?? .general,
+            isAllDay: !hasTime,
+            cost: expense.amount,
+            currency: expense.currency,
+            tripId: trip.id
+        )
+
+        // Optimistically mark linked so the button disables immediately.
+        if let index = trip.expenses.firstIndex(where: { $0.id == expense.id }) {
+            trip.expenses[index].calendarEventID = event.id
+        }
+
+        Task { @MainActor in
+            do {
+                try await eventService.createEvent(event)
+                HapticManager.notification(.success)
+            } catch {
+                // Roll back the link if creation failed.
+                if let index = trip.expenses.firstIndex(where: { $0.id == expense.id }) {
+                    trip.expenses[index].calendarEventID = nil
                 }
             }
         }
@@ -236,8 +374,10 @@ struct TripBudgetView: View {
 
 private struct ExpenseRow: View {
     let expense: Expense
+    let isOnCalendar: Bool
     let onEdit: () -> Void
     let onDelete: () -> Void
+    let onAddToCalendar: (() -> Void)?
 
     private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -269,6 +409,8 @@ private struct ExpenseRow: View {
             Text(formatAmount(expense.amount, currency: expense.currency))
                 .font(.subheadline)
                 .fontWeight(.semibold)
+
+            calendarButton
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
@@ -287,6 +429,119 @@ private struct ExpenseRow: View {
                 Label("Delete", systemImage: "trash")
             }
         }
+    }
+
+    @ViewBuilder
+    private var calendarButton: some View {
+        if isOnCalendar {
+            Image(systemName: "calendar.badge.checkmark")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(AppTheme.secondary)
+                .frame(width: 30, height: 30)
+                .background(AppTheme.secondary.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .accessibilityLabel("On calendar")
+        } else if let onAddToCalendar {
+            Button {
+                HapticManager.selection()
+                onAddToCalendar()
+            } label: {
+                Image(systemName: "calendar.badge.plus")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(AppTheme.onSurfaceVariant)
+                    .frame(width: 30, height: 30)
+                    .background(AppTheme.surfaceContainerHigh)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Add to calendar")
+        }
+    }
+
+    private func formatAmount(_ amount: Decimal, currency: String) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = currency
+        return formatter.string(from: amount as NSNumber) ?? "\(currency) \(amount)"
+    }
+}
+
+// MARK: - Pending Expense Row
+
+private struct PendingExpenseRow: View {
+    let expense: Expense
+    let onApprove: () -> Void
+    let onDeny: () -> Void
+
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .short
+        return f
+    }()
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: expense.category.icon)
+                .font(.system(size: 14))
+                .foregroundStyle(AppTheme.onSurfaceVariant)
+                .frame(width: 28, height: 28)
+                .background(AppTheme.surfaceContainerHigh)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(expense.title)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .lineLimit(1)
+
+                HStack(spacing: 6) {
+                    Text(expense.category.displayName)
+                    Text("·")
+                    Text(Self.dateFormatter.string(from: expense.date))
+                }
+                .font(.caption)
+                .foregroundStyle(AppTheme.onSurfaceVariant)
+            }
+
+            Spacer(minLength: 4)
+
+            Text(formatAmount(expense.amount, currency: expense.currency))
+                .font(.subheadline)
+                .fontWeight(.semibold)
+
+            HStack(spacing: 6) {
+                Button {
+                    HapticManager.impact(.light)
+                    onDeny()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(AppTheme.negative)
+                        .frame(width: 30, height: 30)
+                        .background(AppTheme.negative.opacity(0.12))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Deny")
+
+                Button {
+                    HapticManager.notification(.success)
+                    onApprove()
+                } label: {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 30, height: 30)
+                        .background(AppTheme.tripGradient)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Approve")
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .tripSoftSurface()
     }
 
     private func formatAmount(_ amount: Decimal, currency: String) -> String {

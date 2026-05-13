@@ -170,7 +170,9 @@ struct Trip: Identifiable, Codable, Equatable, Sendable {
     // MARK: - Computed Properties
 
     var totalExpenses: Decimal {
-        expenses.reduce(0) { $0 + $1.amount }
+        expenses
+            .filter { $0.status == .approved }
+            .reduce(0) { $0 + $1.amount }
     }
 
     var remainingBudget: Decimal? {

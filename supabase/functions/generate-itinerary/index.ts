@@ -1,7 +1,10 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { withTimeout } from "../_shared/async.ts";
 import { CORS_HEADERS, jsonResponse } from "../_shared/cors.ts";
 import { AuthError, verifyAuth } from "../_shared/auth.ts";
 import { callGemini } from "../_shared/gemini.ts";
+import { enrichWithPlace } from "../_shared/places.ts";
 import { checkAIRateLimit, RateLimitError } from "../_shared/rate_limit.ts";
 import {
   assertDate,
@@ -11,8 +14,61 @@ import {
   ValidationError,
 } from "../_shared/validate.ts";
 
+/// Per-activity ceiling for the Google Places + Wikipedia enrichment. A slow
+/// upstream resolves to {imageURL: null, websiteURL: null} so generation
+/// latency stays bounded by Gemini, not the side-quest lookups.
+const ENRICH_TIMEOUT_MS = 4000;
+
+interface NormalizedActivity {
+  title: string;
+  date: string;
+  startTime: string | null;
+  endTime: string | null;
+  location: string;
+  address: string;
+  notes: string;
+  category: string;
+  estimatedCost: number | null;
+  latitude: number | null;
+  longitude: number | null;
+  imageURL: string | null;
+  websiteURL: string | null;
+}
+
 const VIBES = ["adventurous", "cultural", "romantic", "family", "party", "solo"];
 const PACES = ["relaxed", "balanced", "packed"];
+
+/// Runs Places enrichment in parallel for every activity and merges the
+/// photo URL + website URL back into a fresh array. Each lookup is bounded
+/// by `ENRICH_TIMEOUT_MS` and degrades to nulls on failure so generation
+/// latency stays predictable.
+async function enrichAllActivities(
+  base: NormalizedActivity[],
+  supabase: SupabaseClient,
+): Promise<NormalizedActivity[]> {
+  const enrichments = await Promise.all(
+    base.map((a) =>
+      withTimeout(
+        enrichWithPlace(
+          {
+            title: a.title,
+            address: a.address,
+            latitude: a.latitude,
+            longitude: a.longitude,
+          },
+          supabase,
+        ),
+        ENRICH_TIMEOUT_MS,
+        { imageURL: null, websiteURL: null },
+      )
+    ),
+  );
+  return base.map((a, i) => ({
+    ...a,
+    imageURL: enrichments[i].imageURL,
+    websiteURL: enrichments[i].websiteURL,
+  }));
+}
 
 function paceGuidance(pace: string | null): { count: string; description: string } {
   switch (pace) {
@@ -190,8 +246,8 @@ ${userInputLines}
       },
     });
 
-    // Normalize activities to guarantee camelCase keys and correct types
-    const activities = (parsed.activities ?? []).map((a: any) => ({
+    // Normalize Gemini output to guarantee camelCase keys and consistent types.
+    const baseActivities: NormalizedActivity[] = (parsed.activities ?? []).map((a: any) => ({
       title: String(a.title ?? ""),
       date: String(a.date ?? ""),
       startTime: a.startTime ?? a.start_time ?? null,
@@ -203,7 +259,11 @@ ${userInputLines}
       estimatedCost: a.estimatedCost ?? a.estimated_cost ?? null,
       latitude: a.latitude != null ? Number(a.latitude) : null,
       longitude: a.longitude != null ? Number(a.longitude) : null,
+      imageURL: null,
+      websiteURL: null,
     }));
+
+    const activities = await enrichAllActivities(baseActivities, supabase);
 
     // ── Persist generation inputs (best-effort) ─────────────────────
     try {

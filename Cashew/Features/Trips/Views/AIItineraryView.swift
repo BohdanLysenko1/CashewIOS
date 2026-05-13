@@ -565,7 +565,14 @@ struct AIItineraryView: View {
 
     private func addToTrip() {
         let newActivities = viewModel.buildSelectedActivities()
-        trip.activities.append(contentsOf: newActivities)
+        let pendingExpenses = newActivities.compactMap { $0.toPendingExpense(tripCurrency: trip.currency) }
+        // Batch both mutations into a single binding write — TripDetailView's
+        // binding persists via an async updateTrip, so back-to-back mutations
+        // would race (the second read sees stale state and clobbers the first).
+        var updated = trip
+        updated.activities.append(contentsOf: newActivities)
+        updated.expenses.append(contentsOf: pendingExpenses)
+        trip = updated
         HapticManager.notification(.success)
         dismiss()
     }
@@ -735,12 +742,30 @@ private struct AIActivityRow: View {
                 .padding(.vertical, 4)
 
             HStack(alignment: .top, spacing: 10) {
-                Image(systemName: category.icon)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.white)
-                    .frame(width: 28, height: 28)
-                    .background(category.color.gradient)
-                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.badgeCornerRadius))
+                if let url = activity.imageURLValue {
+                    RemoteImageView(
+                        url: url,
+                        fallbackSymbol: category.icon,
+                        tint: category.color
+                    )
+                    .frame(width: 56, height: 56)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(alignment: .topLeading) {
+                        Image(systemName: category.icon)
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(4)
+                            .background(category.color.gradient, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                            .padding(4)
+                    }
+                } else {
+                    Image(systemName: category.icon)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.white)
+                        .frame(width: 28, height: 28)
+                        .background(category.color.gradient)
+                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.badgeCornerRadius))
+                }
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(activity.title)

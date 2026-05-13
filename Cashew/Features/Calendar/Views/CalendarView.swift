@@ -3,7 +3,6 @@ import SwiftUI
 struct CalendarView: View {
 
     @Environment(AppContainer.self) private var container
-    @Environment(OnboardingCoordinator.self) private var onboardingCoordinator
     @State private var selectedDate = Date()
     @State private var isLoading = true
     @State private var error: Error?
@@ -626,14 +625,6 @@ struct CalendarView: View {
                 Capsule()
                     .strokeBorder(hasActiveFilters ? AppTheme.warning.opacity(0.3) : Color.clear, lineWidth: 1)
             )
-            .onGeometryChange(for: CGRect.self) { proxy in
-                proxy.frame(in: .global)
-            } action: { frame in
-                onboardingCoordinator.registerFrame(
-                    id: "anchor_calendar_filter",
-                    frame: frame
-                )
-            }
         }
         .buttonStyle(.plain)
     }
@@ -845,5 +836,4 @@ private struct EventDestination: Hashable {
 #Preview {
     CalendarView()
         .environment(AppContainer())
-        .environment(OnboardingCoordinator())
 }

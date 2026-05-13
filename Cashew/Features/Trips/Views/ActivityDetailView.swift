@@ -29,6 +29,9 @@ struct ActivityDetailView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: AppTheme.Space.md) {
+                    if activity.imageURL != nil {
+                        heroImage
+                    }
                     heroCard
                     if activity.latitude != nil && activity.longitude != nil {
                         locationCard
@@ -59,6 +62,25 @@ struct ActivityDetailView: View {
                 ActivityFormView(trip: $trip, activity: activity, defaultDate: activity.date)
             }
         }
+    }
+
+    // MARK: - Hero Image
+
+    private var heroImage: some View {
+        RemoteImageView(
+            url: activity.imageURL,
+            fallbackSymbol: activity.category.icon,
+            tint: AppTheme.onSurfaceVariant,
+            failureSymbolSize: 32
+        )
+        .frame(maxWidth: .infinity)
+        .aspectRatio(16.0 / 9.0, contentMode: .fit)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius, style: .continuous)
+                .strokeBorder(AppTheme.outlineVariant, lineWidth: 1)
+        )
+        .shadow(color: AppTheme.cardShadow, radius: 16, x: 0, y: 6)
     }
 
     // MARK: - Hero Card

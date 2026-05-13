@@ -3,7 +3,6 @@ import SwiftUI
 struct RootView: View {
 
     @Environment(AppContainer.self) private var container
-    @State private var authViewModel: AuthViewModel?
 
     var body: some View {
         Group {
@@ -17,25 +16,13 @@ struct RootView: View {
             } else if container.authService.isAuthenticated {
                 MainTabView()
             } else {
-                authView
+                OnbFlowView()
             }
         }
         .animation(.easeInOut, value: container.authService.isAuthenticated)
         .animation(.easeInOut, value: container.authService.isRecoveringPassword)
         .task(id: container.authService.currentUser?.id) {
             await container.gamificationService.refreshForCurrentUser()
-        }
-    }
-
-    @ViewBuilder
-    private var authView: some View {
-        if let viewModel = authViewModel {
-            AuthView(viewModel: viewModel)
-        } else {
-            Color.clear
-                .onAppear {
-                    authViewModel = container.makeAuthViewModel()
-                }
         }
     }
 }

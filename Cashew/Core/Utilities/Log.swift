@@ -15,6 +15,7 @@ enum Log {
     static let sharing          = Logger(subsystem: subsystem, category: "Sharing")
     static let notifications    = Logger(subsystem: subsystem, category: "Notifications")
     static let imageStore       = Logger(subsystem: subsystem, category: "ImageStore")
+    static let config           = Logger(subsystem: subsystem, category: "Config")
 
     private static let subsystem = Bundle.main.bundleIdentifier ?? "com.cashew.app"
 }
